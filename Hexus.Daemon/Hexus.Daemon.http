@@ -1,0 +1,9 @@
+GET http://localhost:5104/todos/
+Accept: application/json
+
+###
+
+GET http://localhost:5104/todo/3
+Accept: application/json
+
+###
