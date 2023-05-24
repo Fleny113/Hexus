@@ -1,9 +1,11 @@
-GET http://localhost:5104/todos/
+@baseUrl = http://localhost:5104
+
+GET {{baseUrl}}/todos/
 Accept: application/json
 
 ###
 
-GET http://localhost:5104/todo/3
+GET {{baseUrl}}/todo/3
 Accept: application/json
 
 ###

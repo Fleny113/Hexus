@@ -9,4 +9,3 @@ var app = builder.Build();
 app.UseEndpointMapper();
 
 app.Run();
-

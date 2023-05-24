@@ -20,9 +20,9 @@ internal static class TodoGenerator
         (new[] { "Clean the" }, new[] { "bathroom", "pool", "blinds", "car" })
     };
 
-    internal static Todo[] SampleTodos = GenerateTodos().ToArray();
+    internal static readonly Todo[] SampleTodos = GenerateTodos().ToArray();
 
-    internal static IEnumerable<Todo> GenerateTodos(int count = 5)
+    private static IEnumerable<Todo> GenerateTodos(int count = 5)
     {
         var titleCount = Parts.Sum(row => row.Prefixes.Length * row.Suffixes.Length);
         var titleMap = new (int Row, int Prefix, int Suffix)[titleCount];
