@@ -1,11 +1,15 @@
 @baseUrl = http://localhost:5104
 
-GET {{baseUrl}}/todos/
+GET {{baseUrl}}
 Accept: application/json
 
 ###
 
-GET {{baseUrl}}/todo/3
-Accept: application/json
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "test": "Hello world!"
+}
 
 ###
