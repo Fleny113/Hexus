@@ -5,9 +5,11 @@ var builder = WebApplication.CreateSlimBuilder(args);
 
 builder.Configuration.Add<YamlConfigurationSource>(s =>
 {
-    s.Path = "config.yml";
-    s.Optional = true;
     s.SectionRoot = HexusConfiguration.ConfigurationSection;
+    s.Path = HexusConfiguration.ConfigurationFilePath;
+    s.Optional = true;
+
+    s.ResolveFileProvider();
 });
 
 builder.Services.AddOptions<HexusConfiguration>()

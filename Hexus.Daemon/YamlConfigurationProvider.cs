@@ -9,6 +9,7 @@ public sealed class YamlConfigurationSource : FileConfigurationSource
     public override IConfigurationProvider Build(IConfigurationBuilder builder)
     {
         EnsureDefaults(builder);
+
         return new YamlConfigurationProvider(this);
     }
 }
@@ -26,13 +27,13 @@ public sealed class YamlConfigurationProvider : FileConfigurationProvider
     public override void Load(Stream stream)
     {
         var yaml = new YamlStream();
+
         yaml.Load(new StreamReader(stream));
 
-        if (yaml.Documents.Count is <= 0)
+        if (yaml.Documents.Count <= 0)
             return;
 
-        var root = yaml.Documents[0].RootNode;
-        VisitYamlNode(root, Source.SectionRoot);
+        VisitYamlNode(yaml.Documents[0].RootNode, Source.SectionRoot);
     }
 
     private void VisitYamlNode(YamlNode node, string path)
@@ -42,6 +43,7 @@ public sealed class YamlConfigurationProvider : FileConfigurationProvider
             case YamlNodeType.Scalar:
                 Data[path] = ((YamlScalarNode)node).Value;
                 break;
+
             case YamlNodeType.Mapping:
                 var mapping = (YamlMappingNode)node;
 
@@ -51,6 +53,7 @@ public sealed class YamlConfigurationProvider : FileConfigurationProvider
                 }
 
                 break;
+
             case YamlNodeType.Sequence:
                 var sequence = (YamlSequenceNode)node;
 
