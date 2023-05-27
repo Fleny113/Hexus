@@ -3,19 +3,23 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace Hexus.Daemon;
 
-public sealed class HexusConfiguration
+public sealed record HexusConfiguration
 {
-    public static readonly string ConfigurationFilePath = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/.config/hexus.yml";
-    public const string ConfigurationSection = "Hexus";
-
-    public string Test { get; set; } = "Some random string";
-    public required List<string> Array { get; set; }
-    public required NestedHexusConfiguration Object { get; set; }
 
     private static readonly ISerializer _yamlSerializer = new SerializerBuilder()
-        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
+        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitEmptyCollections)
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
+
+    public static readonly string HexusHomeFolder = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}{Path.DirectorySeparatorChar}.hexus";
+    public static readonly string ConfigurationFilePath = $"{HexusHomeFolder}{Path.DirectorySeparatorChar}config.yml";
+    public const string ConfigurationSection = "Hexus";
+
+    public string? UnixSocket { get; set; } = $"{HexusHomeFolder}{Path.DirectorySeparatorChar}hexus.sock";
+    public int HttpPort { get; set; } = -1;
+    public bool Localhost { get; set; } = true;
+
+    public List<HexusApplication> Applications { get; set; } = Enumerable.Empty<HexusApplication>().ToList();
 
     internal void SaveConfigurationToDisk()
     {
@@ -26,10 +30,4 @@ public sealed class HexusConfiguration
         Directory.CreateDirectory(directoryPath);
         File.WriteAllText(ConfigurationFilePath, yaml);
     }
-}
-
-public sealed class NestedHexusConfiguration
-{
-    public required string Path { get; set; }
-    public required string Executable { get; set; }
 }
