@@ -13,7 +13,7 @@ public sealed class NewApplicationEndpoint(IOptions<HexusConfiguration> _options
     {
         var application = Mapper.RequestToApplication(request);
 
-        if (!_processManager.StartNewProcess(application))
+        if (!_processManager.StartApplication(application))
         {
             return TypedResults.StatusCode(500);
         }

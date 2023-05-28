@@ -5,7 +5,7 @@ namespace Hexus.Daemon.Services;
 
 public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger)
 {
-    public bool StartNewProcess(HexusApplication application)
+    public bool StartApplication(HexusApplication application)
     {
         var processInfo = new ProcessStartInfo
         {
@@ -21,7 +21,10 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
 
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
-            StandardInputEncoding = Encoding.UTF8,
+
+            // NOTE: If set to UTF8 it may give issues when using the STDIN
+            //  ASCII seems to solve the issue
+            StandardInputEncoding = Encoding.ASCII,
         };
 
         var process = Process.Start(processInfo) ?? throw new InvalidOperationException("Unable to start the process");
@@ -47,16 +50,15 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
 
     private void HandleDataReceived(object sender, DataReceivedEventArgs e)
     {
-        var process = (Process) sender;
+        if (sender is not Process process)
+            return;
 
         _logger.LogInformation("{PID} says: '{OutputData}'", process.Id, e.Data);
     }
 
     private void HandleProcessExited(object? sender, EventArgs e)
     {
-        var process = (Process?) sender;
-
-        if (process is null)
+        if (sender is not Process process)
             return;
 
         _logger.LogInformation("{PID} has exited with code: {ExitCode}", process.Id, process.ExitCode);

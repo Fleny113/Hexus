@@ -6,6 +6,7 @@
 	<ImplicitUsings>enable</ImplicitUsings>
 	<ServerGarbageCollection>false</ServerGarbageCollection>
 	<InvariantGlobalization>true</InvariantGlobalization>
+	<NuGetAudit>true</NuGetAudit>
 	<LangVersion>preview</LangVersion>
   </PropertyGroup>
 
