@@ -4,7 +4,9 @@
     "Hexus": {
       "commandName": "Project",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        // The urls are setted by UseKestrel in the Program.cs
+        "ASPNETCORE_URLS": ""
       }
     }
   }

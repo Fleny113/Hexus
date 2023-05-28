@@ -13,3 +13,14 @@ Content-Type: application/json
 }
 
 ###
+
+POST {{baseUrl}}/new
+Accept: application/json
+Content-Type: application/json
+
+{
+  "name": "Testing Application",
+  "executable": "C:\\Windows\\System32\\cmd.exe"
+}
+
+###

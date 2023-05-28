@@ -1,5 +1,6 @@
 using EndpointMapper;
 using Hexus.Daemon;
+using Hexus.Daemon.Services;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -21,7 +22,7 @@ builder.WebHost.UseKestrel(options =>
         ?? $"{HexusConfiguration.HexusHomeFolder}/hexus.sock";
     var httpPort = builder.Configuration.GetValue<int?>($"{HexusConfiguration.ConfigurationSection}:{nameof(HexusConfiguration.HttpPort)}") 
         ?? -1;
-    var localhost = builder.Configuration.GetValue<bool?>($"{HexusConfiguration.ConfigurationSection}:{nameof(HexusConfiguration.Localhost)}") 
+    var localhost = builder.Configuration.GetValue<bool?>($"{HexusConfiguration.ConfigurationSection}:{nameof(HexusConfiguration.Localhost)}")
         ?? true;
 
     if (unixSocket is not (null or "none"))
@@ -39,9 +40,16 @@ builder.WebHost.UseKestrel(options =>
         else
             options.ListenAnyIP(httpPort);
     }
+
+    if (builder.Environment.IsDevelopment())
+    {
+        options.ListenLocalhost(5104);
+    }
 });
 
 builder.Services.AddEndpointMapper<Program>();
+
+builder.Services.AddSingleton<ProcessManagerService>();
 
 var app = builder.Build();
 
