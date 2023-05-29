@@ -1,16 +1,7 @@
 @baseUrl = http://localhost:5104
 
-GET {{baseUrl}}
+GET {{baseUrl}}/list
 Accept: application/json
-
-###
-
-POST {{baseUrl}}
-Content-Type: application/json
-
-{
-  "test": "Hello world!"
-}
 
 ###
 
@@ -22,5 +13,21 @@ Content-Type: application/json
   "name": "Testing Application",
   "executable": "C:\\Windows\\System32\\cmd.exe"
 }
+
+###
+
+PUT {{baseUrl}}/1/start
+Accept: application/json
+
+###
+
+DELETE {{baseUrl}}/1/stop
+Accept: application/json
+
+###
+
+DELETE {{baseUrl}}/1/delete
+Accept: application/json
+Content-Type: application/json
 
 ###

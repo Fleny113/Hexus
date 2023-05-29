@@ -1,10 +1,16 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
 
 namespace Hexus.Daemon.Services;
 
 public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger)
 {
+    private readonly ConcurrentDictionary<int, Process> _processes = new();
+
+    /// <summary> Start an instance of the application</summary>
+    /// <param name="application">The application to start</param>
+    /// <returns>Whatever if the application was started or not</returns>
     public bool StartApplication(HexusApplication application)
     {
         var processInfo = new ProcessStartInfo
@@ -27,7 +33,10 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
             StandardInputEncoding = Encoding.ASCII,
         };
 
-        var process = Process.Start(processInfo) ?? throw new InvalidOperationException("Unable to start the process");
+        var process = Process.Start(processInfo);
+
+        if (process is null)
+            return false;
 
         // Enable the emitting of events and the reading of the STDOUT and STDERR
         process.EnableRaisingEvents = true;
@@ -43,10 +52,42 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
         if (!SpinWait.SpinUntil(() => process.Id is > 0, TimeSpan.FromSeconds(30)))
             return false;
 
-        // TODO: to something
+        _processes[application.Id] = process;
 
         return true;
     }
+
+    /// <summary>Stop the instance of an application</summary>
+    /// <param name="id">The id of the application to stop</param>
+    /// <returns>Whatever if the application was stopped or not</returns>
+    public bool StopApplication(int id)
+    {
+        if (!_processes.TryGetValue(id, out var process))
+            return false;
+
+
+        // TODO: on UNIX system try sending a signal and not a SIGKILL
+        //        maybe on windows try sending a SIGINT/SIGBREAK (??)
+        process.Kill();
+
+        if (!_processes.TryRemove(id, out _))
+            return false;
+
+        return true;
+    }
+
+    internal int GetApplicationId() 
+    {
+        int key = 0;
+
+        while (true)
+        {
+            if (!_processes.ContainsKey(++key))
+                return key;
+        }
+    }
+
+    #region Process Handlers
 
     private void HandleDataReceived(object sender, DataReceivedEventArgs e)
     {
@@ -63,4 +104,6 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
 
         _logger.LogInformation("{PID} has exited with code: {ExitCode}", process.Id, process.ExitCode);
     }
+
+    #endregion
 }
