@@ -16,32 +16,29 @@ builder.Configuration.Add<YamlConfigurationSource>(s =>
 builder.Services.AddOptions<HexusConfiguration>()
     .BindConfiguration(HexusConfiguration.ConfigurationSection);
 
-builder.WebHost.UseKestrel(options =>
+builder.WebHost.UseKestrel((context, options) =>
 {
-    var unixSocket = builder.Configuration.GetValue<string?>($"{HexusConfiguration.ConfigurationSection}:{nameof(HexusConfiguration.UnixSocket)}") 
-        ?? $"{HexusConfiguration.HexusHomeFolder}/hexus.sock";
-    var httpPort = builder.Configuration.GetValue<int?>($"{HexusConfiguration.ConfigurationSection}:{nameof(HexusConfiguration.HttpPort)}") 
-        ?? -1;
-    var localhost = builder.Configuration.GetValue<bool?>($"{HexusConfiguration.ConfigurationSection}:{nameof(HexusConfiguration.Localhost)}")
-        ?? true;
+    var config = new HexusConfiguration();
 
-    if (unixSocket is not (null or "none"))
+    context.Configuration.Bind(HexusConfiguration.ConfigurationSection, config);
+
+    if (config.UnixSocket is not (null or "none"))
     {
         // On windows .NET doesn't remove the socket
-        File.Delete(unixSocket);
+        File.Delete(config.UnixSocket);
 
-        options.ListenUnixSocket(unixSocket);
+        options.ListenUnixSocket(config.UnixSocket);
     }
 
-    if (httpPort is not -1)
+    if (config.HttpPort is not -1)
     {
-        if (localhost)
-            options.ListenLocalhost(httpPort);
+        if (config.Localhost)
+            options.ListenLocalhost(config.HttpPort);
         else
-            options.ListenAnyIP(httpPort);
+            options.ListenAnyIP(config.HttpPort);
     }
 
-    if (builder.Environment.IsDevelopment())
+    if (context.HostingEnvironment.IsDevelopment())
     {
         options.ListenLocalhost(5104);
     }

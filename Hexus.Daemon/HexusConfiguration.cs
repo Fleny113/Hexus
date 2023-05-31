@@ -5,7 +5,6 @@ namespace Hexus.Daemon;
 
 public sealed record HexusConfiguration
 {
-
     private static readonly ISerializer _yamlSerializer = new SerializerBuilder()
         .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitEmptyCollections)
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
