@@ -7,8 +7,12 @@ namespace Hexus.Daemon.Endpoints;
 public sealed class StopApplicationEndpoint(ProcessManagerService _processManager) : IEndpoint
 {
     [HttpMapDelete("/{id:int}/stop")]
-    public Results<NoContent, NotFound> Handle(int id)
+    public Results<NoContent, NotFound, BadRequest<object>> Handle(int id)
     {
+        // TODO: use FluentValidation
+        if (!_processManager.IsApplicationRunning(id))
+            return TypedResults.BadRequest<object>(new { Error = "The application is not running" });
+
         if (!_processManager.StopApplication(id))
             return TypedResults.NotFound();
 

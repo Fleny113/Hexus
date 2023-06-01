@@ -8,8 +8,12 @@ namespace Hexus.Daemon.Endpoints;
 public sealed class StartApplicationEndpoint(IOptions<HexusConfiguration> _options, ProcessManagerService _processManager) : IEndpoint
 {
     [HttpMapPut("/{id:int}/start")]
-    public Results<NoContent, NotFound, StatusCodeHttpResult> Handle(int id)
+    public Results<NoContent, NotFound, StatusCodeHttpResult, BadRequest<object>> Handle(int id)
     {
+        // TODO: use FluentValidation
+        if (_processManager.IsApplicationRunning(id))
+            return TypedResults.BadRequest<object>(new { Error = "The application is already running" });
+
         var application = _options.Value.Applications.Find(x => x.Id == id);
 
         if (application is null)

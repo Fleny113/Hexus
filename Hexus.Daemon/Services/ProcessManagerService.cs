@@ -1,10 +1,12 @@
-﻿using System.Collections.Concurrent;
+﻿using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Hexus.Daemon.Services;
 
-public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger)
+public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger, IOptions<HexusConfiguration> _options)
 {
     private readonly ConcurrentDictionary<int, Process> _processes = new();
 
@@ -76,6 +78,8 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
         return true;
     }
 
+    public bool IsApplicationRunning(int id) => _processes.ContainsKey(id);
+
     internal int GetApplicationId() 
     {
         int key = 0;
@@ -103,6 +107,32 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
             return;
 
         _logger.LogInformation("{PID} has exited with code: {ExitCode}", process.Id, process.ExitCode);
+    }
+
+    #endregion
+
+    #region Lifecycle
+
+    /// <summary>
+    /// Start all application managed by Hexus on startup after the WebHost has started
+    /// </summary>
+    internal void ApplicationStartup()
+    {
+        foreach (var application in _options.Value.Applications)
+        {
+            StartApplication(application);
+        }
+    }
+
+    /// <summary>
+    /// Gracefully shutdown all the applications after the WebHost has stopped
+    /// </summary>
+    internal void ApplicationShutdown()
+    {
+        foreach (var process in _processes)
+        {
+            StopApplication(process.Key);
+        }
     }
 
     #endregion

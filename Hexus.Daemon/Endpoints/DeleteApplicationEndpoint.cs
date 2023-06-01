@@ -10,12 +10,14 @@ public sealed class DeleteApplicationEndpoint(IOptions<HexusConfiguration> _opti
     [HttpMapDelete("/{id:int}/delete")]
     public Results<NoContent, NotFound> Handle(int id)
     {
-        if (!_options.Value.Applications.Exists(a => a.Id == id))
+        var application = _options.Value.Applications.Find(a => a.Id == id);
+
+        if (application is null)
             return TypedResults.NotFound();
 
         _processManager.StopApplication(id);
 
-        _options.Value.Applications.RemoveAll(a => a.Id == id);
+        _options.Value.Applications.Remove(application);
         _options.Value.SaveConfigurationToDisk();
 
         return TypedResults.NoContent();

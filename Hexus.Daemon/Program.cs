@@ -50,6 +50,11 @@ builder.Services.AddSingleton<ProcessManagerService>();
 
 var app = builder.Build();
 
+var pmService = app.Services.GetRequiredService<ProcessManagerService>();
+
+app.Lifetime.ApplicationStarted.Register(pmService.ApplicationStartup);
+app.Lifetime.ApplicationStopped.Register(pmService.ApplicationShutdown);
+
 app.UseEndpointMapper();
 
 app.Run();
