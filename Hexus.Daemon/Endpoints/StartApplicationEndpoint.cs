@@ -7,7 +7,7 @@ namespace Hexus.Daemon.Endpoints;
 
 public sealed class StartApplicationEndpoint(IOptions<HexusConfiguration> _options, ProcessManagerService _processManager) : IEndpoint
 {
-    [HttpMapPut("/{id:int}/start")]
+    [HttpMapPost("/{id:int}/start")]
     public Results<NoContent, NotFound, StatusCodeHttpResult, BadRequest<object>> Handle(int id)
     {
         // TODO: use FluentValidation

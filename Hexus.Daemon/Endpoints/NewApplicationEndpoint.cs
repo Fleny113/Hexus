@@ -26,4 +26,4 @@ public sealed class NewApplicationEndpoint(IOptions<HexusConfiguration> _options
 }
 
 // Use FluentValidation to validate the request
-public record struct NewHexusApplicationRequest(string Name, string Executable, string Arguments = "", string WorkingDirectory = "");
+public record NewHexusApplicationRequest(string Name, string Executable, string Arguments = "", string WorkingDirectory = "");

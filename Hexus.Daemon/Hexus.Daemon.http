@@ -1,4 +1,5 @@
 @baseUrl = http://localhost:5104
+@id = 1
 
 GET {{baseUrl}}/list
 Accept: application/json
@@ -16,18 +17,28 @@ Content-Type: application/json
 
 ###
 
-PUT {{baseUrl}}/1/start
+POST {{baseUrl}}/{{id}}/start
 Accept: application/json
 
 ###
 
-DELETE {{baseUrl}}/1/stop
+DELETE {{baseUrl}}/{{id}}/stop
 Accept: application/json
 
 ###
 
-DELETE {{baseUrl}}/1/delete
+DELETE {{baseUrl}}/{{id}}/delete
 Accept: application/json
 Content-Type: application/json
+
+###
+
+POST {{baseUrl}}/{{id}}/stdin
+Accept: application/json
+Content-Type: application/json
+
+{
+  "text": "whoami"
+}
 
 ###

@@ -80,6 +80,25 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
 
     public bool IsApplicationRunning(int id) => _processes.ContainsKey(id);
 
+
+    /// <summary>Send a message into the Standard Input (STDIN) of an application</summary>
+    /// <param name="id">The id of the application</param>
+    /// <param name="text">The text to send into the STDIN</param>
+    /// <param name="newLine">Whatever or not to append an endline to the text</param>
+    /// <returns>Whatever or not if the operation was successful or not</returns>
+    public bool SendToApplication(int id, ReadOnlySpan<char> text, bool newLine = true)
+    {
+        if (!_processes.TryGetValue(id, out var process))
+            return false;
+
+        if (newLine)
+            process.StandardInput.WriteLine(text);
+        else
+            process.StandardInput.Write(text);
+
+        return true;
+    }
+
     internal int GetApplicationId() 
     {
         int key = 0;
