@@ -4,8 +4,8 @@ using Microsoft.Extensions.Options;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class ListApplicationsEndpoint(IOptions<HexusConfiguration> _options) : IEndpoint
+public sealed class ListApplicationsEndpoint(IOptions<HexusConfiguration> options) : IEndpoint
 {
     [HttpMapGet("/list")]
-    public Ok<List<HexusApplication>> Handle() => TypedResults.Ok(_options.Value.Applications);
+    public Ok<List<HexusApplication>> Handle() => TypedResults.Ok(options.Value.Applications);
 }

@@ -5,22 +5,21 @@ using Microsoft.Extensions.Options;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class StartApplicationEndpoint(IOptions<HexusConfiguration> _options, ProcessManagerService _processManager) : IEndpoint
+public sealed class StartApplicationEndpoint(IOptions<HexusConfiguration> options, ProcessManagerService processManager) : IEndpoint
 {
     [HttpMapPost("/{id:int}/start")]
-    public Results<NoContent, NotFound, StatusCodeHttpResult, BadRequest<object>> Handle(int id)
+    public Results<NoContent, NotFound, NotFound<object>, UnprocessableEntity> Handle(int id)
     {
-        // TODO: use FluentValidation
-        if (_processManager.IsApplicationRunning(id))
-            return TypedResults.BadRequest<object>(new { Error = "The application is already running" });
+        if (processManager.IsApplicationRunning(id))
+            return TypedResults.NotFound(Constants.ApplicationIsRunningMessage);
 
-        var application = _options.Value.Applications.Find(x => x.Id == id);
+        var application = options.Value.Applications.Find(x => x.Id == id);
 
         if (application is null)
             return TypedResults.NotFound();
 
-        if (!_processManager.StartApplication(application))
-            return TypedResults.StatusCode(500);
+        if (!processManager.StartApplication(application))
+            return TypedResults.UnprocessableEntity();
 
         return TypedResults.NoContent();
     }

@@ -7,5 +7,5 @@ namespace Hexus.Daemon;
 public static partial class Mapper
 {
     [MapperIgnoreTarget(nameof(HexusApplication.Id))]
-    public static partial HexusApplication RequestToApplication(this NewHexusApplicationRequest request);
+    public static partial HexusApplication MapToApplication(this NewApplicationRequest request);
 }

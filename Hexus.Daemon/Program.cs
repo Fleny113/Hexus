@@ -1,4 +1,5 @@
 using EndpointMapper;
+using FluentValidation;
 using Hexus.Daemon;
 using Hexus.Daemon.Services;
 
@@ -45,6 +46,8 @@ builder.WebHost.UseKestrel((context, options) =>
 });
 
 builder.Services.AddEndpointMapper<Program>();
+
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddSingleton<ProcessManagerService>();
 

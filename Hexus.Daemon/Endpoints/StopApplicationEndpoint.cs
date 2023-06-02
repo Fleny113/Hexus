@@ -4,17 +4,16 @@ using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class StopApplicationEndpoint(ProcessManagerService _processManager) : IEndpoint
+public sealed class StopApplicationEndpoint(ProcessManagerService processManager) : IEndpoint
 {
     [HttpMapDelete("/{id:int}/stop")]
-    public Results<NoContent, NotFound, BadRequest<object>> Handle(int id)
+    public Results<NoContent, UnprocessableEntity, NotFound<object>> Handle(int id)
     {
-        // TODO: use FluentValidation
-        if (!_processManager.IsApplicationRunning(id))
-            return TypedResults.BadRequest<object>(new { Error = "The application is not running" });
+        if (!processManager.IsApplicationRunning(id))
+            return TypedResults.NotFound(Constants.ApplicationIsNotRunningMessage);
 
-        if (!_processManager.StopApplication(id))
-            return TypedResults.NotFound();
+        if (!processManager.StopApplication(id))
+            return TypedResults.UnprocessableEntity();
 
         return TypedResults.NoContent();
     }
