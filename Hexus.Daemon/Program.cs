@@ -25,6 +25,9 @@ builder.WebHost.UseKestrel((context, options) =>
 
     if (config.UnixSocket is not (null or "none"))
     {
+        var directory = Path.GetDirectoryName(config.UnixSocket) ?? throw new Exception("Unable to fetch the directory name for the UNIX socket file location");
+        Directory.CreateDirectory(directory);
+
         // On windows .NET doesn't remove the socket
         File.Delete(config.UnixSocket);
 
