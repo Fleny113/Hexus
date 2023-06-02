@@ -1,12 +1,14 @@
 ﻿using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace Hexus.Daemon.Services;
 
-public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger, IOptions<HexusConfiguration> _options)
+public partial class ProcessManagerService(ILogger<ProcessManagerService> _logger, IOptions<HexusConfiguration> _options)
 {
     private readonly ConcurrentDictionary<int, Process> _processes = new();
 
@@ -67,10 +69,7 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
         if (!_processes.TryGetValue(id, out var process))
             return false;
 
-
-        // TODO: on UNIX system try sending a signal and not a SIGKILL
-        //        maybe on windows try sending a SIGINT/SIGBREAK (??)
-        process.Kill();
+        KillProcessCore(process);
 
         if (!_processes.TryRemove(id, out _))
             return false;
@@ -107,6 +106,32 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
         {
             if (!_processes.ContainsKey(++key))
                 return key;
+        }
+    }
+
+    private static void KillProcessCore(Process process)
+    {
+        try
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                // TODO: check if it actually works
+                UnixKill(process.Id, UnixSignals.SIGINT);
+            }
+            else
+                WindowsKill((uint)process.Id, WindowsSignals.SIGINT);
+        }
+        catch
+        {
+            // Independently from the exception, stop the process forcefully
+            process.Kill();
+        }
+
+        // Wait up to 30 seconds for the process to stop
+        if (!SpinWait.SpinUntil(() => process.HasExited, TimeSpan.FromSeconds(30)))
+        {
+            // If after 30 seconds the process hasn't stopped, kill it forcefully
+            process.Kill(true);
         }
     }
 
@@ -153,6 +178,58 @@ public sealed class ProcessManagerService(ILogger<ProcessManagerService> _logger
             StopApplication(process.Key);
         }
     }
+
+    #endregion
+
+    #region Interop (LibraryImport)
+
+    // UNIX signals
+    private enum UnixSignals : int
+    {
+        SIGHUP = 1,     // Hangup
+        SIGINT = 2,     // Interrupt 
+        SIGQUIT = 3,    // Quit
+        SIGILL = 4,     // Illegal instruction 
+        SIGTRAP = 5,    // Trace trap 
+        SIGABRT = 6,    // Abort 
+        SIGBUS = 7,     // BUS error
+        SIGFPE = 8,     // Floating-point exception
+        SIGKILL = 9,    // UnixKill, unblockable
+        SIGUSR1 = 10,   // User-defined signal 1
+        SIGSEGV = 11,   // Segmentation violation
+        SIGUSR2 = 12,   // User-defined signal 2 
+        SIGPIPE = 13,   // Broken pipe
+        SIGALRM = 14,   // Alarm clock
+        SIGTERM = 15,   // Termination 
+        SIGCHLD = 16,   // Child status has changed
+        SIGCONT = 17,   // Continue
+        SIGSTOP = 18,   // Stop, unblockable
+        SIGTSTP = 19,   // Keyboard stop
+        SIGTTIN = 20,   // Background read from tty
+        SIGTTOU = 21,   // Background write to tty
+        SIGURG = 22,    // Urgent condition on socket
+        SIGXCPU = 23,   // CPU limit exceeded
+        SIGXFSZ = 24,   // File size limit exceeded
+        SIGVTALRM = 25, // Virtual alarm clock
+        SIGPROF = 26,   // Profiling alarm clock
+        SIGWINCH = 27,  // Window size change
+        SIGPOLL = 28,   // I/O now possible
+        SIGSYS = 30,    // Bad system call.
+    }
+
+    private enum WindowsSignals : uint
+    {
+        SIGINT = 0,     // Interrupt (CTRL + C)
+        SIGBREAK = 1,   // Break     (CTRL + Break)
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    [LibraryImport("libSystem.Native", EntryPoint = "SystemNative_Kill", SetLastError = true)]
+    private static partial int UnixKill(int pid, UnixSignals signal);
+
+    [SupportedOSPlatform("windows")]
+    [LibraryImport("windows-kill", EntryPoint = "?sendSignal@WindowsKillLibrary@@YAXKK@Z", SetLastError = true)]
+    private static partial void WindowsKill(uint pid, WindowsSignals signal);
 
     #endregion
 }
