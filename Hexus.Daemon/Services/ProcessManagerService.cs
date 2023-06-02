@@ -8,7 +8,7 @@ using static System.Net.Mime.MediaTypeNames;
 
 namespace Hexus.Daemon.Services;
 
-public partial class ProcessManagerService(ILogger<ProcessManagerService> _logger, IOptions<HexusConfiguration> _options)
+public partial class ProcessManagerService(ILogger<ProcessManagerService> logger, IOptions<HexusConfiguration> options)
 {
     private readonly ConcurrentDictionary<int, Process> _processes = new();
 
@@ -109,20 +109,19 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> _logge
         }
     }
 
-    private static void KillProcessCore(Process process)
+    private void KillProcessCore(Process process)
     {
         try
         {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                // TODO: check if it actually works
-                UnixKill(process.Id, UnixSignals.SIGINT);
-            }
-            else
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 WindowsKill((uint)process.Id, WindowsSignals.SIGINT);
+            else
+                UnixKill(process.Id, UnixSignals.SIGINT);
         }
-        catch
+        catch (Exception e)
         {
+            logger.LogDebug(e, "Error during the stop of a process");
+
             // Independently from the exception, stop the process forcefully
             process.Kill();
         }
@@ -142,7 +141,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> _logge
         if (sender is not Process process)
             return;
 
-        _logger.LogInformation("{PID} says: '{OutputData}'", process.Id, e.Data);
+        logger.LogInformation("{PID} says: '{OutputData}'", process.Id, e.Data);
     }
 
     private void HandleProcessExited(object? sender, EventArgs e)
@@ -150,7 +149,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> _logge
         if (sender is not Process process)
             return;
 
-        _logger.LogInformation("{PID} has exited with code: {ExitCode}", process.Id, process.ExitCode);
+        logger.LogInformation("{PID} has exited with code: {ExitCode}", process.Id, process.ExitCode);
     }
 
     #endregion
@@ -162,7 +161,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> _logge
     /// </summary>
     internal void ApplicationStartup()
     {
-        foreach (var application in _options.Value.Applications)
+        foreach (var application in options.Value.Applications)
         {
             StartApplication(application);
         }
@@ -183,7 +182,6 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> _logge
 
     #region Interop (LibraryImport)
 
-    // UNIX signals
     private enum UnixSignals : int
     {
         SIGHUP = 1,     // Hangup
@@ -224,7 +222,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> _logge
     }
 
     [UnsupportedOSPlatform("windows")]
-    [LibraryImport("libSystem.Native", EntryPoint = "SystemNative_Kill", SetLastError = true)]
+    [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
     private static partial int UnixKill(int pid, UnixSignals signal);
 
     [SupportedOSPlatform("windows")]
