@@ -36,5 +36,4 @@ public sealed class NewApplicationEndpoint(
     }
 }
 
-// Use FluentValidation to validate the request
 public sealed record NewApplicationRequest(string Name, string Executable, string Arguments = "", string WorkingDirectory = "");
