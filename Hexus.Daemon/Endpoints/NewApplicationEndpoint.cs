@@ -1,16 +1,14 @@
 ﻿using EndpointMapper;
 using FluentValidation;
 using Hexus.Daemon.Services;
-using Hexus.Daemon.Validators;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Options;
 
 namespace Hexus.Daemon.Endpoints;
 
 public sealed class NewApplicationEndpoint(
-    IOptions<HexusConfiguration> options, 
+    IOptions<HexusConfiguration> options,
     ProcessManagerService processManager,
     IValidator<NewApplicationRequest> validator) : IEndpoint
 {

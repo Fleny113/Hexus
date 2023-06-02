@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Hexus.Daemon.Services;
 
@@ -71,14 +70,10 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
         KillProcessCore(process);
 
-        if (!_processes.TryRemove(id, out _))
-            return false;
-
-        return true;
+        return _processes.TryRemove(id, out _);
     }
 
     public bool IsApplicationRunning(int id) => _processes.ContainsKey(id);
-
 
     /// <summary>Send a message into the Standard Input (STDIN) of an application</summary>
     /// <param name="id">The id of the application</param>
@@ -98,9 +93,9 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         return true;
     }
 
-    internal int GetApplicationId() 
+    internal int GetApplicationId()
     {
-        int key = 0;
+        var key = 0;
 
         while (true)
         {
