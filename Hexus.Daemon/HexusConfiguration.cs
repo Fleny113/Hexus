@@ -8,6 +8,7 @@ public sealed record HexusConfiguration
     private static readonly ISerializer _yamlSerializer = new SerializerBuilder()
         .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitEmptyCollections)
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .WithIndentedSequences()
         .Build();
 
     public static readonly string HexusHomeFolder = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}{Path.DirectorySeparatorChar}.hexus";
