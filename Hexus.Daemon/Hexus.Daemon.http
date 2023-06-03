@@ -12,7 +12,7 @@ Content-Type: application/json
 
 {
   "name": "Testing Application",
-  "executable": "C:\\Windows\\System32\\notepad.exe",
+  "executable": "C:\\Windows\\System32\\ping.exe",
   "arguments": "-t www.bing.com"
 }
 
