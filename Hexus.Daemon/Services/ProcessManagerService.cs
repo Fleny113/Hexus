@@ -154,11 +154,17 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         logger.LogInformation("{PID} says: '{OutputData}'", process.Id, e.Data);
     }
 
-    private async void HandleProcessExited(object? sender, EventArgs e)
+    private void HandleProcessExited(object? sender, EventArgs e)
     {
         if (sender is not Process process)
             return;
 
+        // Fire and forget
+        _ = HandleProcessExitedAsync(process);
+    }
+
+    private async Task HandleProcessExitedAsync(Process process)
+    {
         logger.LogInformation("{PID} has exited with code: {ExitCode}, Waiting to restart...", process.Id, process.ExitCode);
 
         await Task.Delay(TimeSpan.FromSeconds(5));
