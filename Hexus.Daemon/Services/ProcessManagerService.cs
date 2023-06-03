@@ -55,6 +55,8 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         if (!SpinWait.SpinUntil(() => process.Id is > 0, TimeSpan.FromSeconds(30)))
             return false;
 
+        application.Status = HexusApplicationStatus.Operating;
+
         _processes[application.Id] = process;
 
         return true;
@@ -65,10 +67,17 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
     /// <returns>Whatever if the application was stopped or not</returns>
     public bool StopApplication(int id)
     {
+        var application = options.Value.Applications.Find(x => x.Id == id);
+
+        if (application is not { Status: HexusApplicationStatus.Operating })
+            return false;
+
         if (!_processes.TryGetValue(id, out var process))
             return false;
 
         KillProcessCore(process);
+
+        application.Status = HexusApplicationStatus.Exited;
 
         return _processes.TryRemove(id, out _);
     }
@@ -158,6 +167,9 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
     {
         foreach (var application in options.Value.Applications)
         {
+            if (application is { Status: not HexusApplicationStatus.Operating })
+                continue;
+
             StartApplication(application);
         }
     }

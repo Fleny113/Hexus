@@ -12,7 +12,7 @@ Content-Type: application/json
 
 {
   "name": "Testing Application",
-  "executable": "C:\\Windows\\System32\\cmd.exe"
+  "executable": "C:\\Windows\\notepad.exe"
 }
 
 ###

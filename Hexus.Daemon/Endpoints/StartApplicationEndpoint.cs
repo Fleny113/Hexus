@@ -21,6 +21,8 @@ public sealed class StartApplicationEndpoint(IOptions<HexusConfiguration> option
         if (!processManager.StartApplication(application))
             return TypedResults.UnprocessableEntity();
 
+        options.Value.SaveConfigurationToDisk();
+
         return TypedResults.NoContent();
     }
 }
