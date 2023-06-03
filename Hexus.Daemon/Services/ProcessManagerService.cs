@@ -50,7 +50,9 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         // Register callbacks
         process.OutputDataReceived += HandleDataReceived;
         process.ErrorDataReceived += HandleDataReceived;
-        process.Exited += HandleProcessExited;
+
+        process.Exited += AcknowledgeProcessExit;
+        process.Exited += HandleProcessRestart;
 
         // Wait for the process to start (with a timeout of 30 seconds)
         if (!SpinWait.SpinUntil(() => process.Id is > 0, TimeSpan.FromSeconds(30)))
@@ -79,13 +81,15 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
             return false;
 
         // Remove the Exit event handler as it will restart the process as soon as it stops
-        process.Exited -= HandleProcessExited;
+        process.Exited -= HandleProcessRestart;
 
         KillProcessCore(process);
 
         application.Status = HexusApplicationStatus.Exited;
 
-        return _processes.TryRemove(id, out _) && _applications.TryRemove(process, out _);
+        process.Close();
+
+        return true;
     }
 
     public bool IsApplicationRunning(int id) => _processes.ContainsKey(id);
@@ -114,7 +118,9 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
         while (true)
         {
-            if (!_processes.ContainsKey(++key))
+            key++;
+
+            if (!options.Value.Applications.Any(x => x.Id == key))
                 return key;
         }
     }
@@ -154,26 +160,105 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         logger.LogInformation("{PID} says: '{OutputData}'", process.Id, e.Data);
     }
 
-    private void HandleProcessExited(object? sender, EventArgs e)
+    #region Exit handlers
+
+    private const int _maxRestarts = 10;
+
+    // If the application can't live for more then 30 seconds, after the 10 attempts to restart it, it will be considerate crashed
+    private static readonly TimeSpan _resetTimeWindow = TimeSpan.FromSeconds(30);
+
+    private readonly ConcurrentDictionary<int, (int Restarts, CancellationTokenSource Cts)> _consequentialRestarts = new();
+
+    private void AcknowledgeProcessExit(object? sender, EventArgs e)
     {
-        if (sender is not Process process)
+        if (sender is not Process process || !_applications.TryGetValue(process, out var application))
+            return;
+
+        _processes.TryRemove(application.Id, out _);
+        
+        application.Status = HexusApplicationStatus.Exited;
+        options.Value.SaveConfigurationToDisk();
+
+        logger.LogDebug("Acknowledging about {Id} exiting with code: {ExitCode} [{PID}]", application.Id, process.ExitCode, process.Id);
+    }
+
+    private void HandleProcessRestart(object? sender, EventArgs e)
+    {
+        if (sender is not Process process || !_applications.TryGetValue(process, out var application))
             return;
 
         // Fire and forget
-        _ = HandleProcessExitedAsync(process);
+        _ = HandleProcessRestartCoreAsync(application);
     }
 
-    private async Task HandleProcessExitedAsync(Process process)
+    private async Task HandleProcessRestartCoreAsync(HexusApplication application)
     {
-        logger.LogInformation("{PID} has exited with code: {ExitCode}, Waiting to restart...", process.Id, process.ExitCode);
+        if (_consequentialRestarts.TryGetValue(application.Id, out var tuple))
+        {
+            tuple.Restarts++;
+            tuple.Cts.Dispose();
+            tuple.Cts = new CancellationTokenSource(_resetTimeWindow);
+        }
+        else
+            tuple = (1, new CancellationTokenSource(_resetTimeWindow));
 
-        await Task.Delay(TimeSpan.FromSeconds(5));
+        var (restarts, cts) = tuple;
 
-        if (!_applications.TryRemove(process, out var application))
+        if (restarts > _maxRestarts)
+        {
+            logger.LogWarning("Application {Id} has exited for {maxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed", 
+                application.Id, restarts, _resetTimeWindow.TotalSeconds);
+
+            application.Status = HexusApplicationStatus.Crashed;
+
+            cts.Dispose();
+            _consequentialRestarts.TryRemove(application.Id, out _);
+
+            options.Value.SaveConfigurationToDisk();
+
             return;
+        }
+
+        var delay = CalculateDelay(restarts);
+        cts.Token.Register(ResetConsequentialRestarts, application.Id);
+
+        _consequentialRestarts[application.Id] = (restarts, cts);
+
+        logger.LogDebug("Attempting to restart application {Id}, waiting for {Seconds} seconds before restarting", application.Id, delay.TotalSeconds);
+
+        await Task.Delay(delay);
 
         StartApplication(application);
+
+        options.Value.SaveConfigurationToDisk();
     }
+
+    private void ResetConsequentialRestarts(object? state)
+    {
+        if (state is not int id)
+            return;
+
+        _consequentialRestarts.TryRemove(id, out var tuple);
+
+        tuple.Cts.Dispose();
+
+        logger.LogDebug("After {Restarts} restarts, application {Id} stopped restarting", tuple.Restarts, id);
+    }
+
+    private static TimeSpan CalculateDelay(int restart)
+    {
+        return restart switch
+        {
+            1 or 2 or 3 => TimeSpan.Zero,
+            4 or 5 => TimeSpan.FromSeconds(1),
+            6 or 7 => TimeSpan.FromSeconds(2),
+            8 or 9 => TimeSpan.FromSeconds(4),
+            10 => TimeSpan.FromSeconds(8),
+            _ => throw new ArgumentOutOfRangeException(nameof(restart))
+        };
+    }
+
+    #endregion
 
     #endregion
 
