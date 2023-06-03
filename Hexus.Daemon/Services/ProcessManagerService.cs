@@ -10,6 +10,7 @@ namespace Hexus.Daemon.Services;
 public partial class ProcessManagerService(ILogger<ProcessManagerService> logger, IOptions<HexusConfiguration> options)
 {
     private readonly ConcurrentDictionary<int, Process> _processes = new();
+    private readonly ConcurrentDictionary<Process, HexusApplication> _applications = new();
 
     /// <summary> Start an instance of the application</summary>
     /// <param name="application">The application to start</param>
@@ -58,6 +59,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         application.Status = HexusApplicationStatus.Operating;
 
         _processes[application.Id] = process;
+        _applications[process] = application;
 
         return true;
     }
@@ -67,19 +69,23 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
     /// <returns>Whatever if the application was stopped or not</returns>
     public bool StopApplication(int id)
     {
-        var application = options.Value.Applications.Find(x => x.Id == id);
+        if (!_processes.TryGetValue(id, out var process))
+            return false;
+
+        if (!_applications.TryGetValue(process, out var application))
+            return false;
 
         if (application is not { Status: HexusApplicationStatus.Operating })
             return false;
 
-        if (!_processes.TryGetValue(id, out var process))
-            return false;
+        // Remove the Exit event handler as it will restart the process as soon as it stops
+        process.Exited -= HandleProcessExited;
 
         KillProcessCore(process);
 
         application.Status = HexusApplicationStatus.Exited;
 
-        return _processes.TryRemove(id, out _);
+        return _processes.TryRemove(id, out _) && _applications.TryRemove(process, out _);
     }
 
     public bool IsApplicationRunning(int id) => _processes.ContainsKey(id);
@@ -148,12 +154,19 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         logger.LogInformation("{PID} says: '{OutputData}'", process.Id, e.Data);
     }
 
-    private void HandleProcessExited(object? sender, EventArgs e)
+    private async void HandleProcessExited(object? sender, EventArgs e)
     {
         if (sender is not Process process)
             return;
 
-        logger.LogInformation("{PID} has exited with code: {ExitCode}", process.Id, process.ExitCode);
+        logger.LogInformation("{PID} has exited with code: {ExitCode}, Waiting to restart...", process.Id, process.ExitCode);
+
+        await Task.Delay(TimeSpan.FromSeconds(5));
+
+        if (!_applications.TryRemove(process, out var application))
+            return;
+
+        StartApplication(application);
     }
 
     #endregion

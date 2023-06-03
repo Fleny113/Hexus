@@ -12,7 +12,8 @@ Content-Type: application/json
 
 {
   "name": "Testing Application",
-  "executable": "C:\\Windows\\notepad.exe"
+  "executable": "C:\\Windows\\System32\\notepad.exe",
+  "arguments": "-t www.bing.com"
 }
 
 ###
