@@ -80,7 +80,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         if (application is not { Status: HexusApplicationStatus.Operating })
             return false;
 
-        // Remove the Exit event handler as it will restart the process as soon as it stops
+        // Remove the restart event handler, as it will restart the process as soon as it stops
         process.Exited -= HandleProcessRestart;
 
         KillProcessCore(process);
@@ -154,10 +154,14 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     private void HandleDataReceived(object sender, DataReceivedEventArgs e)
     {
-        if (sender is not Process process)
+        if (sender is not Process process || !_applications.TryGetValue(process, out var application))
             return;
 
-        logger.LogInformation("{PID} says: '{OutputData}'", process.Id, e.Data);
+        var dirInfo = Directory.CreateDirectory($"{HexusConfiguration.HexusHomeFolder}/Logs");
+
+        File.AppendAllText($"{dirInfo.FullName}/{application.Name}.log", $"{e.Data}\n");
+
+        logger.LogTrace("{PID} says: '{OutputData}'", process.Id, e.Data);
     }
 
     #region Exit handlers
