@@ -157,11 +157,14 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         if (sender is not Process process || !_applications.TryGetValue(process, out var application))
             return;
 
-        var dirInfo = Directory.CreateDirectory($"{HexusConfiguration.HexusHomeFolder}/Logs");
-
-        File.AppendAllText($"{dirInfo.FullName}/{application.Name}.log", $"{e.Data}\n");
-
         logger.LogTrace("{PID} says: '{OutputData}'", process.Id, e.Data);
+
+        lock (application)
+        {
+            var dirInfo = Directory.CreateDirectory($"{HexusConfiguration.HexusHomeFolder}/Logs");
+
+            File.AppendAllText($"{dirInfo.FullName}/{application.Name}.log", $"{e.Data}\n");
+        }
     }
 
     #region Exit handlers

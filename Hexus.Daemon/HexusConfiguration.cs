@@ -11,11 +11,11 @@ public sealed record HexusConfiguration
         .WithIndentedSequences()
         .Build();
 
-    public static readonly string HexusHomeFolder = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}{Path.DirectorySeparatorChar}.hexus";
-    public static readonly string ConfigurationFilePath = $"{HexusHomeFolder}{Path.DirectorySeparatorChar}config.yml";
+    public static readonly string HexusHomeFolder = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/.hexus";
+    public static readonly string ConfigurationFilePath = $"{HexusHomeFolder}/config.yml";
     public const string ConfigurationSection = "Hexus";
 
-    public string? UnixSocket { get; set; } = $"{HexusHomeFolder}{Path.DirectorySeparatorChar}hexus.sock";
+    public string? UnixSocket { get; set; } = $"{HexusHomeFolder}/hexus.sock";
     public int HttpPort { get; set; } = -1;
     public bool Localhost { get; set; } = true;
 
