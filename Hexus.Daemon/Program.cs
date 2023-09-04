@@ -48,8 +48,6 @@ builder.WebHost.UseKestrel((context, options) =>
     }
 });
 
-builder.Services.AddEndpointMapper<Program>();
-
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddSingleton<ProcessManagerService>();
@@ -61,6 +59,6 @@ var pmService = app.Services.GetRequiredService<ProcessManagerService>();
 app.Lifetime.ApplicationStarted.Register(pmService.ApplicationStartup);
 app.Lifetime.ApplicationStopped.Register(pmService.ApplicationShutdown);
 
-app.UseEndpointMapper();
+app.MapEndpointMapperEndpoints();
 
 app.Run();

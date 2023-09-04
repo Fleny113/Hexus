@@ -7,13 +7,14 @@ using Microsoft.Extensions.Options;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class NewApplicationEndpoint(
-    IOptions<HexusConfiguration> options,
-    ProcessManagerService processManager,
-    IValidator<NewApplicationRequest> validator) : IEndpoint
+public sealed class NewApplicationEndpoint : IEndpoint
 {
-    [HttpMapPost("/new")]
-    public Results<Ok<HexusApplication>, ValidationProblem, UnprocessableEntity> Handle([FromBody] NewApplicationRequest request)
+    [HttpMap(HttpMapMethod.Post, "/new")]
+    public static Results<Ok<HexusApplication>, ValidationProblem, UnprocessableEntity> Handle(
+        [FromBody] NewApplicationRequest request,
+        [FromServices] IOptions<HexusConfiguration> options,
+        [FromServices] ProcessManagerService processManager,
+        [FromServices] IValidator<NewApplicationRequest> validator)
     {
         var context = validator.Validate(request);
 

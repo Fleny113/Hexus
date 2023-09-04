@@ -7,13 +7,14 @@
 		<ServerGarbageCollection>false</ServerGarbageCollection>
 		<InvariantGlobalization>true</InvariantGlobalization>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<Features>InterceptorsPreview</Features>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="EndpointMapper" Version="2.0.0-prerelease.2" />
+		<PackageReference Include="EndpointMapper" Version="2.0.0-prerelease.3" />
 		<PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
-		<PackageReference Include="Riok.Mapperly" Version="2.8.0" />
-		<PackageReference Include="YamlDotNet" Version="13.1.0" />
+		<PackageReference Include="Riok.Mapperly" Version="3.2.0-next.1" />
+		<PackageReference Include="YamlDotNet" Version="13.3.1" />
 	</ItemGroup>
 
 	<ItemGroup>

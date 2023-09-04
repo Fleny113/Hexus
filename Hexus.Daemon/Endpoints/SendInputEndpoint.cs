@@ -2,13 +2,18 @@
 using FluentValidation;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class SendInputEndpoint(ProcessManagerService processManager, IValidator<SendInputRequest> validator) : IEndpoint
+public sealed class SendInputEndpoint : IEndpoint
 {
-    [HttpMapPost("/{id:int}/stdin")]
-    public Results<NoContent, NotFound<object>, BadRequest, ValidationProblem> Handle(int id, SendInputRequest request)
+    [HttpMap(HttpMapMethod.Post, "/{id:int}/stdin")]
+    public static Results<NoContent, NotFound<object>, BadRequest, ValidationProblem> Handle(
+        [FromRoute] int id, 
+        [FromBody] SendInputRequest request,
+        [FromServices] ProcessManagerService processManager, 
+        [FromServices] IValidator<SendInputRequest> validator)
     {
         var context = validator.Validate(request);
 
