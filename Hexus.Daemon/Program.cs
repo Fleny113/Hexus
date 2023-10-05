@@ -1,45 +1,33 @@
 using EndpointMapper;
 using FluentValidation;
-using Hexus.Daemon;
+using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Services;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
-builder.Configuration.Add<YamlConfigurationSource>(s =>
-{
-    s.SectionRoot = HexusConfiguration.ConfigurationSection;
-    s.Path = HexusConfiguration.ConfigurationFilePath;
-    s.Optional = true;
+var configurationManager = new HexusConfigurationManager();
 
-    s.ResolveFileProvider();
-});
-
-builder.Services.AddOptions<HexusConfiguration>()
-    .BindConfiguration(HexusConfiguration.ConfigurationSection);
+builder.Services.AddSingleton(configurationManager);
+builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
 
 builder.WebHost.UseKestrel((context, options) =>
 {
-    var config = new HexusConfiguration();
-
-    context.Configuration.Bind(HexusConfiguration.ConfigurationSection, config);
-
-    if (config.UnixSocket is not (null or "none"))
+    if (configurationManager.Configuration.UnixSocket is not (null or "none"))
     {
-        var directory = Path.GetDirectoryName(config.UnixSocket) ?? throw new Exception("Unable to fetch the directory name for the UNIX socket file location");
+        var directory = Path.GetDirectoryName(configurationManager.Configuration.UnixSocket) 
+            ?? throw new Exception("Unable to fetch the directory name for the UNIX socket file location");
+
         Directory.CreateDirectory(directory);
 
         // On windows .NET doesn't remove the socket
-        File.Delete(config.UnixSocket);
+        File.Delete(configurationManager.Configuration.UnixSocket);
 
-        options.ListenUnixSocket(config.UnixSocket);
+        options.ListenUnixSocket(configurationManager.Configuration.UnixSocket);
     }
 
-    if (config.HttpPort is not -1)
+    if (configurationManager.Configuration.HttpPort is not -1)
     {
-        if (config.Localhost)
-            options.ListenLocalhost(config.HttpPort);
-        else
-            options.ListenAnyIP(config.HttpPort);
+        options.ListenLocalhost(configurationManager.Configuration.HttpPort);
     }
 
     if (context.HostingEnvironment.IsDevelopment())

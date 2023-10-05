@@ -1,4 +1,5 @@
 ﻿using EndpointMapper;
+using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -8,21 +9,19 @@ namespace Hexus.Daemon.Endpoints;
 
 public sealed class DeleteApplicationEndpoint : IEndpoint
 {
-    [HttpMap(HttpMapMethod.Delete, "/{id:int}/delete")]
+    [HttpMap(HttpMapMethod.Delete, "/{name}/delete")]
     public static Results<NoContent, NotFound> Handle(
-        [FromRoute] int id,
-        [FromServices] IOptions<HexusConfiguration> options,
-        [FromServices] ProcessManagerService processManager) 
+        [FromRoute] string name,
+        [FromServices] HexusConfigurationManager configManager,
+        [FromServices] ProcessManagerService processManager)
     {
-        var application = options.Value.Applications.Find(a => a.Id == id);
-
-        if (application is null)
+        if (!configManager.Configuration.Applications.ContainsKey(name))
             return TypedResults.NotFound();
 
-        processManager.StopApplication(id);
+        processManager.StopApplication(name);
 
-        options.Value.Applications.Remove(application);
-        options.Value.SaveConfigurationToDisk();
+        configManager.Configuration.Applications.Remove(name);
+        configManager.SaveConfiguration();
 
         return TypedResults.NoContent();
     }

@@ -1,5 +1,6 @@
 ﻿using EndpointMapper;
 using FluentValidation;
+using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +13,7 @@ public sealed class NewApplicationEndpoint : IEndpoint
     [HttpMap(HttpMapMethod.Post, "/new")]
     public static Results<Ok<HexusApplication>, ValidationProblem, UnprocessableEntity> Handle(
         [FromBody] NewApplicationRequest request,
-        [FromServices] IOptions<HexusConfiguration> options,
+        [FromServices] HexusConfigurationManager configManager,
         [FromServices] ProcessManagerService processManager,
         [FromServices] IValidator<NewApplicationRequest> validator)
     {
@@ -23,13 +24,11 @@ public sealed class NewApplicationEndpoint : IEndpoint
 
         var application = request.MapToApplication();
 
-        application.Id = processManager.GetApplicationId();
-
         if (!processManager.StartApplication(application))
             return TypedResults.UnprocessableEntity();
 
-        options.Value.Applications.Add(application);
-        options.Value.SaveConfigurationToDisk();
+        configManager.Configuration.Applications.Add(application.Name, application);
+        configManager.SaveConfiguration();
 
         return TypedResults.Ok(application);
     }

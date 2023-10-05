@@ -1,26 +1,26 @@
 ﻿using EndpointMapper;
+using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace Hexus.Daemon.Endpoints;
 
 public sealed class StopApplicationEndpoint : IEndpoint
 {
-    [HttpMap(HttpMapMethod.Delete, "/{id:int}/stop")]
+    [HttpMap(HttpMapMethod.Delete, "/{name}/stop")]
     public static Results<NoContent, UnprocessableEntity, NotFound<object>> Handle(
-        [FromRoute] int id,
-        [FromServices] IOptions<HexusConfiguration> options, 
+        [FromRoute] string name,
+        [FromServices] HexusConfigurationManager options, 
         [FromServices] ProcessManagerService processManager)
     {
-        if (!processManager.IsApplicationRunning(id))
+        if (!processManager.IsApplicationRunning(name))
             return TypedResults.NotFound(Constants.ApplicationIsNotRunningMessage);
 
-        if (!processManager.StopApplication(id))
+        if (!processManager.StopApplication(name))
             return TypedResults.UnprocessableEntity();
 
-        options.Value.SaveConfigurationToDisk();
+        options.SaveConfiguration();
 
         return TypedResults.NoContent();
     }

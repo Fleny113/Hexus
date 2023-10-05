@@ -1,5 +1,5 @@
 @baseUrl = http://localhost:5104
-@id = 1
+@name = test_application
 
 GET {{baseUrl}}/list
 Accept: application/json
@@ -11,30 +11,29 @@ Accept: application/json
 Content-Type: application/json
 
 {
-  "name": "Testing Application",
-  "executable": "C:\\Windows\\System32\\ping.exe",
-  "arguments": "-t www.bing.com"
+  "name": "{{name}}",
+  "executable": "C:\\Windows\\System32\\cmd.exe"
 }
 
 ###
 
-POST {{baseUrl}}/{{id}}/start
+POST {{baseUrl}}/{{name}}/start
 Accept: application/json
 
 ###
 
-DELETE {{baseUrl}}/{{id}}/stop
+DELETE {{baseUrl}}/{{name}}/stop
 Accept: application/json
 
 ###
 
-DELETE {{baseUrl}}/{{id}}/delete
+DELETE {{baseUrl}}/{{name}}/delete
 Accept: application/json
 Content-Type: application/json
 
 ###
 
-POST {{baseUrl}}/{{id}}/stdin
+POST {{baseUrl}}/{{name}}/stdin
 Accept: application/json
 Content-Type: application/json
 
