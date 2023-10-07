@@ -10,7 +10,8 @@ public static class EnvironmentHelper
 
     public static readonly string LogsDirectory = $"{HexusStateDirectory}/logs";
 
-    public static readonly string ConfigurationFile = $"{XDGConfig}/hexus.toml";
+    public static readonly string ConfigurationFile = $"{XDGConfig}/hexus.yaml";
+    public static readonly string DevelopmentConfigurationFile = $"{XDGConfig}/hexus.dev.yaml";
     public static readonly string SocketFile = $"{HexusStateDirectory}/daemon.sock";
 
     public static void EnsureDirectoriesExistence()

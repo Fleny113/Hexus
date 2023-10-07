@@ -1,15 +1,15 @@
 ﻿using Hexus.Daemon.Configuration;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
 
 namespace Hexus.Daemon.Services;
 
-public partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager)
+public partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager) : IHostedLifecycleService
 {
-    private readonly ConcurrentDictionary<string, Process> _processes = new();
     private readonly ConcurrentDictionary<Process, HexusApplication> _applications = new();
 
     /// <summary> Start an instance of the application</summary>
@@ -58,41 +58,47 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         if (!SpinWait.SpinUntil(() => process.Id is > 0, TimeSpan.FromSeconds(30)))
             return false;
 
+        application.Process = process;
         application.Status = HexusApplicationStatus.Operating;
+        configManager.SaveConfiguration();
 
-        _processes[application.Name] = process;
         _applications[process] = application;
 
         return true;
     }
 
     /// <summary>Stop the instance of an application</summary>
-    /// <param name="id">The name of the application to stop</param>
+    /// <param name="name">The name of the application to stop</param>
     /// <returns>Whatever if the application was stopped or not</returns>
-    public bool StopApplication(string id)
+    public bool StopApplication(string name, bool forceStop)
     {
-        if (!_processes.TryGetValue(id, out var process))
-            return false;
-
-        if (!_applications.TryGetValue(process, out var application))
-            return false;
-
-        if (application is not { Status: HexusApplicationStatus.Operating })
+        if (!IsApplicationRunning(name, out var application) || application.Process is null)
             return false;
 
         // Remove the restart event handler, as it will restart the process as soon as it stops
-        process.Exited -= HandleProcessRestart;
+        application.Process.Exited -= HandleProcessRestart;
 
-        KillProcessCore(process);
+        KillProcessCore(application.Process, forceStop);
+
+        application.Process.Close();
 
         application.Status = HexusApplicationStatus.Exited;
-
-        process.Close();
+        configManager.SaveConfiguration();
 
         return true;
     }
 
-    public bool IsApplicationRunning(string name) => _processes.ContainsKey(name);
+    public bool IsApplicationRunning(string name, [NotNullWhen(true)] out HexusApplication? application)
+    {
+        if (!configManager.Configuration.Applications.TryGetValue(name, out application))
+            return false;
+
+        return IsApplicationRunning(application);
+    }
+
+    public bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application) 
+        => application is { Status: HexusApplicationStatus.Operating, Process: not null };
+ 
 
     /// <summary>Send a message into the Standard Input (STDIN) of an application</summary>
     /// <param name="name">The name of the application</param>
@@ -101,31 +107,38 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
     /// <returns>Whatever or not if the operation was successful or not</returns>
     public bool SendToApplication(string name, ReadOnlySpan<char> text, bool newLine = true)
     {
-        if (!_processes.TryGetValue(name, out var process))
+        if (!IsApplicationRunning(name, out var application) || application.Process is null)
             return false;
 
         if (newLine)
-            process.StandardInput.WriteLine(text);
+            application.Process.StandardInput.WriteLine(text);
         else
-            process.StandardInput.Write(text);
+            application.Process.StandardInput.Write(text);
 
         return true;
     }
 
-    private void KillProcessCore(Process process)
+    private void KillProcessCore(Process process, bool forceStop)
     {
-        try
+        if (!forceStop)
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                WindowsKill((uint)process.Id, WindowsSignals.SIGINT);
-            else
-                UnixKill(process.Id, UnixSignals.SIGINT);
-        }
-        catch (Exception e)
-        {
-            logger.LogDebug(e, "Error during the stop of a process");
+            try
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    WindowsKill((uint)process.Id, WindowsSignals.SIGINT);
+                else
+                    UnixKill(process.Id, UnixSignals.SIGINT);
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "Error during the stop of a process");
 
-            // Independently from the exception, stop the process forcefully
+                // Independently from the exception, stop the process forcefully
+                process.Kill();
+            }
+        }
+        else
+        {
             process.Kill();
         }
 
@@ -159,15 +172,13 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
     // If the application can't live for more then 30 seconds, after the 10 attempts to restart it, it will be considerate crashed
     private static readonly TimeSpan _resetTimeWindow = TimeSpan.FromSeconds(30);
 
-    private readonly ConcurrentDictionary<string, (int Restarts, CancellationTokenSource Cts)> _consequentialRestarts = new();
+    private readonly ConcurrentDictionary<string, (int Restarts, CancellationTokenSource CTS)> _consequentialRestarts = new();
 
     private void AcknowledgeProcessExit(object? sender, EventArgs e)
     {
         if (sender is not Process process || !_applications.TryGetValue(process, out var application))
             return;
-
-        _processes.TryRemove(application.Name, out _);
-        
+                
         application.Status = HexusApplicationStatus.Exited;
         configManager.SaveConfiguration();
 
@@ -188,8 +199,8 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         if (_consequentialRestarts.TryGetValue(application.Name, out var tuple))
         {
             tuple.Restarts++;
-            tuple.Cts.Dispose();
-            tuple.Cts = new CancellationTokenSource(_resetTimeWindow);
+            tuple.CTS.Dispose();
+            tuple.CTS = new CancellationTokenSource(_resetTimeWindow);
         }
         else
             tuple = (1, new CancellationTokenSource(_resetTimeWindow));
@@ -201,11 +212,11 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
             logger.LogWarning("Application \"{Name}\" has exited for {maxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed", 
                 application.Name, restarts, _resetTimeWindow.TotalSeconds);
 
-            application.Status = HexusApplicationStatus.Crashed;
 
             cts.Dispose();
             _consequentialRestarts.TryRemove(application.Name, out _);
 
+            application.Status = HexusApplicationStatus.Crashed;
             configManager.SaveConfiguration();
 
             return;
@@ -232,7 +243,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
         _consequentialRestarts.TryRemove(name, out var tuple);
 
-        tuple.Cts.Dispose();
+        tuple.CTS.Dispose();
 
         logger.LogDebug("After {Restarts} restarts, application \"{Name}\" stopped restarting", tuple.Restarts, name);
     }
@@ -256,30 +267,31 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     #region Lifecycle
 
-    /// <summary>
-    /// Start all application managed by Hexus on startup after the WebHost has started
-    /// </summary>
-    internal void ApplicationStartup()
+    public Task StartedAsync(CancellationToken cancellationToken)
     {
         foreach (var (_, application) in configManager.Configuration.Applications)
         {
-            if (application is { Status: not HexusApplicationStatus.Operating })
-                continue;
-
-            StartApplication(application);
+            if (application is { Status: HexusApplicationStatus.Operating })
+                StartApplication(application);
         }
+
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Gracefully shutdown all the applications after the WebHost has stopped
-    /// </summary>
-    internal void ApplicationShutdown()
+    public Task StoppedAsync(CancellationToken cancellationToken)
     {
-        foreach (var process in _processes)
+        foreach (var (_, application) in _applications)
         {
-            StopApplication(process.Key);
+            StopApplication(application.Name, false);
         }
+
+        return Task.CompletedTask;
     }
+
+    public Task StartingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StoppingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     #endregion
 

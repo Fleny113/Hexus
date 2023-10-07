@@ -5,14 +5,11 @@ using Hexus.Daemon.Services;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
-var configurationManager = new HexusConfigurationManager();
-
-builder.Services.AddSingleton(configurationManager);
-builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
+var configurationManager = new HexusConfigurationManager(builder.Environment.IsDevelopment());
 
 builder.WebHost.UseKestrel((context, options) =>
 {
-    if (configurationManager.Configuration.UnixSocket is not (null or "none"))
+    if (configurationManager.Configuration.UnixSocket is not null)
     {
         var directory = Path.GetDirectoryName(configurationManager.Configuration.UnixSocket) 
             ?? throw new Exception("Unable to fetch the directory name for the UNIX socket file location");
@@ -26,26 +23,20 @@ builder.WebHost.UseKestrel((context, options) =>
     }
 
     if (configurationManager.Configuration.HttpPort is not -1)
-    {
         options.ListenLocalhost(configurationManager.Configuration.HttpPort);
-    }
 
     if (context.HostingEnvironment.IsDevelopment())
-    {
         options.ListenLocalhost(5104);
-    }
 });
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
+builder.Services.AddSingleton(configurationManager);
+builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
+
 builder.Services.AddSingleton<ProcessManagerService>();
 
 var app = builder.Build();
-
-var pmService = app.Services.GetRequiredService<ProcessManagerService>();
-
-app.Lifetime.ApplicationStarted.Register(pmService.ApplicationStartup);
-app.Lifetime.ApplicationStopped.Register(pmService.ApplicationShutdown);
 
 app.MapEndpointMapperEndpoints();
 

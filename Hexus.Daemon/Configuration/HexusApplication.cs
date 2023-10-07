@@ -1,10 +1,18 @@
-﻿namespace Hexus.Daemon;
+﻿using System.ComponentModel;
+using System.Diagnostics;
+using YamlDotNet.Serialization;
+
+namespace Hexus.Daemon;
 
 public sealed record HexusApplication
 {
     public required string Name { get; set; }
     public required string Executable { get; set; }
-    public string Arguments { get; set; } = "";
-    public string WorkingDirectory { get; set; } = "";
+
+    [DefaultValue("")] public string Arguments { get; set; } = "";
+    [DefaultValue("")] public string WorkingDirectory { get; set; } = "";
     public HexusApplicationStatus Status { get; set; } = HexusApplicationStatus.Exited;
+
+    [YamlIgnore]
+    internal Process? Process { get; set; }
 }

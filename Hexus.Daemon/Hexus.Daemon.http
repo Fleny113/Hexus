@@ -22,12 +22,12 @@ Accept: application/json
 
 ###
 
-DELETE {{baseUrl}}/{{name}}/stop
+DELETE {{baseUrl}}/{{name}}/stop?forceStop=true
 Accept: application/json
 
 ###
 
-DELETE {{baseUrl}}/{{name}}/delete
+DELETE {{baseUrl}}/{{name}}/delete?forceStop=false
 Accept: application/json
 Content-Type: application/json
 

@@ -9,7 +9,7 @@ namespace Hexus.Daemon.Endpoints;
 public sealed class SendInputEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/{name}/stdin")]
-    public static Results<NoContent, NotFound<object>, BadRequest, ValidationProblem> Handle(
+    public static Results<NoContent, NotFound<object>, ValidationProblem> Handle(
         [FromRoute] string name, 
         [FromBody] SendInputRequest request,
         [FromServices] ProcessManagerService processManager, 
@@ -20,11 +20,8 @@ public sealed class SendInputEndpoint : IEndpoint
         if (!context.IsValid)
             return TypedResults.ValidationProblem(context.ToDictionary());
 
-        if (!processManager.IsApplicationRunning(name))
-            return TypedResults.NotFound(Constants.ApplicationIsNotRunningMessage);
-
         if (!processManager.SendToApplication(name, request.Text, request.AddNewLine))
-            return TypedResults.BadRequest();
+            return TypedResults.NotFound(Constants.ApplicationIsNotRunningMessage);
 
         return TypedResults.NoContent();
     }

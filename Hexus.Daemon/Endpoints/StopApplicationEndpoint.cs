@@ -11,16 +11,11 @@ public sealed class StopApplicationEndpoint : IEndpoint
     [HttpMap(HttpMapMethod.Delete, "/{name}/stop")]
     public static Results<NoContent, UnprocessableEntity, NotFound<object>> Handle(
         [FromRoute] string name,
-        [FromServices] HexusConfigurationManager options, 
+        [FromQuery] bool forceStop,
         [FromServices] ProcessManagerService processManager)
     {
-        if (!processManager.IsApplicationRunning(name))
+        if (!processManager.StopApplication(name, forceStop))
             return TypedResults.NotFound(Constants.ApplicationIsNotRunningMessage);
-
-        if (!processManager.StopApplication(name))
-            return TypedResults.UnprocessableEntity();
-
-        options.SaveConfiguration();
 
         return TypedResults.NoContent();
     }
