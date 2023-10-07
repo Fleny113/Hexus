@@ -24,6 +24,9 @@ public sealed class NewApplicationEndpoint : IEndpoint
 
         var application = request.MapToApplication();
 
+        if (application.WorkingDirectory is "")
+            application.WorkingDirectory = EnvironmentHelper.Home;
+
         if (!processManager.StartApplication(application))
             return TypedResults.UnprocessableEntity();
 

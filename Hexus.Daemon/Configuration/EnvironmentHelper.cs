@@ -3,6 +3,7 @@
 public static class EnvironmentHelper
 {
     public static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
     public static readonly string XDGConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? $"{Home}/.config";
     public static readonly string XDGState = Environment.GetEnvironmentVariable("XDG_STATE_HOME") ?? $"{Home}/.local/state";
 

@@ -1,11 +1,17 @@
 ﻿using Hexus.Daemon.Endpoints;
-using Riok.Mapperly.Abstractions;
 
 namespace Hexus.Daemon;
 
-[Mapper]
-public static partial class Mapper
+public static class Mapper
 {
-    [MapperIgnoreTarget(nameof(HexusApplication.Status)), MapperIgnoreTarget(nameof(HexusApplication.Process))]
-    public static partial HexusApplication MapToApplication(this NewApplicationRequest request);
+    public static HexusApplication MapToApplication(this NewApplicationRequest request)
+    {
+        return new HexusApplication
+        {
+            Name = request.Name,
+            Executable = request.Executable,
+            Arguments = request.Arguments,
+            WorkingDirectory = request.WorkingDirectory,
+        };
+    }
 }
