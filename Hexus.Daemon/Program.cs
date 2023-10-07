@@ -1,7 +1,9 @@
 using EndpointMapper;
 using FluentValidation;
+using Hexus.Daemon;
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Services;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -29,6 +31,12 @@ builder.WebHost.UseKestrel((context, options) =>
         options.ListenLocalhost(5104);
 });
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<HexusApplicationStatus>());
+});
+
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddSingleton(configurationManager);
@@ -41,3 +49,6 @@ var app = builder.Build();
 app.MapEndpointMapperEndpoints();
 
 app.Run();
+
+[JsonSerializable(typeof(HexusApplication))]
+internal partial class AppJsonSerializerContext : JsonSerializerContext { }
