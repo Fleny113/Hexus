@@ -48,17 +48,20 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         process.BeginErrorReadLine();
 
         // Register callbacks
-        process.OutputDataReceived += HandleDataReceived;
-        process.ErrorDataReceived += HandleDataReceived;
+        process.OutputDataReceived += HandleStdOutLogs;
+        process.ErrorDataReceived += HandleStdErrLogs;
 
         process.Exited += AcknowledgeProcessExit;
         process.Exited += HandleProcessRestart;
+
+        application.Process = process;
+        application.LogFile = File.AppendText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log");
+        application.LogFile.AutoFlush = true;
 
         // Wait for the process to start (with a timeout of 30 seconds)
         if (!SpinWait.SpinUntil(() => process.Id is > 0, TimeSpan.FromSeconds(30)))
             return false;
 
-        application.Process = process;
         application.Status = HexusApplicationStatus.Operating;
         configManager.SaveConfiguration();
 
@@ -150,22 +153,41 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         }
     }
 
-    #region Process Handlers
+    #region Log process events handlers
 
-    private void HandleDataReceived(object sender, DataReceivedEventArgs e)
+    private void ProcessApplicationLog(HexusApplication application, string logType, string message)
+    {
+        if (application is not { LogFile: StreamWriter, Process: Process })
+            return;
+
+        if (logger.IsEnabled(LogLevel.Trace))
+            logger.LogTrace("{PID} says: '{OutputData}'", application.Process.Id, message);
+
+        var date = DateTimeOffset.UtcNow.ToString("MMM dd yyyy HH:mm:ss");
+
+        if (application.LogFile.BaseStream.CanWrite)
+            application.LogFile.WriteLine($"[{date},{logType}] {message}");
+    }
+
+    private void HandleStdOutLogs(object? sender, DataReceivedEventArgs e)
     {
         if (sender is not Process process || !_applications.TryGetValue(process, out var application))
             return;
 
-        logger.LogTrace("{PID} says: '{OutputData}'", process.Id, e.Data);
-
-        lock (application)
-        {
-            File.AppendAllText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log", $"{e.Data}\n");
-        }
+        ProcessApplicationLog(application, "STDOUT", e.Data ?? "");
     }
 
-    #region Exit handlers
+    private void HandleStdErrLogs(object? sender, DataReceivedEventArgs e)
+    {
+        if (sender is not Process process || !_applications.TryGetValue(process, out var application))
+            return;
+
+        ProcessApplicationLog(application, "STDERR", e.Data ?? "");
+    }
+
+    #endregion
+
+    #region Exit process event handlers
 
     private const int _maxRestarts = 10;
 
@@ -178,7 +200,10 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
     {
         if (sender is not Process process || !_applications.TryGetValue(process, out var application))
             return;
-                
+
+        application.LogFile?.Flush();
+        application.LogFile?.Close();
+
         application.Status = HexusApplicationStatus.Exited;
         configManager.SaveConfiguration();
 
@@ -263,9 +288,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     #endregion
 
-    #endregion
-
-    #region Lifecycle
+    #region Application lifecycle
 
     public Task StartedAsync(CancellationToken cancellationToken)
     {
@@ -295,7 +318,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     #endregion
 
-    #region Interop (LibraryImport)
+    #region Native Interop
 
     private enum UnixSignals : int
     {

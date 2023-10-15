@@ -42,6 +42,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddSingleton(configurationManager);
 builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
 
+builder.Services.AddHostedService<ProcessManagerService>();
 builder.Services.AddSingleton<ProcessManagerService>();
 
 var app = builder.Build();

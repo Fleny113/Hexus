@@ -8,6 +8,7 @@
 		<InvariantGlobalization>true</InvariantGlobalization>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<Features>InterceptorsPreview</Features>
+		<InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);EndpointMapper.SourceGenerator</InterceptorsPreviewNamespaces>
 	</PropertyGroup>
 
 	<ItemGroup>

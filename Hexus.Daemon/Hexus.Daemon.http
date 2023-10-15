@@ -29,7 +29,6 @@ Accept: application/json
 
 DELETE {{baseUrl}}/{{name}}/delete?forceStop=false
 Accept: application/json
-Content-Type: application/json
 
 ###
 
@@ -38,7 +37,7 @@ Accept: application/json
 Content-Type: application/json
 
 {
-  "text": "whoami"
+  "text": "yes"
 }
 
 ###

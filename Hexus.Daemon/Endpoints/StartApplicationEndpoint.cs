@@ -14,10 +14,10 @@ public sealed class StartApplicationEndpoint : IEndpoint
         [FromRoute] string name,
         [FromServices] ProcessManagerService processManager)
     {
-        if (!processManager.IsApplicationRunning(name, out var application))
+        if (processManager.IsApplicationRunning(name, out var application))
             return TypedResults.NotFound(Constants.ApplicationIsRunningMessage);
 
-        if (!processManager.StartApplication(application))
+        if (application is null || !processManager.StartApplication(application))
             return TypedResults.UnprocessableEntity();
 
         return TypedResults.NoContent();
