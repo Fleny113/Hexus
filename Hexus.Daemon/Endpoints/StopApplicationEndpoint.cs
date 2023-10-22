@@ -9,7 +9,7 @@ namespace Hexus.Daemon.Endpoints;
 public sealed class StopApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Delete, "/{name}/stop")]
-    public static Results<NoContent, UnprocessableEntity, NotFound<object>> Handle(
+    public static Results<NoContent, NotFound<object>> Handle(
         [FromRoute] string name,
         [FromQuery] bool forceStop,
         [FromServices] ProcessManagerService processManager)

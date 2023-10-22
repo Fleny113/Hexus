@@ -10,7 +10,7 @@ namespace Hexus.Daemon.Endpoints;
 public sealed class StartApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/{name}/start")]
-    public static Results<NoContent, NotFound, NotFound<object>, UnprocessableEntity> Handle(
+    public static Results<NoContent, UnprocessableEntity, NotFound<object>> Handle(
         [FromRoute] string name,
         [FromServices] ProcessManagerService processManager)
     {

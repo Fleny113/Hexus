@@ -8,9 +8,9 @@ using System.Text;
 
 namespace Hexus.Daemon.Services;
 
-public partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager) : IHostedLifecycleService
+public partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager)
 {
-    private readonly ConcurrentDictionary<Process, HexusApplication> _applications = new();
+    internal ConcurrentDictionary<Process, HexusApplication> Application { get; } = new();
 
     /// <summary> Start an instance of the application</summary>
     /// <param name="application">The application to start</param>
@@ -55,17 +55,15 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         process.Exited += HandleProcessRestart;
 
         application.Process = process;
+
+        application.LogFile?.Close();
         application.LogFile = File.AppendText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log");
         application.LogFile.AutoFlush = true;
-
-        // Wait for the process to start (with a timeout of 30 seconds)
-        if (!SpinWait.SpinUntil(() => process.Id is > 0, TimeSpan.FromSeconds(30)))
-            return false;
 
         application.Status = HexusApplicationStatus.Operating;
         configManager.SaveConfiguration();
 
-        _applications[process] = application;
+        Application.TryAdd(process, application);
 
         return true;
     }
@@ -73,19 +71,19 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
     /// <summary>Stop the instance of an application</summary>
     /// <param name="name">The name of the application to stop</param>
     /// <returns>Whatever if the application was stopped or not</returns>
-    public bool StopApplication(string name, bool forceStop)
+    public bool StopApplication(string name, bool forceStop = false)
     {
         if (!IsApplicationRunning(name, out var application) || application.Process is null)
             return false;
 
-        // Remove the restart event handler, as it will restart the process as soon as it stops
+        // Remove the restart event handler, or else it will restart the process as soon as it stops
         application.Process.Exited -= HandleProcessRestart;
 
         KillProcessCore(application.Process, forceStop);
 
         application.Process.Close();
-
         application.Status = HexusApplicationStatus.Exited;
+
         configManager.SaveConfiguration();
 
         return true;
@@ -123,34 +121,27 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     private void KillProcessCore(Process process, bool forceStop)
     {
-        if (!forceStop)
+        if (forceStop)
+            process.Kill();
+        else
         {
             try
             {
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    WindowsKill((uint)process.Id, WindowsSignals.SIGINT);
+                    WindowsKill((uint) process.Id, WindowsSignals.SIGINT);
                 else
                     UnixKill(process.Id, UnixSignals.SIGINT);
-            }
-            catch (Exception e)
-            {
-                logger.LogDebug(e, "Error during the stop of a process");
 
-                // Independently from the exception, stop the process forcefully
+            }
+            catch (Exception exception)
+            {
+                logger.LogDebug(exception, "Error during the stop of a process");
+
                 process.Kill();
             }
         }
-        else
-        {
-            process.Kill();
-        }
 
-        // Wait up to 30 seconds for the process to stop
-        if (!SpinWait.SpinUntil(() => process.HasExited, TimeSpan.FromSeconds(30)))
-        {
-            // If after 30 seconds the process hasn't stopped, kill it forcefully
-            process.Kill(true);
-        }
+        process.WaitForExit();
     }
 
     #region Log process events handlers
@@ -171,7 +162,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     private void HandleStdOutLogs(object? sender, DataReceivedEventArgs e)
     {
-        if (sender is not Process process || !_applications.TryGetValue(process, out var application))
+        if (sender is not Process process || !Application.TryGetValue(process, out var application))
             return;
 
         ProcessApplicationLog(application, "STDOUT", e.Data ?? "");
@@ -179,7 +170,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     private void HandleStdErrLogs(object? sender, DataReceivedEventArgs e)
     {
-        if (sender is not Process process || !_applications.TryGetValue(process, out var application))
+        if (sender is not Process process || !Application.TryGetValue(process, out var application))
             return;
 
         ProcessApplicationLog(application, "STDERR", e.Data ?? "");
@@ -198,7 +189,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     private void AcknowledgeProcessExit(object? sender, EventArgs e)
     {
-        if (sender is not Process process || !_applications.TryGetValue(process, out var application))
+        if (sender is not Process process || !Application.TryGetValue(process, out var application))
             return;
 
         application.LogFile?.Flush();
@@ -212,7 +203,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     private void HandleProcessRestart(object? sender, EventArgs e)
     {
-        if (sender is not Process process || !_applications.TryGetValue(process, out var application))
+        if (sender is not Process process || !Application.TryGetValue(process, out var application))
             return;
 
         // Fire and forget
@@ -236,7 +227,6 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         {
             logger.LogWarning("Application \"{Name}\" has exited for {maxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed", 
                 application.Name, restarts, _resetTimeWindow.TotalSeconds);
-
 
             cts.Dispose();
             _consequentialRestarts.TryRemove(application.Name, out _);
@@ -267,10 +257,11 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
             return;
 
         _consequentialRestarts.TryRemove(name, out var tuple);
+        var (restarts, cts) = tuple;
 
-        tuple.CTS.Dispose();
 
-        logger.LogDebug("After {Restarts} restarts, application \"{Name}\" stopped restarting", tuple.Restarts, name);
+        cts.Dispose();
+        logger.LogDebug("After {Restarts} restarts, application \"{Name}\" stopped restarting", restarts, name);
     }
 
     private static TimeSpan CalculateDelay(int restart)
@@ -285,36 +276,6 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
             _ => throw new ArgumentOutOfRangeException(nameof(restart))
         };
     }
-
-    #endregion
-
-    #region Application lifecycle
-
-    public Task StartedAsync(CancellationToken cancellationToken)
-    {
-        foreach (var (_, application) in configManager.Configuration.Applications)
-        {
-            if (application is { Status: HexusApplicationStatus.Operating })
-                StartApplication(application);
-        }
-
-        return Task.CompletedTask;
-    }
-
-    public Task StoppedAsync(CancellationToken cancellationToken)
-    {
-        foreach (var (_, application) in _applications)
-        {
-            StopApplication(application.Name, false);
-        }
-
-        return Task.CompletedTask;
-    }
-
-    public Task StartingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-    public Task StoppingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     #endregion
 
@@ -353,15 +314,15 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         SIGSYS = 30,    // Bad system call.
     }
 
+    [UnsupportedOSPlatform("windows")]
+    [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
+    private static partial int UnixKill(int pid, UnixSignals signal);
+
     private enum WindowsSignals : uint
     {
         SIGINT = 0,     // Interrupt (CTRL + C)
         SIGBREAK = 1,   // Break     (CTRL + Break)
     }
-
-    [UnsupportedOSPlatform("windows")]
-    [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
-    private static partial int UnixKill(int pid, UnixSignals signal);
 
     [SupportedOSPlatform("windows")]
     [LibraryImport("windows-kill", EntryPoint = "?sendSignal@WindowsKillLibrary@@YAXKK@Z", SetLastError = true)]
