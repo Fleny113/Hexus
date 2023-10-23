@@ -163,7 +163,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         if (application is not { LogFile: StreamWriter, Process: Process })
             return;
 
-	// Trying to get the PID of a exited process throws an error
+        // Trying to get the PID of a exited process throws an error
         if (application.Process is { HasExited: false } && logger.IsEnabled(LogLevel.Trace))
             logger.LogTrace("{PID} says: '{OutputData}'", application.Process.Id, message);
 
