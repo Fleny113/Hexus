@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class ListApplicationsEndpoint : IEndpoint
+internal sealed class ListApplicationsEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Get, "/list")]
     public static Ok<Dictionary<string, HexusApplication>> Handle([FromServices] HexusConfiguration config) 

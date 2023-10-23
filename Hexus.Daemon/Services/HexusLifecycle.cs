@@ -2,7 +2,7 @@
 
 namespace Hexus.Daemon.Services;
 
-public sealed class HexusLifecycle(HexusConfigurationManager configManager, ProcessManagerService processManager) : IHostedLifecycleService
+internal sealed class HexusLifecycle(HexusConfigurationManager configManager, ProcessManagerService processManager) : IHostedLifecycleService
 {
     public Task StartedAsync(CancellationToken cancellationToken)
     {

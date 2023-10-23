@@ -2,7 +2,7 @@
 
 namespace Hexus.Daemon;
 
-public static class Mapper
+internal static class Mapper
 {
     public static HexusApplication MapToApplication(this NewApplicationRequest request)
     {

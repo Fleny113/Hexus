@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class StopApplicationEndpoint : IEndpoint
+internal sealed class StopApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Delete, "/{name}/stop")]
     public static Results<NoContent, NotFound<object>> Handle(

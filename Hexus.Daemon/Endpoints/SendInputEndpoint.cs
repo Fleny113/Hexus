@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class SendInputEndpoint : IEndpoint
+internal sealed class SendInputEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/{name}/stdin")]
     public static Results<NoContent, NotFound<object>, ValidationProblem> Handle(

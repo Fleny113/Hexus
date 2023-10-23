@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class NewApplicationEndpoint : IEndpoint
+internal sealed class NewApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/new")]
     public static Results<Ok<HexusApplication>, ValidationProblem, UnprocessableEntity> Handle(

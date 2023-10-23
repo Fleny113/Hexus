@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class DeleteApplicationEndpoint : IEndpoint
+internal sealed class DeleteApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Delete, "/{name}/delete")]
     public static Results<NoContent, NotFound> Handle(

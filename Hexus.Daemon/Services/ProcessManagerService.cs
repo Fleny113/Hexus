@@ -70,7 +70,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     /// <summary>Stop the instance of an application</summary>
     /// <param name="name">The name of the application to stop</param>
-    /// <returns>Whatever if the application was stopped or not</returns>
+    /// <returns>If the application was running</returns>
     public bool StopApplication(string name, bool forceStop = false)
     {
         if (!IsApplicationRunning(name, out var application) || application.Process is null)
@@ -89,6 +89,10 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         return true;
     }
 
+    /// <summary>Given a name of an application check if it exists, is running and has an attached process running</summary>
+    /// <param name="name">The name of the application</param>
+    /// <param name="application">The application returned with the same <paramref name="name"/> string</param>
+    /// <returns>If the application is running</returns>
     public bool IsApplicationRunning(string name, [NotNullWhen(true)] out HexusApplication? application)
     {
         if (!configManager.Configuration.Applications.TryGetValue(name, out application))
@@ -97,8 +101,11 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         return IsApplicationRunning(application);
     }
 
+    /// <summary>Check if an application exists, is running and has an attached process running</summary>
+    /// <param name="application">The nullable instance of an <see cref="HexusApplication" /></param>
+    /// <returns>If the application is running</returns>
     public bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application) 
-        => application is { Status: HexusApplicationStatus.Operating, Process: not null };
+        => application is { Status: HexusApplicationStatus.Operating, Process.HasExited: false };
  
 
     /// <summary>Send a message into the Standard Input (STDIN) of an application</summary>
@@ -122,26 +129,31 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
     private void KillProcessCore(Process process, bool forceStop)
     {
         if (forceStop)
-            process.Kill();
-        else
         {
-            try
-            {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    WindowsKill((uint) process.Id, WindowsSignals.SIGINT);
-                else
-                    UnixKill(process.Id, UnixSignals.SIGINT);
-
-            }
-            catch (Exception exception)
-            {
-                logger.LogDebug(exception, "Error during the stop of a process");
-
-                process.Kill();
-            }
+            process.Kill();
+            return;
         }
 
-        process.WaitForExit();
+        try
+        {
+            NativeKill(process.Id, WindowsSignal.SIGINT, UnixSignal.SIGINT);
+
+            // If in 30 seconds the process doesn't get killed (it has handled the SIGINT signal and not exited) then force stop it
+            if (!process.WaitForExit(TimeSpan.FromSeconds(30)))
+                process.Kill();
+
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Error during the stop of a process");
+
+            // If it has already exited there is no point in sending another kill
+            if (process.HasExited)
+                return;
+
+            // Fallback to the .NET build-in Kernel call to force stop the process
+            process.Kill();
+        }
     }
 
     #region Log process events handlers
@@ -281,7 +293,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     #region Native Interop
 
-    private enum UnixSignals : int
+    private enum UnixSignal : int
     {
         SIGHUP = 1,     // Hangup
         SIGINT = 2,     // Interrupt 
@@ -316,9 +328,9 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     [UnsupportedOSPlatform("windows")]
     [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
-    private static partial int UnixKill(int pid, UnixSignals signal);
+    private static partial int UnixKill(int pid, UnixSignal signal);
 
-    private enum WindowsSignals : uint
+    private enum WindowsSignal : uint
     {
         SIGINT = 0,     // Interrupt (CTRL + C)
         SIGBREAK = 1,   // Break     (CTRL + Break)
@@ -326,7 +338,19 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     [SupportedOSPlatform("windows")]
     [LibraryImport("windows-kill", EntryPoint = "?sendSignal@WindowsKillLibrary@@YAXKK@Z", SetLastError = true)]
-    private static partial void WindowsKill(uint pid, WindowsSignals signal);
+    private static partial void WindowsKill(uint pid, WindowsSignal signal);
+
+    private static void NativeKill(int pid, WindowsSignal windowsSignal, UnixSignal unixSignal)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            WindowsKill((uint) pid, windowsSignal);
+            return;
+        }
+
+        UnixKill(pid, unixSignal);
+
+    }
 
     #endregion
 }

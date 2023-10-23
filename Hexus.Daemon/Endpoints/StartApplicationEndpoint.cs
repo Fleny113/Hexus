@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace Hexus.Daemon.Endpoints;
 
-public sealed class StartApplicationEndpoint : IEndpoint
+internal sealed class StartApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/{name}/start")]
     public static Results<NoContent, UnprocessableEntity, NotFound<object>> Handle(
