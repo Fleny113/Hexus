@@ -6,23 +6,19 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
 {
     public Task StartedAsync(CancellationToken cancellationToken)
     {
-        foreach (var application in configManager.Configuration.Applications.Values)
-        {
-            if (application is { Status: HexusApplicationStatus.Operating })
-                processManager.StartApplication(application);
-        }
+        foreach (var application in configManager.Configuration.Applications.Values.Where(application =>
+                     application is { Status: HexusApplicationStatus.Operating })) 
+            processManager.StartApplication(application);
 
         return Task.CompletedTask;
     }
 
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
-        foreach (var application in processManager.Application.Values)
-        {
-            processManager.StopApplication(application.Name);
-        }
+        foreach (var application in processManager.Application.Values) processManager.StopApplication(application.Name);
 
-        File.Delete(configManager.Configuration.UnixSocket);
+        if (configManager.Configuration.UnixSocket is not null)
+            File.Delete(configManager.Configuration.UnixSocket);
 
         return Task.CompletedTask;
     }

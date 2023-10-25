@@ -1,4 +1,5 @@
-﻿using Hexus.Daemon.Endpoints;
+﻿using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Endpoints;
 
 namespace Hexus.Daemon;
 

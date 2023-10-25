@@ -1,4 +1,4 @@
-﻿namespace Hexus.Daemon;
+﻿namespace Hexus.Daemon.Configuration;
 
 public enum HexusApplicationStatus
 {

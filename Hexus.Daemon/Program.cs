@@ -1,6 +1,5 @@
 using EndpointMapper;
 using FluentValidation;
-using Hexus.Daemon;
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Services;
 using System.Text.Json.Serialization;
@@ -13,8 +12,8 @@ builder.WebHost.UseKestrel((context, options) =>
 {
     if (configurationManager.Configuration.UnixSocket is not null)
     {
-        var directory = Path.GetDirectoryName(configurationManager.Configuration.UnixSocket) 
-            ?? throw new Exception("Unable to fetch the directory name for the UNIX socket file location");
+        var directory = Path.GetDirectoryName(configurationManager.Configuration.UnixSocket)
+                        ?? throw new Exception("Unable to fetch the directory name for the UNIX socket file location");
 
         Directory.CreateDirectory(directory);
 
@@ -52,4 +51,4 @@ app.MapEndpointMapperEndpoints();
 app.Run();
 
 [JsonSerializable(typeof(HexusApplication))]
-internal partial class AppJsonSerializerContext : JsonSerializerContext { }
+internal partial class AppJsonSerializerContext : JsonSerializerContext;

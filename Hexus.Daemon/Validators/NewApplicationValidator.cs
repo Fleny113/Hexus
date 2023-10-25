@@ -25,7 +25,8 @@ public sealed class NewApplicationValidator : AbstractValidator<NewApplicationRe
                     return;
 
                 if (!Path.IsPathFullyQualified(workingDirectory.AsSpan()))
-                    context.AddFailure(nameof(NewApplicationRequest.WorkingDirectory), "The working directory, when specified, must be fully qualified");
+                    context.AddFailure(nameof(NewApplicationRequest.WorkingDirectory),
+                        "The working directory, when specified, must be fully qualified");
             });
     }
 }

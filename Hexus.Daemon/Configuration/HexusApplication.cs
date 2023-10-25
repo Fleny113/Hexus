@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using YamlDotNet.Serialization;
 
-namespace Hexus.Daemon;
+namespace Hexus.Daemon.Configuration;
 
 public sealed record HexusApplication
 {

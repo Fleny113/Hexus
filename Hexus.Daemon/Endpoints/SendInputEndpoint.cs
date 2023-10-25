@@ -10,9 +10,9 @@ internal sealed class SendInputEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/{name}/stdin")]
     public static Results<NoContent, NotFound<object>, ValidationProblem> Handle(
-        [FromRoute] string name, 
+        [FromRoute] string name,
         [FromBody] SendInputRequest request,
-        [FromServices] ProcessManagerService processManager, 
+        [FromServices] ProcessManagerService processManager,
         [FromServices] IValidator<SendInputRequest> validator)
     {
         var context = validator.Validate(request);

@@ -8,7 +8,7 @@ using System.Text;
 
 namespace Hexus.Daemon.Services;
 
-public partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager)
+internal partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager)
 {
     internal ConcurrentDictionary<Process, HexusApplication> Application { get; } = new();
 
@@ -22,19 +22,16 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
             FileName = application.Executable,
             Arguments = application.Arguments,
             WorkingDirectory = application.WorkingDirectory,
-
             CreateNoWindow = true,
-
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true,
-
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
 
             // NOTE: If set to UTF8 it may give issues when using the STDIN
             //  ASCII seems to solve the issue
-            StandardInputEncoding = Encoding.ASCII,
+            StandardInputEncoding = Encoding.ASCII
         };
 
         var process = Process.Start(processInfo);
@@ -70,6 +67,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     /// <summary>Stop the instance of an application</summary>
     /// <param name="name">The name of the application to stop</param>
+    /// <param name="forceStop">Force the stopping of the application via a force kill</param>
     /// <returns>If the application was running</returns>
     public bool StopApplication(string name, bool forceStop = false)
     {
@@ -93,25 +91,20 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
     /// <param name="name">The name of the application</param>
     /// <param name="application">The application returned with the same <paramref name="name"/> string</param>
     /// <returns>If the application is running</returns>
-    public bool IsApplicationRunning(string name, [NotNullWhen(true)] out HexusApplication? application)
-    {
-        if (!configManager.Configuration.Applications.TryGetValue(name, out application))
-            return false;
-
-        return IsApplicationRunning(application);
-    }
+    public bool IsApplicationRunning(string name, [NotNullWhen(true)] out HexusApplication? application) =>
+        configManager.Configuration.Applications.TryGetValue(name, out application) && IsApplicationRunning(application);
 
     /// <summary>Check if an application exists, is running and has an attached process running</summary>
     /// <param name="application">The nullable instance of an <see cref="HexusApplication" /></param>
     /// <returns>If the application is running</returns>
-    public bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application) 
+    public static bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application)
         => application is { Status: HexusApplicationStatus.Operating, Process.HasExited: false };
- 
+
 
     /// <summary>Send a message into the Standard Input (STDIN) of an application</summary>
     /// <param name="name">The name of the application</param>
     /// <param name="text">The text to send into the STDIN</param>
-    /// <param name="newLine">Whatever or not to append an endline to the text</param>
+    /// <param name="newLine">Whatever or not to append an \n to the text</param>
     /// <returns>Whatever or not if the operation was successful or not</returns>
     public bool SendToApplication(string name, ReadOnlySpan<char> text, bool newLine = true)
     {
@@ -136,12 +129,11 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
         try
         {
-            NativeKill(process.Id, WindowsSignal.SIGINT, UnixSignal.SIGINT);
+            NativeSendSignal(process.Id, WindowsSignal.SIGINT, UnixSignal.SIGINT);
 
             // If in 30 seconds the process doesn't get killed (it has handled the SIGINT signal and not exited) then force stop it
             if (!process.WaitForExit(TimeSpan.FromSeconds(30)))
                 process.Kill();
-
         }
         catch (Exception exception)
         {
@@ -160,7 +152,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     private void ProcessApplicationLog(HexusApplication application, string logType, string message)
     {
-        if (application is not { LogFile: StreamWriter, Process: Process })
+        if (application is not { LogFile: not null, Process: not null })
             return;
 
         // Trying to get the PID of a exited process throws an error
@@ -193,10 +185,9 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
     #region Exit process event handlers
 
-    private const int _maxRestarts = 10;
-
     // If the application can't live for more then 30 seconds, after the 10 attempts to restart it, it will be considerate crashed
-    private static readonly TimeSpan _resetTimeWindow = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ResetTimeWindow = TimeSpan.FromSeconds(30);
+    private const int MaxRestarts = 10;
 
     private readonly ConcurrentDictionary<string, (int Restarts, CancellationTokenSource CTS)> _consequentialRestarts = new();
 
@@ -229,17 +220,20 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         {
             tuple.Restarts++;
             tuple.CTS.Dispose();
-            tuple.CTS = new CancellationTokenSource(_resetTimeWindow);
+            tuple.CTS = new CancellationTokenSource(ResetTimeWindow);
         }
         else
-            tuple = (1, new CancellationTokenSource(_resetTimeWindow));
+        {
+            tuple = (1, new CancellationTokenSource(ResetTimeWindow));
+        }
 
         var (restarts, cts) = tuple;
 
-        if (restarts >= _maxRestarts)
+        if (restarts >= MaxRestarts)
         {
-            logger.LogWarning("Application \"{Name}\" has exited for {maxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed", 
-                application.Name, restarts, _resetTimeWindow.TotalSeconds);
+            logger.LogWarning(
+                "Application \"{Name}\" has exited for {maxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed",
+                application.Name, restarts, ResetTimeWindow.TotalSeconds);
 
             cts.Dispose();
             _consequentialRestarts.TryRemove(application.Name, out _);
@@ -255,7 +249,8 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
 
         _consequentialRestarts[application.Name] = (restarts, cts);
 
-        logger.LogDebug("Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting", application.Name, delay.TotalSeconds);
+        logger.LogDebug("Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting", application.Name,
+            delay.TotalSeconds);
 
         await Task.Delay(delay);
 
@@ -277,9 +272,8 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         logger.LogDebug("After {Restarts} restarts, application \"{Name}\" stopped restarting", restarts, name);
     }
 
-    private static TimeSpan CalculateDelay(int restart)
-    {
-        return restart switch
+    private static TimeSpan CalculateDelay(int restart) =>
+        restart switch
         {
             1 or 2 or 3 => TimeSpan.Zero,
             4 or 5 => TimeSpan.FromSeconds(1),
@@ -288,13 +282,12 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
             10 => TimeSpan.FromSeconds(8),
             _ => throw new ArgumentOutOfRangeException(nameof(restart))
         };
-    }
 
     #endregion
 
     #region Native Interop
 
-    private enum UnixSignal : int
+    private enum UnixSignal
     {
         SIGHUP = 1,     // Hangup
         SIGINT = 2,     // Interrupt 
@@ -304,7 +297,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         SIGABRT = 6,    // Abort 
         SIGBUS = 7,     // BUS error
         SIGFPE = 8,     // Floating-point exception
-        SIGKILL = 9,    // UnixKill, unblockable
+        SIGKILL = 9,    // UnixKill
         SIGUSR1 = 10,   // User-defined signal 1
         SIGSEGV = 11,   // Segmentation violation
         SIGUSR2 = 12,   // User-defined signal 2 
@@ -313,7 +306,7 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         SIGTERM = 15,   // Termination 
         SIGCHLD = 16,   // Child status has changed
         SIGCONT = 17,   // Continue
-        SIGSTOP = 18,   // Stop, unblockable
+        SIGSTOP = 18,   // Stop
         SIGTSTP = 19,   // Keyboard stop
         SIGTTIN = 20,   // Background read from tty
         SIGTTOU = 21,   // Background write to tty
@@ -324,33 +317,32 @@ public partial class ProcessManagerService(ILogger<ProcessManagerService> logger
         SIGPROF = 26,   // Profiling alarm clock
         SIGWINCH = 27,  // Window size change
         SIGPOLL = 28,   // I/O now possible
-        SIGSYS = 30,    // Bad system call.
+        SIGSYS = 30     // Bad system call.
     }
 
     [UnsupportedOSPlatform("windows")]
     [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
-    private static partial int UnixKill(int pid, UnixSignal signal);
+    private static partial int UnixSendSignal(int pid, UnixSignal signal);
 
     private enum WindowsSignal : uint
     {
-        SIGINT = 0,     // Interrupt (CTRL + C)
-        SIGBREAK = 1,   // Break     (CTRL + Break)
+        SIGINT = 0,  // Interrupt (CTRL + C)
+        SIGBREAK = 1 // Break     (CTRL + Break)
     }
 
     [SupportedOSPlatform("windows")]
     [LibraryImport("windows-kill", EntryPoint = "?sendSignal@WindowsKillLibrary@@YAXKK@Z", SetLastError = true)]
-    private static partial void WindowsKill(uint pid, WindowsSignal signal);
+    private static partial void WindowsSendSignal(uint pid, WindowsSignal signal);
 
-    private static void NativeKill(int pid, WindowsSignal windowsSignal, UnixSignal unixSignal)
+    private static void NativeSendSignal(int pid, WindowsSignal windowsSignal, UnixSignal unixSignal)
     {
         if (OperatingSystem.IsWindows())
         {
-            WindowsKill((uint) pid, windowsSignal);
+            WindowsSendSignal((uint) pid, windowsSignal);
             return;
         }
 
-        UnixKill(pid, unixSignal);
-
+        UnixSendSignal(pid, unixSignal);
     }
 
     #endregion

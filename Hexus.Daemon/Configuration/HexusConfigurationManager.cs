@@ -3,41 +3,41 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace Hexus.Daemon.Configuration;
 
-public class HexusConfigurationManager
+internal class HexusConfigurationManager
 {
-    public HexusConfiguration Configuration { get; set; } = null!;
-    public static string ConfigurationFile { get; set; } = EnvironmentHelper.ConfigurationFile;
+    public HexusConfiguration Configuration { get; private set; } = null!;
+    private static string ConfigurationFile { get; set; } = EnvironmentHelper.ConfigurationFile;
 
-    private static readonly IDeserializer _yamlDeserializer = new DeserializerBuilder()
+    private static readonly IDeserializer YamlDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 
-    private static readonly ISerializer _yamlSerializer = new SerializerBuilder()
+    private static readonly ISerializer YamlSerializer = new SerializerBuilder()
         .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitDefaults)
         .WithIndentedSequences()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 
-    public void LoadConfiguration()
+    internal void LoadConfiguration()
     {
         EnvironmentHelper.EnsureDirectoriesExistence();
 
         if (!File.Exists(ConfigurationFile))
         {
-            Configuration = new();
+            Configuration = new HexusConfiguration();
             return;
         }
 
         var configurationFile = File.ReadAllText(ConfigurationFile);
 
-        Configuration = _yamlDeserializer.Deserialize<HexusConfiguration>(configurationFile);
+        Configuration = YamlDeserializer.Deserialize<HexusConfiguration>(configurationFile);
     }
 
-    public void SaveConfiguration()
+    internal void SaveConfiguration()
     {
         EnvironmentHelper.EnsureDirectoriesExistence();
 
-        var yamlString = _yamlSerializer.Serialize(Configuration);
+        var yamlString = YamlSerializer.Serialize(Configuration);
 
         lock (this)
         {
@@ -45,7 +45,7 @@ public class HexusConfigurationManager
         }
     }
 
-    public HexusConfigurationManager(bool isDevelopment)
+    internal HexusConfigurationManager(bool isDevelopment)
     {
         // If we are in development mode we can change to another file to not pollute the normal file
         if (isDevelopment)
@@ -53,5 +53,4 @@ public class HexusConfigurationManager
 
         LoadConfiguration();
     }
-
 }
