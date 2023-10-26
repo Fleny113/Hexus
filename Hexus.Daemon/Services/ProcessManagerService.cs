@@ -2,8 +2,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using System.Text;
 
 namespace Hexus.Daemon.Services;
@@ -127,12 +125,13 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
         }
 
+        // NativeSendSignal can send -1 if the UNIX kill call returns
+        var code = ProcessSignals.NativeSendSignal(process.Id, WindowsSignal.SIGINT, UnixSignal.SIGINT);
+        
         try
         {
-            NativeSendSignal(process.Id, WindowsSignal.SIGINT, UnixSignal.SIGINT);
-
             // If in 30 seconds the process doesn't get killed (it has handled the SIGINT signal and not exited) then force stop it
-            if (!process.WaitForExit(TimeSpan.FromSeconds(30)))
+            if (code is not 0 || !process.WaitForExit(TimeSpan.FromSeconds(30)))
                 process.Kill();
         }
         catch (Exception exception)
@@ -156,8 +155,8 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
 
         // Trying to get the PID of a exited process throws an error
-        if (application.Process is { HasExited: false } && logger.IsEnabled(LogLevel.Trace))
-            logger.LogTrace("{PID} says: '{OutputData}'", application.Process.Id, message);
+        if (application.Process is { HasExited: false })
+            LogApplicationOutput(logger, application.Name, application.Process.Id, message);
 
         var date = DateTimeOffset.UtcNow.ToString("MMM dd yyyy HH:mm:ss");
 
@@ -202,7 +201,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         application.Status = HexusApplicationStatus.Exited;
         configManager.SaveConfiguration();
 
-        logger.LogDebug("Acknowledging about \"{Name}\" exiting with code: {ExitCode} [{PID}]", application.Name, process.ExitCode, process.Id);
+        LogAcknowledgeProcessExit(logger, application.Name, process.ExitCode, process.Id);
     }
 
     private void HandleProcessRestart(object? sender, EventArgs e)
@@ -231,10 +230,8 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         if (restarts >= MaxRestarts)
         {
-            logger.LogWarning(
-                "Application \"{Name}\" has exited for {maxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed",
-                application.Name, restarts, ResetTimeWindow.TotalSeconds);
-
+            LogCrashedApplication(logger, application.Name, restarts, ResetTimeWindow.TotalSeconds);
+            
             cts.Dispose();
             _consequentialRestarts.TryRemove(application.Name, out _);
 
@@ -249,9 +246,8 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         _consequentialRestarts[application.Name] = (restarts, cts);
 
-        logger.LogDebug("Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting", application.Name,
-            delay.TotalSeconds);
-
+        LogRestartAttemptDelay(logger, application.Name, delay.TotalSeconds);
+        
         await Task.Delay(delay);
 
         StartApplication(application);
@@ -269,7 +265,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
 
         cts.Dispose();
-        logger.LogDebug("After {Restarts} restarts, application \"{Name}\" stopped restarting", restarts, name);
+        LogConsequentialRestartsStop(logger, restarts, name);
     }
 
     private static TimeSpan CalculateDelay(int restart) =>
@@ -285,65 +281,18 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     #endregion
 
-    #region Native Interop
+    [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed")]
+    private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, double timeWindow);
 
-    private enum UnixSignal
-    {
-        SIGHUP = 1,     // Hangup
-        SIGINT = 2,     // Interrupt 
-        SIGQUIT = 3,    // Quit
-        SIGILL = 4,     // Illegal instruction 
-        SIGTRAP = 5,    // Trace trap 
-        SIGABRT = 6,    // Abort 
-        SIGBUS = 7,     // BUS error
-        SIGFPE = 8,     // Floating-point exception
-        SIGKILL = 9,    // UnixKill
-        SIGUSR1 = 10,   // User-defined signal 1
-        SIGSEGV = 11,   // Segmentation violation
-        SIGUSR2 = 12,   // User-defined signal 2 
-        SIGPIPE = 13,   // Broken pipe
-        SIGALRM = 14,   // Alarm clock
-        SIGTERM = 15,   // Termination 
-        SIGCHLD = 16,   // Child status has changed
-        SIGCONT = 17,   // Continue
-        SIGSTOP = 18,   // Stop
-        SIGTSTP = 19,   // Keyboard stop
-        SIGTTIN = 20,   // Background read from tty
-        SIGTTOU = 21,   // Background write to tty
-        SIGURG = 22,    // Urgent condition on socket
-        SIGXCPU = 23,   // CPU limit exceeded
-        SIGXFSZ = 24,   // File size limit exceeded
-        SIGVTALRM = 25, // Virtual alarm clock
-        SIGPROF = 26,   // Profiling alarm clock
-        SIGWINCH = 27,  // Window size change
-        SIGPOLL = 28,   // I/O now possible
-        SIGSYS = 30     // Bad system call.
-    }
+    [LoggerMessage(LogLevel.Debug, "Acknowledging about \"{Name}\" exiting with code: {ExitCode} [{PID}]")]
+    private static partial void LogAcknowledgeProcessExit(ILogger logger, string name, int exitCode, int pid);
+    
+    [LoggerMessage(LogLevel.Debug, "After {Restarts} restarts, application \"{Name}\" stopped restarting")]
+    private static partial void LogConsequentialRestartsStop(ILogger logger, int restarts, string name);
+    
+    [LoggerMessage(LogLevel.Debug, "Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting")]
+    private static partial void LogRestartAttemptDelay(ILogger logger, string name, double seconds);
 
-    [UnsupportedOSPlatform("windows")]
-    [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
-    private static partial int UnixSendSignal(int pid, UnixSignal signal);
-
-    private enum WindowsSignal : uint
-    {
-        SIGINT = 0,  // Interrupt (CTRL + C)
-        SIGBREAK = 1 // Break     (CTRL + Break)
-    }
-
-    [SupportedOSPlatform("windows")]
-    [LibraryImport("windows-kill", EntryPoint = "?sendSignal@WindowsKillLibrary@@YAXKK@Z", SetLastError = true)]
-    private static partial void WindowsSendSignal(uint pid, WindowsSignal signal);
-
-    private static void NativeSendSignal(int pid, WindowsSignal windowsSignal, UnixSignal unixSignal)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            WindowsSendSignal((uint) pid, windowsSignal);
-            return;
-        }
-
-        UnixSendSignal(pid, unixSignal);
-    }
-
-    #endregion
+    [LoggerMessage(LogLevel.Trace, "Application \"{Name}\" [{PID}] says: '{OutputData}'")]
+    private static partial void LogApplicationOutput(ILogger logger, string name, int pid, string outputData);
 }
