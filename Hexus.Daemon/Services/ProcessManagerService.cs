@@ -79,8 +79,10 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         application.Process.Close();
         application.Status = HexusApplicationStatus.Exited;
-
-        configManager.SaveConfiguration();
+        
+        // If the ASP.NET Core Hosting has stopped then we don't want to save to disk the exited application status
+        if (!HexusLifecycle.IsDaemonStopped)
+            configManager.SaveConfiguration();
 
         return true;
     }
@@ -199,7 +201,10 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         application.LogFile?.Close();
 
         application.Status = HexusApplicationStatus.Exited;
-        configManager.SaveConfiguration();
+    
+        // If the ASP.NET Core Hosting has stopped then we don't want to save to disk the exited application status
+        if (!HexusLifecycle.IsDaemonStopped)
+            configManager.SaveConfiguration();
 
         LogAcknowledgeProcessExit(logger, application.Name, process.ExitCode, process.Id);
     }

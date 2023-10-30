@@ -4,6 +4,8 @@ namespace Hexus.Daemon.Services;
 
 internal sealed class HexusLifecycle(HexusConfigurationManager configManager, ProcessManagerService processManager) : IHostedLifecycleService
 {
+    public static bool IsDaemonStopped { get; private set; }
+    
     public Task StartedAsync(CancellationToken cancellationToken)
     {
         foreach (var application in configManager.Configuration.Applications.Values.Where(application =>
@@ -15,7 +17,10 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
 
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
-        foreach (var application in processManager.Application.Values) processManager.StopApplication(application.Name);
+        IsDaemonStopped = true;
+        
+        foreach (var application in processManager.Application.Values) 
+            processManager.StopApplication(application.Name);
 
         if (configManager.Configuration.UnixSocket is not null)
             File.Delete(configManager.Configuration.UnixSocket);
