@@ -51,7 +51,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         application.Process = process;
 
-        application.LogFile?.Close();
+        application.LogFile?.Dispose();
         application.LogFile = File.AppendText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log");
         application.LogFile.AutoFlush = true;
 
@@ -75,7 +75,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         // Remove the restart event handler, or else it will restart the process as soon as it stops
         application.Process.Exited -= HandleProcessRestart;
 
-        KillProcessCore(application.Process, forceStop);
+        StopProcess(application.Process, forceStop);
 
         application.Process.Close();
         application.Status = HexusApplicationStatus.Exited;
@@ -119,11 +119,13 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         return true;
     }
 
-    private void KillProcessCore(Process process, bool forceStop)
+    private void StopProcess(Process process, bool forceStop)
     {
         if (forceStop)
         {
-            process.Kill();
+            KillProcessCore(process);
+            
+            // process._onExited?.Invoke(process, EventArgs.Empty);
             return;
         }
 
@@ -133,8 +135,10 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         try
         {
             // If in 30 seconds the process doesn't get killed (it has handled the SIGINT signal and not exited) then force stop it
-            if (code is not 0 || !process.WaitForExit(TimeSpan.FromSeconds(30)))
-                process.Kill();
+            if (code is 0 && process.WaitForExit(TimeSpan.FromSeconds(30))) 
+                return;
+
+            KillProcessCore(process);
         }
         catch (Exception exception)
         {
@@ -145,8 +149,15 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
                 return;
 
             // Fallback to the .NET build-in Kernel call to force stop the process
-            process.Kill();
+            KillProcessCore(process);
         }
+    }
+
+    private static void KillProcessCore(Process process)
+    {
+        process.Kill();
+        // The getter for HasExited calls the Exited event if it hasn't been called yet
+        _ = process.HasExited;
     }
 
     #region Log process events handlers
@@ -190,15 +201,14 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     private static readonly TimeSpan ResetTimeWindow = TimeSpan.FromSeconds(30);
     private const int MaxRestarts = 10;
 
-    private readonly ConcurrentDictionary<string, (int Restarts, CancellationTokenSource CTS)> _consequentialRestarts = new();
+    private readonly ConcurrentDictionary<string, (int Restarts, CancellationTokenSource? CancellationTokenSource)> _consequentialRestarts = new();
 
     private void AcknowledgeProcessExit(object? sender, EventArgs e)
     {
         if (sender is not Process process || !Application.TryGetValue(process, out var application))
             return;
 
-        application.LogFile?.Flush();
-        application.LogFile?.Close();
+        application.LogFile?.Dispose();
 
         application.Status = HexusApplicationStatus.Exited;
     
@@ -215,29 +225,23 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
 
         // Fire and forget
-        _ = HandleProcessRestartCoreAsync(application);
+        _ = HandleProcessRestartAsync(application);
     }
 
-    private async Task HandleProcessRestartCoreAsync(HexusApplication application)
+    private async Task HandleProcessRestartAsync(HexusApplication application)
     {
-        if (_consequentialRestarts.TryGetValue(application.Name, out var tuple))
-        {
-            tuple.Restarts++;
-            tuple.CTS.Dispose();
-            tuple.CTS = new CancellationTokenSource(ResetTimeWindow);
-        }
-        else
-        {
-            tuple = (1, new CancellationTokenSource(ResetTimeWindow));
-        }
+        var status = _consequentialRestarts.GetValueOrDefault(application.Name, (0, null));
+        _consequentialRestarts[application.Name] = status;
+        
+        status.Restarts++;
+        status.CancellationTokenSource?.Dispose();
+        status.CancellationTokenSource = new CancellationTokenSource(ResetTimeWindow);
 
-        var (restarts, cts) = tuple;
-
-        if (restarts >= MaxRestarts)
+        if (status.Restarts >= MaxRestarts)
         {
-            LogCrashedApplication(logger, application.Name, restarts, ResetTimeWindow.TotalSeconds);
+            LogCrashedApplication(logger, application.Name, status.Restarts, ResetTimeWindow.TotalSeconds);
             
-            cts.Dispose();
+            status.CancellationTokenSource.Dispose();
             _consequentialRestarts.TryRemove(application.Name, out _);
 
             application.Status = HexusApplicationStatus.Crashed;
@@ -246,10 +250,8 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
         }
 
-        var delay = CalculateDelay(restarts);
-        cts.Token.Register(ResetConsequentialRestarts, application.Name);
-
-        _consequentialRestarts[application.Name] = (restarts, cts);
+        var delay = CalculateDelay(status.Restarts);
+        status.CancellationTokenSource.Token.Register(ResetConsequentialRestarts, application.Name);
 
         LogRestartAttemptDelay(logger, application.Name, delay.TotalSeconds);
         
@@ -265,12 +267,10 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         if (state is not string name)
             return;
 
-        _consequentialRestarts.TryRemove(name, out var tuple);
-        var (restarts, cts) = tuple;
-
-
-        cts.Dispose();
-        LogConsequentialRestartsStop(logger, restarts, name);
+        _consequentialRestarts.TryRemove(name, out var status);
+        status.CancellationTokenSource?.Dispose();
+        
+        LogConsequentialRestartsStop(logger, status.Restarts, name);
     }
 
     private static TimeSpan CalculateDelay(int restart) =>

@@ -30,7 +30,8 @@ internal class HexusConfigurationManager
 
         var configurationFile = File.ReadAllText(ConfigurationFile);
 
-        Configuration = YamlDeserializer.Deserialize<HexusConfiguration>(configurationFile);
+        // For whatever reason: if the yaml deserializer receives an empty string, uses null for the result
+        Configuration = YamlDeserializer.Deserialize<HexusConfiguration?>(configurationFile) ?? new HexusConfiguration();
     }
 
     internal void SaveConfiguration()

@@ -1,5 +1,4 @@
 using EndpointMapper;
-using FluentValidation;
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Services;
 using System.Text.Json.Serialization;
@@ -16,7 +15,7 @@ builder.WebHost.UseKestrel((context, options) =>
                         ?? throw new Exception("Unable to fetch the directory name for the UNIX socket file location");
 
         Directory.CreateDirectory(directory);
-
+        
         // On windows .NET doesn't remove the socket
         File.Delete(configurationManager.Configuration.UnixSocket);
 
@@ -35,8 +34,6 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<HexusApplicationStatus>());
 });
-
-builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddSingleton(configurationManager);
 builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);

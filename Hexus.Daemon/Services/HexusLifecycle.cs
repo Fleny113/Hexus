@@ -18,12 +18,12 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
         IsDaemonStopped = true;
-        
-        foreach (var application in processManager.Application.Values) 
-            processManager.StopApplication(application.Name);
 
         if (configManager.Configuration.UnixSocket is not null)
             File.Delete(configManager.Configuration.UnixSocket);
+        
+        foreach (var application in processManager.Application.Values) 
+            processManager.StopApplication(application.Name);
 
         return Task.CompletedTask;
     }

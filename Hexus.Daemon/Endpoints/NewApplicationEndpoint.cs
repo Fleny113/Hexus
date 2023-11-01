@@ -1,7 +1,8 @@
 ﻿using EndpointMapper;
-using FluentValidation;
 using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Services;
+using Hexus.Daemon.Validators;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,21 +11,21 @@ namespace Hexus.Daemon.Endpoints;
 internal sealed class NewApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/new")]
-    public static Results<Ok<HexusApplication>, ValidationProblem, UnprocessableEntity> Handle(
+    public static Results<Ok<HexusApplication>, ValidationProblem, UnprocessableEntity, UnprocessableEntity<object>> Handle(
         [FromBody] NewApplicationRequest request,
         [FromServices] HexusConfigurationManager configManager,
-        [FromServices] ProcessManagerService processManager,
-        [FromServices] IValidator<NewApplicationRequest> validator)
+        [FromServices] ProcessManagerService processManager)
     {
-        var context = validator.Validate(request);
-
-        if (!context.IsValid)
-            return TypedResults.ValidationProblem(context.ToDictionary());
+        if (request.WorkingDirectory is "")
+            request.WorkingDirectory = EnvironmentHelper.Home;
+        
+        if (!request.ValidateContract(out var errors))
+            return TypedResults.ValidationProblem(errors);
 
         var application = request.MapToApplication();
 
-        if (application.WorkingDirectory is "")
-            application.WorkingDirectory = EnvironmentHelper.Home;
+        if (configManager.Configuration.Applications.Values.FirstOrDefault(x => x.Name == application.Name) is not null)
+            return TypedResults.UnprocessableEntity(Constants.ApplicationWithTheSameNameAlreadyExiting);
 
         if (!processManager.StartApplication(application))
             return TypedResults.UnprocessableEntity();
@@ -36,4 +37,3 @@ internal sealed class NewApplicationEndpoint : IEndpoint
     }
 }
 
-public sealed record NewApplicationRequest(string Name, string Executable, string Arguments = "", string WorkingDirectory = "");
