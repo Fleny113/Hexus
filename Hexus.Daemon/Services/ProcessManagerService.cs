@@ -218,20 +218,15 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         if (sender is not Process process || !Applications.TryGetValue(process, out var application))
             return;
 
-        // Fire and forget
-        _ = HandleProcessRestartAsync(application);
-    }
-
-    private async Task HandleProcessRestartAsync(HexusApplication application)
-    {
         var status = _consequentialRestarts.GetValueOrDefault(application.Name, (0, null));
-        _consequentialRestarts[application.Name] = status;
         
         status.Restarts++;
         status.CancellationTokenSource?.Dispose();
         status.CancellationTokenSource = new CancellationTokenSource(ResetTimeWindow);
 
-        if (status.Restarts >= MaxRestarts)
+        _consequentialRestarts[application.Name] = status;
+        
+        if (status.Restarts > MaxRestarts)
         {
             LogCrashedApplication(logger, application.Name, status.Restarts, ResetTimeWindow.TotalSeconds);
             
@@ -248,12 +243,12 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         status.CancellationTokenSource.Token.Register(ResetConsequentialRestarts, application.Name);
 
         LogRestartAttemptDelay(logger, application.Name, delay.TotalSeconds);
-        
-        await Task.Delay(delay);
 
-        StartApplication(application);
-
-        configManager.SaveConfiguration();
+        Task.Delay(delay).ContinueWith(_ =>
+        {
+            StartApplication(application); 
+            configManager.SaveConfiguration();
+        });
     }
 
     private void ResetConsequentialRestarts(object? state)
@@ -275,7 +270,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             6 or 7 => TimeSpan.FromSeconds(2),
             8 or 9 => TimeSpan.FromSeconds(4),
             10 => TimeSpan.FromSeconds(8),
-            _ => throw new ArgumentOutOfRangeException(nameof(restart))
+            _ =>  throw new ArgumentOutOfRangeException(nameof(restart))
         };
 
     #endregion
