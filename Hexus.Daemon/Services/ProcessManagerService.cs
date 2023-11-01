@@ -270,7 +270,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             6 or 7 => TimeSpan.FromSeconds(2),
             8 or 9 => TimeSpan.FromSeconds(4),
             10 => TimeSpan.FromSeconds(8),
-            _ =>  throw new ArgumentOutOfRangeException(nameof(restart))
+            _ => throw new ArgumentOutOfRangeException(nameof(restart))
         };
 
     #endregion
