@@ -22,7 +22,7 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
         if (configManager.Configuration.UnixSocket is not null)
             File.Delete(configManager.Configuration.UnixSocket);
         
-        foreach (var application in processManager.Application.Values) 
+        foreach (var application in processManager.Applications.Values) 
             processManager.StopApplication(application.Name);
 
         return Task.CompletedTask;

@@ -8,7 +8,7 @@ namespace Hexus.Daemon.Services;
 
 internal partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager)
 {
-    internal ConcurrentDictionary<Process, HexusApplication> Application { get; } = new();
+    internal ConcurrentDictionary<Process, HexusApplication> Applications { get; } = new();
 
     /// <summary> Start an instance of the application</summary>
     /// <param name="application">The application to start</param>
@@ -27,13 +27,16 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
             // NOTE: If set to UTF8 it may give issues when using the STDIN, ASCII seems to solve the issue
-            StandardInputEncoding = Encoding.ASCII
+            StandardInputEncoding = Encoding.ASCII,
         };
 
         var process = Process.Start(processInfo);
 
         if (process is null)
             return false;
+
+        application.Process = process;
+        Applications[process] = application;
 
         // Enable the emitting of events and the reading of the STDOUT and STDERR
         process.EnableRaisingEvents = true;
@@ -47,16 +50,12 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         process.Exited += AcknowledgeProcessExit;
         process.Exited += HandleProcessRestart;
 
-        application.Process = process;
-
         application.LogFile?.Dispose();
         application.LogFile = File.AppendText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log");
         application.LogFile.AutoFlush = true;
 
         application.Status = HexusApplicationStatus.Operating;
         configManager.SaveConfiguration();
-
-        Application.TryAdd(process, application);
 
         return true;
     }
@@ -95,10 +94,9 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     /// <summary>Check if an application exists, is running and has an attached process running</summary>
     /// <param name="application">The nullable instance of an <see cref="HexusApplication" /></param>
     /// <returns>If the application is running</returns>
-    public static bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application)
+    private static bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application)
         => application is { Status: HexusApplicationStatus.Operating, Process.HasExited: false };
-
-
+    
     /// <summary>Send a message into the Standard Input (STDIN) of an application</summary>
     /// <param name="name">The name of the application</param>
     /// <param name="text">The text to send into the STDIN</param>
@@ -175,7 +173,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void HandleStdOutLogs(object? sender, DataReceivedEventArgs e)
     {
-        if (sender is not Process process || !Application.TryGetValue(process, out var application))
+        if (sender is not Process process || !Applications.TryGetValue(process, out var application))
             return;
 
         ProcessApplicationLog(application, "STDOUT", e.Data ?? "");
@@ -183,7 +181,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void HandleStdErrLogs(object? sender, DataReceivedEventArgs e)
     {
-        if (sender is not Process process || !Application.TryGetValue(process, out var application))
+        if (sender is not Process process || !Applications.TryGetValue(process, out var application))
             return;
 
         ProcessApplicationLog(application, "STDERR", e.Data ?? "");
@@ -201,7 +199,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void AcknowledgeProcessExit(object? sender, EventArgs e)
     {
-        if (sender is not Process process || !Application.TryGetValue(process, out var application))
+        if (sender is not Process process || !Applications.TryGetValue(process, out var application))
             return;
 
         application.LogFile?.Dispose();
@@ -217,7 +215,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void HandleProcessRestart(object? sender, EventArgs e)
     {
-        if (sender is not Process process || !Application.TryGetValue(process, out var application))
+        if (sender is not Process process || !Applications.TryGetValue(process, out var application))
             return;
 
         // Fire and forget
