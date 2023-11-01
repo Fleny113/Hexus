@@ -27,39 +27,39 @@ internal partial class ProcessSignals
 
 public enum UnixSignal
 {
-    SIGHUP = 1,     // Hangup
-    SIGINT = 2,     // Interrupt 
-    SIGQUIT = 3,    // Quit
-    SIGILL = 4,     // Illegal instruction 
-    SIGTRAP = 5,    // Trace trap 
-    SIGABRT = 6,    // Abort 
-    SIGBUS = 7,     // BUS error
-    SIGFPE = 8,     // Floating-point exception
-    SIGKILL = 9,    // UnixKill
-    SIGUSR1 = 10,   // User-defined signal 1
-    SIGSEGV = 11,   // Segmentation violation
-    SIGUSR2 = 12,   // User-defined signal 2 
-    SIGPIPE = 13,   // Broken pipe
-    SIGALRM = 14,   // Alarm clock
-    SIGTERM = 15,   // Termination 
-    SIGCHLD = 16,   // Child status has changed
-    SIGCONT = 17,   // Continue
-    SIGSTOP = 18,   // Stop
-    SIGTSTP = 19,   // Keyboard stop
-    SIGTTIN = 20,   // Background read from tty
-    SIGTTOU = 21,   // Background write to tty
-    SIGURG = 22,    // Urgent condition on socket
-    SIGXCPU = 23,   // CPU limit exceeded
-    SIGXFSZ = 24,   // File size limit exceeded
-    SIGVTALRM = 25, // Virtual alarm clock
-    SIGPROF = 26,   // Profiling alarm clock
-    SIGWINCH = 27,  // Window size change
-    SIGPOLL = 28,   // I/O now possible
-    SIGSYS = 30     // Bad system call.
+    SigHup = 1,     // Hangup
+    SigInt = 2,     // Interrupt
+    SigQuit = 3,    // Quit
+    SigIll = 4,     // Illegal instruction
+    SigTrap = 5,    // Trace trap
+    SigAbrt = 6,    // Abort
+SigBus = 7,     // BUS error
+    SigFpe = 8,     // Floating-point exception
+    SigKill = 9,    // UnixKill
+    SigUsr1 = 10,   // User-defined signal 1
+    SigSegv = 11,   // Segmentation violation
+    SigUsr2 = 12,   // User-defined signal 2
+    SigPipe = 13,   // Broken pipe
+    SigAlrm = 14,   // Alarm clock
+    SigTerm = 15,   // Termination
+    SigChld = 16,   // Child status has changed
+    SigCont = 17,   // Continue
+    SigStop = 18,   // Stop
+    SigTstp = 19,   // Keyboard stop
+    SigTtin = 20,   // Background read from tty
+    SigTtou = 21,   // Background write to tty
+    SigUrg = 22,    // Urgent condition on socket
+    SigXcpu = 23,   // CPU limit exceeded
+    SigXfsz = 24,   // File size limit exceeded
+    SigVtalrm = 25, // Virtual alarm clock
+    SigProf = 26,   // Profiling alarm clock
+    SigWinch = 27,  // Window size change
+    SigPoll = 28,   // I/O now possible
+    SigSys = 30     // Bad system call
 }
 
 public enum WindowsSignal : uint
 {
-    SIGINT = 0,     // Interrupt (CTRL + C)
-    SIGBREAK = 1    // Break     (CTRL + Break)
+    SigInt = 0,     // Interrupt (CTRL + C)
+    SigBreak = 1    // Break     (CTRL + Break)
 }

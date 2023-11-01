@@ -26,9 +26,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             RedirectStandardInput = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
-
-            // NOTE: If set to UTF8 it may give issues when using the STDIN
-            //  ASCII seems to solve the issue
+            // NOTE: If set to UTF8 it may give issues when using the STDIN, ASCII seems to solve the issue
             StandardInputEncoding = Encoding.ASCII
         };
 
@@ -123,14 +121,12 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     {
         if (forceStop)
         {
-            KillProcessCore(process);
-            
-            // process._onExited?.Invoke(process, EventArgs.Empty);
+            KillProcess(process);
             return;
         }
 
         // NativeSendSignal can send -1 if the UNIX kill call returns
-        var code = ProcessSignals.NativeSendSignal(process.Id, WindowsSignal.SIGINT, UnixSignal.SIGINT);
+        var code = ProcessSignals.NativeSendSignal(process.Id, WindowsSignal.SigInt, UnixSignal.SigInt);
         
         try
         {
@@ -138,7 +134,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             if (code is 0 && process.WaitForExit(TimeSpan.FromSeconds(30))) 
                 return;
 
-            KillProcessCore(process);
+            KillProcess(process);
         }
         catch (Exception exception)
         {
@@ -149,11 +145,11 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
                 return;
 
             // Fallback to the .NET build-in Kernel call to force stop the process
-            KillProcessCore(process);
+            KillProcess(process);
         }
     }
 
-    private static void KillProcessCore(Process process)
+    private static void KillProcess(Process process)
     {
         process.Kill();
         // The getter for HasExited calls the Exited event if it hasn't been called yet
