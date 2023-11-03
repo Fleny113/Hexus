@@ -5,10 +5,10 @@ namespace Hexus.Daemon.Contracts;
 
 public sealed record NewApplicationRequest(
     [property: Required] string Name, 
-    [property: AbsolutePath] string Executable, 
+    [property: Required, AbsolutePath] string Executable, 
     string Arguments = "", 
     string WorkingDirectory = ""
 ) : IContract
 {
-    [AbsolutePath] public string WorkingDirectory { get; set; } = WorkingDirectory;
+    [Required, AbsolutePath] public string WorkingDirectory { get; set; } = WorkingDirectory;
 }
