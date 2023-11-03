@@ -9,18 +9,15 @@ var configurationManager = new HexusConfigurationManager(builder.Environment.IsD
 
 builder.WebHost.UseKestrel((context, options) =>
 {
-    if (configurationManager.Configuration.UnixSocket is not null)
-    {
-        var directory = Path.GetDirectoryName(configurationManager.Configuration.UnixSocket)
-                        ?? throw new Exception("Unable to fetch the directory name for the UNIX socket file location");
+    var name = Path.GetDirectoryName(configurationManager.Configuration.UnixSocket)
+               ?? throw new InvalidOperationException("Cannot get the directory name for the unix socket");
 
-        Directory.CreateDirectory(directory);
+    Directory.CreateDirectory(name);
 
-        // On windows .NET doesn't remove the socket
-        File.Delete(configurationManager.Configuration.UnixSocket);
+    // On Windows .NET doesn't remove the socket, so it might be still there
+    File.Delete(configurationManager.Configuration.UnixSocket);
 
-        options.ListenUnixSocket(configurationManager.Configuration.UnixSocket);
-    }
+    options.ListenUnixSocket(configurationManager.Configuration.UnixSocket);
 
     if (configurationManager.Configuration.HttpPort is not -1)
         options.ListenLocalhost(configurationManager.Configuration.HttpPort);

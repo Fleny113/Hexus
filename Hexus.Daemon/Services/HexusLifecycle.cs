@@ -19,8 +19,7 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
     {
         IsDaemonStopped = true;
 
-        if (configManager.Configuration.UnixSocket is not null)
-            File.Delete(configManager.Configuration.UnixSocket);
+        File.Delete(configManager.Configuration.UnixSocket);
         
         foreach (var application in processManager.Applications.Values) 
             processManager.StopApplication(application.Name);
