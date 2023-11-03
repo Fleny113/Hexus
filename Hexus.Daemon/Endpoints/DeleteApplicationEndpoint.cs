@@ -20,6 +20,7 @@ internal sealed class DeleteApplicationEndpoint : IEndpoint
 
         processManager.StopApplication(name, forceStop);
 
+        File.Delete($"{EnvironmentHelper.LogsDirectory}/{name}.log");
         configManager.Configuration.Applications.Remove(name);
         configManager.SaveConfiguration();
 

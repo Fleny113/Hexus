@@ -1,5 +1,6 @@
 @baseUrl = http://localhost:5104
 @name = test_application
+@forceStop = true
 
 GET {{baseUrl}}/list
 Accept: application/json
@@ -22,12 +23,12 @@ Accept: application/json
 
 ###
 
-DELETE {{baseUrl}}/{{name}}/stop?forceStop=false
+DELETE {{baseUrl}}/{{name}}/stop?forceStop={{forceStop}}
 Accept: application/json
 
 ###
 
-DELETE {{baseUrl}}/{{name}}/delete?forceStop=true
+DELETE {{baseUrl}}/{{name}}/delete?forceStop={{forceStop}}
 Accept: application/json
 
 ###
