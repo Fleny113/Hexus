@@ -15,4 +15,9 @@ internal static class Mapper
             WorkingDirectory = request.WorkingDirectory,
         };
     }
+
+    public static HexusApplicationResponse MapToResponse(this HexusApplication application)
+    {
+        return new HexusApplicationResponse();
+    }
 }

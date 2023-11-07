@@ -15,5 +15,6 @@ public sealed record HexusApplication
 
     // Internal proprieties
     [YamlIgnore] internal Process? Process { get; set; }
+    [YamlIgnore] internal object? PerformanceCounter { get; set; }
     [YamlIgnore] internal StreamWriter? LogFile { get; set; }
 }

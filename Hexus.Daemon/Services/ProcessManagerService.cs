@@ -36,6 +36,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return false;
 
         application.Process = process;
+        // application.PerformanceCounter = new PerformanceCounter("Process", "% Processor Time");
         Applications[process] = application;
 
         // Enable the emitting of events and the reading of the STDOUT and STDERR
@@ -203,6 +204,9 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
 
         application.LogFile?.Dispose();
+
+        application.Process = null;
+        application.PerformanceCounter = null;
 
         application.Status = HexusApplicationStatus.Exited;
     

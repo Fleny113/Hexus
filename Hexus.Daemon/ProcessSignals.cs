@@ -33,7 +33,7 @@ public enum UnixSignal
     SigIll = 4,     // Illegal instruction
     SigTrap = 5,    // Trace trap
     SigAbrt = 6,    // Abort
-SigBus = 7,     // BUS error
+    SigBus = 7,     // BUS error
     SigFpe = 8,     // Floating-point exception
     SigKill = 9,    // UnixKill
     SigUsr1 = 10,   // User-defined signal 1
