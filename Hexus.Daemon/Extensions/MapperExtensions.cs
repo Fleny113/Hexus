@@ -1,9 +1,9 @@
 ﻿using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 
-namespace Hexus.Daemon;
+namespace Hexus.Daemon.Extensions;
 
-internal static class Mapper
+internal static class MapperExtensions
 {
     public static HexusApplication MapToApplication(this NewApplicationRequest request)
     {

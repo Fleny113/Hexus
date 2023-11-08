@@ -5,5 +5,5 @@ public enum HexusApplicationStatus
     Crashed = -2,
     Exited = -1,
 
-    Operating = 1,
+    Running = 1,
 }

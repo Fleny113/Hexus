@@ -1,4 +1,5 @@
 ﻿using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Interop;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -36,7 +37,8 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return false;
 
         application.Process = process;
-        // application.PerformanceCounter = new PerformanceCounter("Process", "% Processor Time");
+        
+        
         Applications[process] = application;
 
         // Enable the emitting of events and the reading of the STDOUT and STDERR
@@ -55,7 +57,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         application.LogFile = File.AppendText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log");
         application.LogFile.AutoFlush = true;
 
-        application.Status = HexusApplicationStatus.Operating;
+        application.Status = HexusApplicationStatus.Running;
         configManager.SaveConfiguration();
 
         return true;
@@ -96,7 +98,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     /// <param name="application">The nullable instance of an <see cref="HexusApplication" /></param>
     /// <returns>If the application is running</returns>
     private static bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application)
-        => application is { Status: HexusApplicationStatus.Operating, Process.HasExited: false };
+        => application is { Status: HexusApplicationStatus.Running, Process.HasExited: false };
     
     /// <summary>Send a message into the Standard Input (STDIN) of an application</summary>
     /// <param name="name">The name of the application</param>
@@ -206,7 +208,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         application.LogFile?.Dispose();
 
         application.Process = null;
-        application.PerformanceCounter = null;
+        application.CpuStatsMap.Clear();
 
         application.Status = HexusApplicationStatus.Exited;
     

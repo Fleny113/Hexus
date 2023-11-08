@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Hexus.Daemon;
+namespace Hexus.Daemon.Interop;
 
 internal partial class ProcessSignals
 {

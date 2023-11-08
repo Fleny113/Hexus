@@ -9,7 +9,7 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
     public Task StartedAsync(CancellationToken cancellationToken)
     {
         foreach (var application in configManager.Configuration.Applications.Values.Where(application =>
-                     application is { Status: HexusApplicationStatus.Operating })) 
+                     application is { Status: HexusApplicationStatus.Running })) 
             processManager.StartApplication(application);
 
         Task.Run(async () =>
@@ -17,20 +17,11 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
             var interval = TimeSpan.FromSeconds(2);
             
             var timer = new PeriodicTimer(interval);
-            var process = configManager.Configuration.Applications.Values.ElementAt(0).Process!;
-            
-            var previousTotalProcessorTime = process.TotalProcessorTime;
-            
+            var application = configManager.Configuration.Applications.Values.ElementAt(1);
+
             while (!cancellationToken.IsCancellationRequested && await timer.WaitForNextTickAsync(cancellationToken))
             {
-                var currentTotalProcessorTime = process.TotalProcessorTime;
-                var processorTimeDifference = currentTotalProcessorTime - previousTotalProcessorTime;
-                previousTotalProcessorTime = currentTotalProcessorTime;
-                
-                var cpuUsage = processorTimeDifference / Environment.ProcessorCount / interval;
-                var cpuPercentage = Math.Round(cpuUsage * 100);
-                
-                Console.WriteLine($"[{DateTime.Now}] The CPU usage is: {cpuPercentage:F0}% [{processorTimeDifference}]");
+                Console.WriteLine($"[{DateTime.Now}] The application CPU usage is: {application.TotalCpuUsage}%");
             }
         }, cancellationToken);
         
