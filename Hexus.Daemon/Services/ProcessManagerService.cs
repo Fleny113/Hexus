@@ -1,4 +1,5 @@
 ﻿using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Interop;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -9,6 +10,8 @@ namespace Hexus.Daemon.Services;
 
 internal partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager)
 {
+    private static readonly TimeSpan CpuUsageRefreshInterval = TimeSpan.FromSeconds(5); 
+    
     internal ConcurrentDictionary<Process, HexusApplication> Applications { get; } = new();
 
     /// <summary> Start an instance of the application</summary>
@@ -37,7 +40,9 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return false;
 
         application.Process = process;
-        
+
+        application.CpuUsageRefreshTimer?.Dispose();
+        application.CpuUsageRefreshTimer = new Timer(RefreshCpuUsage, application, CpuUsageRefreshInterval, CpuUsageRefreshInterval);
         
         Applications[process] = application;
 
@@ -76,9 +81,6 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         application.Process.Exited -= HandleProcessRestart;
 
         StopProcess(application.Process, forceStop);
-
-        application.Process.Close();
-        application.Status = HexusApplicationStatus.Exited;
         
         // If the ASP.NET Core Hosting has stopped then we don't want to save to disk the exited application status
         if (!HexusLifecycle.IsDaemonStopped)
@@ -128,14 +130,18 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         // NativeSendSignal can send -1 if the UNIX kill call returns
         var code = ProcessSignals.NativeSendSignal(process.Id, WindowsSignal.SigInt, UnixSignal.SigInt);
-        
+
         try
         {
             // If in 30 seconds the process doesn't get killed (it has handled the SIGINT signal and not exited) then force stop it
-            if (code is 0 && process.WaitForExit(TimeSpan.FromSeconds(30))) 
+            if (code is 0 && process.WaitForExit(TimeSpan.FromSeconds(30)))
                 return;
 
             KillProcess(process);
+        }
+        catch (InvalidOperationException exception) when (exception.Message == "No process is associated with this object.")
+        {
+            // We don't want to do anything. The application is already killed so nothing to do
         }
         catch (Exception exception)
         {
@@ -161,16 +167,14 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void ProcessApplicationLog(HexusApplication application, string logType, string message)
     {
-        if (application is not { LogFile: not null, Process: not null })
+        if (application is not { Process: not null })
             return;
 
-        // Trying to get the PID of a exited process throws an error
-        if (application.Process is { HasExited: false })
-            LogApplicationOutput(logger, application.Name, application.Process.Id, message);
+        LogApplicationOutput(logger, application.Name, message);
 
         var date = DateTimeOffset.UtcNow.ToString("MMM dd yyyy HH:mm:ss");
 
-        if (application.LogFile.BaseStream.CanWrite)
+        if (application.LogFile is not null && application.LogFile.BaseStream.CanWrite)
             application.LogFile.WriteLine($"[{date},{logType}] {message}");
     }
 
@@ -206,8 +210,14 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
 
         application.LogFile?.Dispose();
+        application.LogFile = null;
 
+        application.CpuUsageRefreshTimer?.Dispose();
+        application.CpuUsageRefreshTimer = null;
+
+        application.Process?.Close();
         application.Process = null;
+        
         application.CpuStatsMap.Clear();
 
         application.Status = HexusApplicationStatus.Exited;
@@ -216,7 +226,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         if (!HexusLifecycle.IsDaemonStopped)
             configManager.SaveConfiguration();
 
-        LogAcknowledgeProcessExit(logger, application.Name, process.ExitCode, process.Id);
+        LogAcknowledgeProcessExit(logger, application.Name, process.ExitCode);
     }
 
     private void HandleProcessRestart(object? sender, EventArgs e)
@@ -281,11 +291,76 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     #endregion
 
+    #region Performance tracking
+    
+    internal static long GetMemoryUsage(HexusApplication application)
+    {
+        if (application.Process is not { HasExited: false })
+            return 0;
+        
+        application.Process.Refresh();
+
+        var childProcessesMemoryUsage = application.Process.GetChildProcesses()
+            .Select(proc => proc.PagedMemorySize64)
+            .Aggregate((accumulated, memory) => accumulated + memory);
+        
+        return application.Process.PagedMemorySize64 + childProcessesMemoryUsage;
+    }
+    
+    private static void RefreshCpuUsage(object? state)
+    {
+        if (state is not HexusApplication application)
+            return;
+        
+        application.LastCpuUsage = Math.Clamp(Math.Round(GetCpuUsage(application) + GetChildrenCpuUsage(application), 2), 0, 100);
+    }
+    
+    private static double GetCpuUsage(HexusApplication application)
+    {
+        if (application.Process is null)
+            return 0.0d;
+        
+        var cpuStats = application.CpuStatsMap.GetValueOrDefault(application.Process.Id, new HexusApplication.CpuStats());
+                
+        var cpuPercentage = application.Process.GetProcessCpuUsage(ref cpuStats);
+        application.CpuStatsMap[application.Process.Id] = cpuStats;
+
+        return cpuPercentage;
+    }
+    
+    private static double GetChildrenCpuUsage(HexusApplication application)
+    {
+        if (application.Process is null)
+            return 0.0d;
+
+        var children = application.Process.GetChildProcesses().ToArray();
+
+        // For the killed children we don't care about tracking their CPU usages
+        foreach (var key in application.CpuStatsMap.Keys.Except(children.Select(child => child.Id)))
+            application.CpuStatsMap.Remove(key);
+        
+        var totalUsage = children
+            .Select(child =>
+            {
+                var childCpuStats = application.CpuStatsMap.GetValueOrDefault(child.Id, new HexusApplication.CpuStats());
+                var cpuPercentage = child.GetProcessCpuUsage(ref childCpuStats);
+
+                application.CpuStatsMap[child.Id] = childCpuStats;
+
+                return cpuPercentage;
+            })                
+            .Aggregate((acc, curr) => acc + curr);
+        
+        return totalUsage;
+    }
+    
+    #endregion
+    
     [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed")]
     private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, double timeWindow);
 
-    [LoggerMessage(LogLevel.Debug, "Acknowledging about \"{Name}\" exiting with code: {ExitCode} [{PID}]")]
-    private static partial void LogAcknowledgeProcessExit(ILogger logger, string name, int exitCode, int pid);
+    [LoggerMessage(LogLevel.Debug, "Acknowledging about \"{Name}\" exiting with code: {ExitCode}")]
+    private static partial void LogAcknowledgeProcessExit(ILogger logger, string name, int exitCode);
     
     [LoggerMessage(LogLevel.Debug, "After {Restarts} restarts, application \"{Name}\" stopped restarting")]
     private static partial void LogConsequentialRestartsStop(ILogger logger, int restarts, string name);
@@ -293,6 +368,6 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     [LoggerMessage(LogLevel.Debug, "Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting")]
     private static partial void LogRestartAttemptDelay(ILogger logger, string name, double seconds);
 
-    [LoggerMessage(LogLevel.Trace, "Application \"{Name}\" [{PID}] says: '{OutputData}'")]
-    private static partial void LogApplicationOutput(ILogger logger, string name, int pid, string outputData);
+    [LoggerMessage(LogLevel.Trace, "Application \"{Name}\" says: '{OutputData}'")]
+    private static partial void LogApplicationOutput(ILogger logger, string name, string outputData);
 }

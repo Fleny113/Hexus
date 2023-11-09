@@ -11,19 +11,6 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
         foreach (var application in configManager.Configuration.Applications.Values.Where(application =>
                      application is { Status: HexusApplicationStatus.Running })) 
             processManager.StartApplication(application);
-
-        Task.Run(async () =>
-        {
-            var interval = TimeSpan.FromSeconds(2);
-            
-            var timer = new PeriodicTimer(interval);
-            var application = configManager.Configuration.Applications.Values.ElementAt(1);
-
-            while (!cancellationToken.IsCancellationRequested && await timer.WaitForNextTickAsync(cancellationToken))
-            {
-                Console.WriteLine($"[{DateTime.Now}] The application CPU usage is: {application.TotalCpuUsage}%");
-            }
-        }, cancellationToken);
         
         return Task.CompletedTask;
     }

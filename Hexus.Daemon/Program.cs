@@ -1,5 +1,6 @@
 using EndpointMapper;
 using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Services;
 using System.Text.Json.Serialization;
 
@@ -44,5 +45,5 @@ app.MapEndpointMapperEndpoints();
 
 app.Run();
 
-[JsonSerializable(typeof(HexusApplication))]
+[JsonSerializable(typeof(HexusApplicationResponse))]
 internal partial class AppJsonSerializerContext : JsonSerializerContext;

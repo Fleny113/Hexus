@@ -12,7 +12,7 @@ namespace Hexus.Daemon.Endpoints;
 internal sealed class NewApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/new")]
-    public static Results<Ok<HexusApplication>, ValidationProblem, UnprocessableEntity, UnprocessableEntity<object>> Handle(
+    public static Results<Ok<HexusApplicationResponse>, ValidationProblem, UnprocessableEntity, UnprocessableEntity<object>> Handle(
         [FromBody] NewApplicationRequest request,
         [FromServices] HexusConfigurationManager configManager,
         [FromServices] ProcessManagerService processManager)
@@ -34,7 +34,7 @@ internal sealed class NewApplicationEndpoint : IEndpoint
         configManager.Configuration.Applications.Add(application.Name, application);
         configManager.SaveConfiguration();
 
-        return TypedResults.Ok(application);
+        return TypedResults.Ok(application.MapToResponse());
     }
 }
 

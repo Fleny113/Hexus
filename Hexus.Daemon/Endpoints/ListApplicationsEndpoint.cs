@@ -1,5 +1,7 @@
 ﻿using EndpointMapper;
 using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts;
+using Hexus.Daemon.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,6 +10,6 @@ namespace Hexus.Daemon.Endpoints;
 internal sealed class ListApplicationsEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Get, "/list")]
-    public static Ok<Dictionary<string, HexusApplication>> Handle([FromServices] HexusConfiguration config)
-        => TypedResults.Ok(config.Applications);
+    public static Ok<Dictionary<string, HexusApplicationResponse>> Handle([FromServices] HexusConfiguration config)
+        => TypedResults.Ok(config.Applications.MapToResponse());
 }
