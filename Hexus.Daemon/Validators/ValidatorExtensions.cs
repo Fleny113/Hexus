@@ -13,7 +13,7 @@ internal static class ValidatorExtensions
 
         validationErrors = null;
 
-        if (Validator.TryValidateObject(contract, context, validationResults, true))
+        if (Validator.TryValidateObject(contract, context, validationResults, validateAllProperties: true))
             return true;
 
         validationErrors = validationResults

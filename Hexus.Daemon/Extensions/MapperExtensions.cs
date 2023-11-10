@@ -33,7 +33,7 @@ internal static class MapperExtensions
     public static Dictionary<string, HexusApplicationResponse> MapToResponse(this Dictionary<string, HexusApplication> applications)
     {
         return applications
-            .Select(pair => KeyValuePair.Create(pair.Key, pair.Value.MapToResponse()))
-            .ToDictionary();
+            .Select(pair => pair.Value.MapToResponse())
+            .ToDictionary(app => app.Name);
     }
 }

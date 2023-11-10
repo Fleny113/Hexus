@@ -167,9 +167,6 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void ProcessApplicationLog(HexusApplication application, string logType, string message)
     {
-        if (application is not { Process: not null })
-            return;
-
         LogApplicationOutput(logger, application.Name, message);
 
         var date = DateTimeOffset.UtcNow.ToString("MMM dd yyyy HH:mm:ss");
@@ -334,7 +331,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return 0.0d;
 
         var children = application.Process.GetChildProcesses().ToArray();
-
+        
         // For the killed children we don't care about tracking their CPU usages
         foreach (var key in application.CpuStatsMap.Keys.Except(children.Select(child => child.Id)))
             application.CpuStatsMap.Remove(key);

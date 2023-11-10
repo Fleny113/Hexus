@@ -43,8 +43,7 @@ internal static class ProcessExtensions
             throw new NotSupportedException("Getting the child processes is only supported on Windows and Linux");
         }
 
-        return GetChildProcesses(function, process.Id)
-            .ToArray();
+        return GetChildProcesses(function, process.Id);
     }
 
     private static IEnumerable<Process> GetChildProcesses(Func<int, Process[]> function, int parentId)
