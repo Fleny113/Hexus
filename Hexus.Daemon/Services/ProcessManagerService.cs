@@ -36,7 +36,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         var process = Process.Start(processInfo);
 
-        if (process is null)
+        if (process is null or { HasExited: true })
             return false;
 
         application.Process = process;
@@ -128,7 +128,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
         }
 
-        // NativeSendSignal can send -1 if the UNIX kill call returns
+        // NativeSendSignal can send -1 if the UNIX kill call returns an error
         var code = ProcessSignals.NativeSendSignal(process.Id, WindowsSignal.SigInt, UnixSignal.SigInt);
 
         try

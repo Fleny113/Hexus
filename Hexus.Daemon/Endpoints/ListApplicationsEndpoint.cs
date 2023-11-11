@@ -10,6 +10,6 @@ namespace Hexus.Daemon.Endpoints;
 internal sealed class ListApplicationsEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Get, "/list")]
-    public static Ok<Dictionary<string, HexusApplicationResponse>> Handle([FromServices] HexusConfiguration config)
+    public static Ok<IEnumerable<HexusApplicationResponse>> Handle([FromServices] HexusConfiguration config)
         => TypedResults.Ok(config.Applications.MapToResponse());
 }

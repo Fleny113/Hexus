@@ -18,7 +18,7 @@ internal class HexusConfigurationManager
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 
-    internal void LoadConfiguration()
+    private void LoadConfiguration()
     {
         EnvironmentHelper.EnsureDirectoriesExistence();
 
@@ -31,7 +31,14 @@ internal class HexusConfigurationManager
         var configurationFile = File.ReadAllText(ConfigurationFile);
 
         // For whatever reason: if the yaml deserializer receives an empty string, it uses null for the result
-        Configuration = YamlDeserializer.Deserialize<HexusConfiguration?>(configurationFile) ?? new HexusConfiguration();
+        var configFile = YamlDeserializer.Deserialize<HexusConfigurationFile?>(configurationFile) ?? new HexusConfigurationFile();
+        
+        Configuration = new HexusConfiguration()
+        {
+            UnixSocket = configFile.UnixSocket,
+            HttpPort = configFile.HttpPort,
+            Applications = configFile.Applications.ToDictionary(application => application.Name),
+        };
     }
 
     internal void SaveConfiguration()

@@ -13,8 +13,7 @@ Content-Type: application/json
 
 {
   "name": "{{name}}",
-  "executable": "C:\\Program Files\\nodejs\\node.exe",
-  "arguments": "-e \"for (var i = 0; i < 1_000_000_000_000; i++) {}\""
+  "executable": "C:/Windows/System32/cmd.exe"
 }
 
 ###
@@ -39,7 +38,7 @@ Accept: application/json
 Content-Type: application/json
 
 {
-  "text": "node -e \"for (var i = 0; i < 1_000_000_000_000; i++) {}\""
+  "text": "node"
 }
 
 ###

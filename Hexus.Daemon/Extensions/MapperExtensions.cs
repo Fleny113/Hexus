@@ -11,9 +11,9 @@ internal static class MapperExtensions
         return new HexusApplication
         {
             Name = request.Name,
-            Executable = request.Executable,
+            Executable = EnvironmentHelper.NormalizePath(request.Executable),
             Arguments = request.Arguments,
-            WorkingDirectory = request.WorkingDirectory,
+            WorkingDirectory = EnvironmentHelper.NormalizePath(request.WorkingDirectory),
         };
     }
 
@@ -21,19 +21,18 @@ internal static class MapperExtensions
     {
         return new HexusApplicationResponse(
             Name: application.Name, 
-            Executable: application.Executable, 
+            Executable: EnvironmentHelper.NormalizePath(application.Executable), 
             Arguments: application.Arguments,
-            WorkingDirectory: application.WorkingDirectory, 
+            WorkingDirectory: EnvironmentHelper.NormalizePath(application.WorkingDirectory), 
             Status: application.Status, 
             CpuUsage: application.LastCpuUsage, 
             MemoryUsage: ProcessManagerService.GetMemoryUsage(application)
         );
     }
 
-    public static Dictionary<string, HexusApplicationResponse> MapToResponse(this Dictionary<string, HexusApplication> applications)
+    public static IEnumerable<HexusApplicationResponse> MapToResponse(this Dictionary<string, HexusApplication> applications)
     {
         return applications
-            .Select(pair => pair.Value.MapToResponse())
-            .ToDictionary(app => app.Name);
+            .Select(pair => pair.Value.MapToResponse());
     }
 }

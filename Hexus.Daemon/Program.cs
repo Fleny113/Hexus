@@ -30,7 +30,6 @@ builder.WebHost.UseKestrel((context, options) =>
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<HexusApplicationStatus>());
 });
 
 builder.Services.AddSingleton(configurationManager);
@@ -46,4 +45,6 @@ app.MapEndpointMapperEndpoints();
 app.Run();
 
 [JsonSerializable(typeof(HexusApplicationResponse))]
+[JsonSerializable(typeof(ErrorResponse))]
+[JsonSourceGenerationOptions(UseStringEnumConverter = true)]
 internal partial class AppJsonSerializerContext : JsonSerializerContext;
