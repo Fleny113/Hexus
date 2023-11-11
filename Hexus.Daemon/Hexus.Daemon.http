@@ -2,11 +2,13 @@
 @name = test_application
 @forceStop = true
 
+# List all applications
 GET {{baseUrl}}/list
 Accept: application/json
 
 ###
 
+# Create a new application
 POST {{baseUrl}}/new
 Accept: application/json
 Content-Type: application/json
@@ -18,27 +20,40 @@ Content-Type: application/json
 
 ###
 
-POST {{baseUrl}}/{{name}}/start
+# Start an application
+POST {{baseUrl}}/{{name}}
 Accept: application/json
 
 ###
 
-DELETE {{baseUrl}}/{{name}}/stop?forceStop={{forceStop}}
+# Stop an application
+DELETE {{baseUrl}}/{{name}}?forceStop={{forceStop}}
 Accept: application/json
 
 ###
 
+# Delete an application
 DELETE {{baseUrl}}/{{name}}/delete?forceStop={{forceStop}}
 Accept: application/json
 
 ###
 
+# Send text into the Standard Input of a the application
 POST {{baseUrl}}/{{name}}/stdin
 Accept: application/json
 Content-Type: application/json
 
 {
-  "text": "node"
+  "text": "echo Hi world!"
 }
 
 ###
+
+# Edit an application
+PATCH {{baseUrl}}/{{name}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "executable": "C:/Program Files/PowerShell/7/pwsh.exe"
+}

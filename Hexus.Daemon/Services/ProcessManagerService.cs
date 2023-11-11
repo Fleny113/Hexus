@@ -99,7 +99,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     /// <summary>Check if an application exists, is running and has an attached process running</summary>
     /// <param name="application">The nullable instance of an <see cref="HexusApplication" /></param>
     /// <returns>If the application is running</returns>
-    private static bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application)
+    public static bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application)
         => application is { Status: HexusApplicationStatus.Running, Process.HasExited: false };
     
     /// <summary>Send a message into the Standard Input (STDIN) of an application</summary>
@@ -206,6 +206,8 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         if (sender is not Process process || !Applications.TryGetValue(process, out var application))
             return;
 
+        var exitCode = process.ExitCode;
+        
         application.LogFile?.Dispose();
         application.LogFile = null;
 
@@ -223,7 +225,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         if (!HexusLifecycle.IsDaemonStopped)
             configManager.SaveConfiguration();
 
-        LogAcknowledgeProcessExit(logger, application.Name, process.ExitCode);
+        LogAcknowledgeProcessExit(logger, application.Name, exitCode);
     }
 
     private void HandleProcessRestart(object? sender, EventArgs e)

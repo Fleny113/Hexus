@@ -8,7 +8,7 @@ namespace Hexus.Daemon.Endpoints;
 
 internal sealed class StopApplicationEndpoint : IEndpoint
 {
-    [HttpMap(HttpMapMethod.Delete, "/{name}/stop")]
+    [HttpMap(HttpMapMethod.Delete, "/{name}")]
     public static Results<NoContent, NotFound<ErrorResponse>> Handle(
         [FromServices] ProcessManagerService processManager,
         [FromRoute] string name,

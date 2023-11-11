@@ -33,7 +33,7 @@ internal class HexusConfigurationManager
         // For whatever reason: if the yaml deserializer receives an empty string, it uses null for the result
         var configFile = YamlDeserializer.Deserialize<HexusConfigurationFile?>(configurationFile) ?? new HexusConfigurationFile();
         
-        Configuration = new HexusConfiguration()
+        Configuration = new HexusConfiguration
         {
             UnixSocket = configFile.UnixSocket,
             HttpPort = configFile.HttpPort,
@@ -45,7 +45,14 @@ internal class HexusConfigurationManager
     {
         EnvironmentHelper.EnsureDirectoriesExistence();
 
-        var yamlString = YamlSerializer.Serialize(Configuration);
+        var configFile = new HexusConfigurationFile
+        {
+            UnixSocket = Configuration.UnixSocket,
+            HttpPort = Configuration.HttpPort,
+            Applications = Configuration.Applications.Values
+        };
+        
+        var yamlString = YamlSerializer.Serialize(configFile);
 
         lock (this)
         {
