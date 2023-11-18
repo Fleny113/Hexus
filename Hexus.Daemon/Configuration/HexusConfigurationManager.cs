@@ -66,6 +66,13 @@ internal class HexusConfigurationManager
         if (isDevelopment)
             ConfigurationFile = EnvironmentHelper.DevelopmentConfigurationFile;
 
-        LoadConfiguration();
+        try
+        {
+            LoadConfiguration();
+        }
+        catch (Exception exception)
+        {
+            throw new Exception("Unable to parse the configuration file", exception);
+        }
     }
 }
