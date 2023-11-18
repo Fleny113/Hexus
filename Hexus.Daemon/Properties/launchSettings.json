@@ -1,8 +1,9 @@
 {
-  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
     "Hexus": {
       "commandName": "Project",
+      "dotnetRunMessages": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         // The urls are setted by UseKestrel in the Program.cs

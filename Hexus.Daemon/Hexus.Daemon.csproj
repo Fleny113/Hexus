@@ -10,9 +10,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="EndpointMapper" Version="2.0.0-prerelease.4"/>
-        <PackageReference Include="System.Management" Version="8.0.0-rc.2.23479.6" />
-        <PackageReference Include="YamlDotNet" Version="13.5.2"/>
+        <PackageReference Include="EndpointMapper" Version="2.0.0" />
+        <PackageReference Include="System.Management" Version="8.0.0" />
+        <PackageReference Include="YamlDotNet" Version="13.7.1" />
     </ItemGroup>
 
     <ItemGroup>
