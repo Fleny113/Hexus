@@ -66,6 +66,8 @@ internal class HexusConfigurationManager
         if (isDevelopment)
             ConfigurationFile = EnvironmentHelper.DevelopmentConfigurationFile;
 
+        EnvironmentHelper.EnsureDirectoriesExistence();
+
         try
         {
             LoadConfiguration();

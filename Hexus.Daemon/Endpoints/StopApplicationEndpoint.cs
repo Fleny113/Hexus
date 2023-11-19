@@ -9,13 +9,13 @@ namespace Hexus.Daemon.Endpoints;
 internal sealed class StopApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Delete, "/{name}")]
-    public static Results<NoContent, NotFound<ErrorResponse>> Handle(
+    public static Results<NoContent, Conflict<ErrorResponse>> Handle(
         [FromServices] ProcessManagerService processManager,
         [FromRoute] string name,
         [FromQuery] bool forceStop = false)
     {
         if (!processManager.StopApplication(name, forceStop))
-            return TypedResults.NotFound(ErrorResponses.ApplicationIsNotRunningMessage);
+            return TypedResults.Conflict(ErrorResponses.ApplicationIsNotRunningMessage);
 
         return TypedResults.NoContent();
     }

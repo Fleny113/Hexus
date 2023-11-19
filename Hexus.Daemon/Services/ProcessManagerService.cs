@@ -357,7 +357,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     
     [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed")]
     private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, double timeWindow);
-
+    
     [LoggerMessage(LogLevel.Debug, "Acknowledging about \"{Name}\" exiting with code: {ExitCode}")]
     private static partial void LogAcknowledgeProcessExit(ILogger logger, string name, int exitCode);
     
@@ -366,7 +366,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     
     [LoggerMessage(LogLevel.Debug, "Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting")]
     private static partial void LogRestartAttemptDelay(ILogger logger, string name, double seconds);
-
+    
     [LoggerMessage(LogLevel.Trace, "Application \"{Name}\" says: '{OutputData}'")]
     private static partial void LogApplicationOutput(ILogger logger, string name, string outputData);
 }

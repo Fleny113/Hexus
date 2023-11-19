@@ -15,6 +15,9 @@ public static class EnvironmentHelper
     public static readonly string DevelopmentConfigurationFile = NormalizePath($"{XdgConfig}/hexus.dev.yaml");
     public static readonly string SocketFile = NormalizePath($"{HexusStateDirectory}/daemon.sock");
 
+    // Used by the CLI to detect when to use the Development configuration
+    public static readonly bool IsDevelopment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development";
+
     public static void EnsureDirectoriesExistence()
     {
         Directory.CreateDirectory(HexusStateDirectory);

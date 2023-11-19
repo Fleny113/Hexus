@@ -2,54 +2,54 @@ using EndpointMapper;
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Services;
+using System.Reflection.Metadata.Ecma335;
 using System.Text.Json.Serialization;
 
-namespace Hexus.Daemon
+namespace Hexus.Daemon;
+
+internal class HexusDaemon
 {
-    internal class HexusDaemon
+    public static void StartDaemon(string[] args)
     {
-        public static void StartDaemon(string[] args)
+        var builder = WebApplication.CreateSlimBuilder(args);
+
+        var configurationManager = new HexusConfigurationManager(builder.Environment.IsDevelopment());
+
+        builder.WebHost.UseKestrel((context, options) =>
         {
-            var builder = WebApplication.CreateSlimBuilder(args);
+            var name = Path.GetDirectoryName(configurationManager.Configuration.UnixSocket)
+                       ?? throw new InvalidOperationException("Cannot get the directory name for the unix socket");
 
-            var configurationManager = new HexusConfigurationManager(builder.Environment.IsDevelopment());
+            Directory.CreateDirectory(name);
 
-            builder.WebHost.UseKestrel((context, options) =>
-            {
-                var name = Path.GetDirectoryName(configurationManager.Configuration.UnixSocket)
-                           ?? throw new InvalidOperationException("Cannot get the directory name for the unix socket");
+            // On Windows .NET doesn't remove the socket, so it might be still there
+            File.Delete(configurationManager.Configuration.UnixSocket);
 
-                Directory.CreateDirectory(name);
+            options.ListenUnixSocket(configurationManager.Configuration.UnixSocket);
 
-                // On Windows .NET doesn't remove the socket, so it might be still there
-                File.Delete(configurationManager.Configuration.UnixSocket);
+            if (configurationManager.Configuration.HttpPort is not -1)
+                options.ListenLocalhost(configurationManager.Configuration.HttpPort);
 
-                options.ListenUnixSocket(configurationManager.Configuration.UnixSocket);
+            if (context.HostingEnvironment.IsDevelopment())
+                options.ListenLocalhost(5104);
+        });
 
-                if (configurationManager.Configuration.HttpPort is not -1)
-                    options.ListenLocalhost(configurationManager.Configuration.HttpPort);
+        builder.Services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
+        });
 
-                if (context.HostingEnvironment.IsDevelopment())
-                    options.ListenLocalhost(5104);
-            });
+        builder.Services.AddSingleton(configurationManager);
+        builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
 
-            builder.Services.ConfigureHttpJsonOptions(options =>
-            {
-                options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
-            });
+        builder.Services.AddHostedService<HexusLifecycle>();
+        builder.Services.AddSingleton<ProcessManagerService>();
 
-            builder.Services.AddSingleton(configurationManager);
-            builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
+        var app = builder.Build();
+        
+        app.MapEndpointMapperEndpoints();
 
-            builder.Services.AddHostedService<HexusLifecycle>();
-            builder.Services.AddSingleton<ProcessManagerService>();
-
-            var app = builder.Build();
-
-            app.MapEndpointMapperEndpoints();
-
-            app.Run();
-        }
+        app.Run();
     }
 }
 

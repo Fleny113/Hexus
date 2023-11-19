@@ -12,7 +12,7 @@ namespace Hexus.Daemon.Endpoints;
 internal sealed class EditApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Patch, "/{name}")]
-    public static Results<NoContent, NotFound, UnprocessableEntity<ErrorResponse>, ValidationProblem> Handle(
+    public static Results<NoContent, NotFound, Conflict<ErrorResponse>, ValidationProblem> Handle(
         [FromRoute] string name,
         [FromBody] EditApplicationRequest request,
         [FromServices] HexusConfigurationManager configurationManager)
@@ -21,10 +21,10 @@ internal sealed class EditApplicationEndpoint : IEndpoint
             return TypedResults.NotFound();
 
         if (ProcessManagerService.IsApplicationRunning(application))
-            return TypedResults.UnprocessableEntity(ErrorResponses.CantEditRunningApplication);
+            return TypedResults.Conflict(ErrorResponses.CantEditRunningApplication);
 
         if (request.Name is not null && configurationManager.Configuration.Applications.TryGetValue(request.Name, out _))
-            return TypedResults.UnprocessableEntity(ErrorResponses.ApplicationWithTheSameNameAlreadyExiting);
+            return TypedResults.Conflict(ErrorResponses.ApplicationWithTheSameNameAlreadyExiting);
         
         var editRequest = new EditApplicationRequest(
             Name: request.Name ?? application.Name,
@@ -37,10 +37,10 @@ internal sealed class EditApplicationEndpoint : IEndpoint
             return TypedResults.ValidationProblem(errors);
 
         // With the ?? on the EditApplicationRequest it should never get to a state where these are null
-        Debug.Assert(editRequest.Name is not null, "The Name should not be null");
-        Debug.Assert(editRequest.Executable is not null, "The Executable should not be null");
-        Debug.Assert(editRequest.Arguments is not null, "The Arguments should not be null");
-        Debug.Assert(editRequest.WorkingDirectory is not null, "The WorkingDirectory should not be null");
+        Debug.Assert(editRequest.Name is not null);
+        Debug.Assert(editRequest.Executable is not null);
+        Debug.Assert(editRequest.Arguments is not null);
+        Debug.Assert(editRequest.WorkingDirectory is not null);
         
         // Rename the log file
         File.Move(

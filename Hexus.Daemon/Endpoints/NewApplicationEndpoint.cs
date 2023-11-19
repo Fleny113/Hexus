@@ -6,13 +6,14 @@ using Hexus.Daemon.Services;
 using Hexus.Daemon.Validators;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
 
 namespace Hexus.Daemon.Endpoints;
 
 internal sealed class NewApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/new")]
-    public static Results<Ok<HexusApplicationResponse>, ValidationProblem, UnprocessableEntity<ErrorResponse>, StatusCodeHttpResult> Handle(
+    public static Results<Ok<HexusApplicationResponse>, ValidationProblem, Conflict<ErrorResponse>, StatusCodeHttpResult> Handle(
         [FromBody] NewApplicationRequest request,
         [FromServices] HexusConfigurationManager configManager,
         [FromServices] ProcessManagerService processManager)
@@ -26,10 +27,10 @@ internal sealed class NewApplicationEndpoint : IEndpoint
         var application = request.MapToApplication();
 
         if (configManager.Configuration.Applications.TryGetValue(application.Name, out _))
-            return TypedResults.UnprocessableEntity(ErrorResponses.ApplicationWithTheSameNameAlreadyExiting);
+            return TypedResults.Conflict(ErrorResponses.ApplicationWithTheSameNameAlreadyExiting);
 
         if (!processManager.StartApplication(application))
-            return TypedResults.StatusCode(500);
+            return TypedResults.StatusCode((int)HttpStatusCode.InternalServerError);
 
         configManager.Configuration.Applications.Add(application.Name, application);
         configManager.SaveConfiguration();
