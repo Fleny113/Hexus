@@ -28,6 +28,12 @@ internal static class StopCommand
         var force = context.ParseResult.GetValueForOption(ForceOption);
         var ct = context.GetCancellationToken();
 
+        if (!await HttpInvocation.CheckForRunningDaemon())
+        {
+            Console.Error.WriteLine("There is not daemon running. Start it using the 'daemon start' command.");
+            return;
+        }
+
         var stopRequest = await HttpInvocation.HttpClient.DeleteAsync($"/{name}?forceStop={force}", ct);
 
         if (!stopRequest.IsSuccessStatusCode)
@@ -36,7 +42,8 @@ internal static class StopCommand
 
             Debug.Assert(response is not null);
 
-            Console.Error.WriteLine($"There was an error stopping the application \"{name}\" for the following reason: {response.Error}");
+            Console.Error.WriteLine($"There was an error stopping the application \"{name}\": {response.Error}");
+            return;
         }
 
         Console.WriteLine($"Application \"{name}\" stopped!");

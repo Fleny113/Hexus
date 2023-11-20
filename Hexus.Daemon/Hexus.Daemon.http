@@ -57,3 +57,8 @@ Content-Type: application/json
 {
   "executable": "C:/Program Files/PowerShell/7/pwsh.exe"
 }
+
+###
+
+# Stop the daemon
+DELETE {{baseUrl}}/daemon/stop

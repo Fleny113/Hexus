@@ -22,4 +22,22 @@ internal static class HttpInvocation
         BaseAddress = new Uri("http://hexus-socket")
     };
 
+
+    public static async ValueTask<bool> CheckForRunningDaemon()
+    {
+        if (!File.Exists(Configuration.HexusConfiguration.UnixSocket))
+            return false;
+
+        try
+        {
+            // This in fact returns a 404, we only care to check if the daemon is running, so this is fine.
+            await HttpClient.GetAsync("/");
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

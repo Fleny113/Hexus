@@ -24,6 +24,12 @@ internal static class StartCommand
         var name = context.ParseResult.GetValueForArgument(NameArgument);
         var ct = context.GetCancellationToken();
 
+        if (!await HttpInvocation.CheckForRunningDaemon())
+        {
+            Console.Error.WriteLine("There is not daemon running. Start it using the 'daemon start' command.");
+            return;
+        }
+
         var startRequest = await HttpInvocation.HttpClient.PostAsync($"/{name}", null, ct);
 
         if (!startRequest.IsSuccessStatusCode)
@@ -32,7 +38,8 @@ internal static class StartCommand
 
             response ??= new("The daemon had an internal server error.");
 
-            Console.Error.WriteLine($"There was an error starting the application \"{name}\" for the following reason: {response.Error}");
+            Console.Error.WriteLine($"There was an error starting the application \"{name}\": {response.Error}");
+            return;
         }
 
         Console.WriteLine($"Application \"{name}\" started!");
