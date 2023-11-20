@@ -18,10 +18,10 @@ internal static class ProcessExtensions
         var currentTotalProcessorTime = process.TotalProcessorTime;
         var processorTimeDifference = currentTotalProcessorTime - cpuStats.LastTotalProcessorTime;
         
+        var cpuUsage = processorTimeDifference / Environment.ProcessorCount / timeDifference;
+
         cpuStats.LastTotalProcessorTime = currentTotalProcessorTime;
         cpuStats.LastGetProcessCpuUsageInvocation = currentTime;
-        
-        var cpuUsage = processorTimeDifference / Environment.ProcessorCount / timeDifference;
 
         return cpuUsage * 100;
     }

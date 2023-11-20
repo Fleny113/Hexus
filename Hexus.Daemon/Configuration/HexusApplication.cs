@@ -18,14 +18,14 @@ public sealed record HexusApplication
     [YamlIgnore] internal StreamWriter? LogFile { get; set; }
     
     // Performance tracking 
-    [YamlIgnore] internal Dictionary<int, CpuStats> CpuStatsMap { get; } = new();
+    [YamlIgnore] internal Dictionary<int, CpuStats> CpuStatsMap { get; } = [];
     [YamlIgnore] internal Timer? CpuUsageRefreshTimer { get; set; }
     [YamlIgnore] internal double LastCpuUsage { get; set; }
     
-    internal record struct CpuStats()
+    internal record struct CpuStats
     {
-        public TimeSpan LastTotalProcessorTime = TimeSpan.Zero;
-        public DateTimeOffset LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow;
+        public TimeSpan LastTotalProcessorTime { get; set; }
+        public DateTimeOffset LastGetProcessCpuUsageInvocation { get; set; }
     }
     
     #endregion

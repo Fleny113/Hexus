@@ -310,47 +310,39 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     {
         if (state is not HexusApplication application)
             return;
-        
-        application.LastCpuUsage = Math.Clamp(Math.Round(GetCpuUsage(application) + GetChildrenCpuUsage(application), 2), 0, 100);
-    }
-    
-    private static double GetCpuUsage(HexusApplication application)
-    {
-        if (application.Process is null)
-            return 0.0d;
-        
-        var cpuStats = application.CpuStatsMap.GetValueOrDefault(application.Process.Id, new HexusApplication.CpuStats());
-                
-        var cpuPercentage = application.Process.GetProcessCpuUsage(ref cpuStats);
-        application.CpuStatsMap[application.Process.Id] = cpuStats;
 
-        return cpuPercentage;
-    }
-    
-    private static double GetChildrenCpuUsage(HexusApplication application)
-    {
-        if (application.Process is null)
-            return 0.0d;
-
-        var children = application.Process.GetChildProcesses().ToArray();
-        
-        // For the killed children we don't care about tracking their CPU usages
-        foreach (var key in application.CpuStatsMap.Keys.Except(children.Select(child => child.Id)))
-            application.CpuStatsMap.Remove(key);
-        
-        var totalUsage = children
-            .Select(child =>
+        var cpuUsages = GetApplicationProcesses(application)
+            .Select(proc =>
             {
-                var childCpuStats = application.CpuStatsMap.GetValueOrDefault(child.Id, new HexusApplication.CpuStats());
-                var cpuPercentage = child.GetProcessCpuUsage(ref childCpuStats);
+                if (!application.CpuStatsMap.TryGetValue(proc.Id, out var cpuStats))
+                {
+                    cpuStats = new() { LastTotalProcessorTime = TimeSpan.Zero, LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow };
+                    application.CpuStatsMap[proc.Id] = cpuStats;
+                }
 
-                application.CpuStatsMap[child.Id] = childCpuStats;
+                return proc.GetProcessCpuUsage(ref cpuStats);
+            })
+            .Sum();
 
-                return cpuPercentage;
-            })                
-            .Aggregate((acc, curr) => acc + curr);
-        
-        return totalUsage;
+        application.LastCpuUsage = Math.Clamp(Math.Round(cpuUsages, 2), 0, 100);
+    }
+    
+    private static List<Process> GetApplicationProcesses(HexusApplication application)
+    {
+        if (application.Process is null)
+            return [];
+
+        var processes = application.Process
+            .GetChildProcesses()
+            .ToList();
+
+        processes.Insert(0, application.Process);
+
+        // For the killed processes we don't care about tracking their CPU usages
+        foreach (var key in application.CpuStatsMap.Keys.Except(processes.Select(child => child.Id)))
+            application.CpuStatsMap.Remove(key, out _);
+
+        return processes;
     }
     
     #endregion
