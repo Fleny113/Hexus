@@ -1,4 +1,5 @@
 using Hexus.Daemon;
+using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 
@@ -29,10 +30,11 @@ internal class DaemonCommand
     private static async Task HandleStartSubCommand(InvocationContext context)
     {
         var args = context.ParseResult.GetValueForArgument(DaemonOptions);
-
-        if (await HttpInvocation.CheckForRunningDaemon())
+        var ct = context.GetCancellationToken();
+        
+        if (await HttpInvocation.CheckForRunningDaemon(ct))
         {
-            Console.Error.WriteLine("There is already daemon a running. Stop it first to run a new instance using the 'daemon stop' command.");
+            PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonAlreadyRunningError);
             return;
         }
 
@@ -41,20 +43,22 @@ internal class DaemonCommand
 
     private static async Task HandleStopSubCommand(InvocationContext context)
     {
-        if (!await HttpInvocation.CheckForRunningDaemon())
+        var ct = context.GetCancellationToken();
+        
+        if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
-            Console.Error.WriteLine("There is not daemon running. Start it using the 'daemon start' command.");
+            PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
             return;
         }
 
-        var req = await HttpInvocation.HttpClient.DeleteAsync("/daemon/stop");
+        var req = await HttpInvocation.HttpClient.DeleteAsync("/daemon/stop", ct);
 
         if (!req.IsSuccessStatusCode)
         {
-            Console.Error.WriteLine("The was an error stopping the daemon.");
+            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] stopping the [indianred1]daemon[/].");
             return;
         }
 
-        Console.WriteLine("Daemon stopped.");
+        PrettyConsole.Out.MarkupLine("[indianred1]Daemon[/] stopped.");
     }
 }

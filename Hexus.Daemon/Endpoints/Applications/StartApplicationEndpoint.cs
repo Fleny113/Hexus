@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
-namespace Hexus.Daemon.Endpoints;
+namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class StartApplicationEndpoint : IEndpoint
 {

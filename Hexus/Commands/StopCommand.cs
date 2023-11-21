@@ -1,4 +1,5 @@
 using Hexus.Daemon.Contracts;
+using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Diagnostics;
@@ -28,9 +29,9 @@ internal static class StopCommand
         var force = context.ParseResult.GetValueForOption(ForceOption);
         var ct = context.GetCancellationToken();
 
-        if (!await HttpInvocation.CheckForRunningDaemon())
+        if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
-            Console.Error.WriteLine("There is not daemon running. Start it using the 'daemon start' command.");
+            PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
             return;
         }
 
@@ -38,14 +39,14 @@ internal static class StopCommand
 
         if (!stopRequest.IsSuccessStatusCode)
         {
-            var response = await stopRequest.Content.ReadFromJsonAsync<ErrorResponse>(ct);
+            var response = await stopRequest.Content.ReadFromJsonAsync<ErrorResponse>(HttpInvocation.JsonSerializerOptions, ct);
 
             Debug.Assert(response is not null);
 
-            Console.Error.WriteLine($"There was an error stopping the application \"{name}\": {response.Error}");
+            PrettyConsole.Error.WriteLine($"There [indianred1]was an error[indianred1] stopping the application \"{name}\": {response.Error}");
             return;
         }
 
-        Console.WriteLine($"Application \"{name}\" stopped!");
+        PrettyConsole.Out.WriteLine($"Application \"{name}\" [indianred1]stopped[/]!");
     }
 }

@@ -53,6 +53,7 @@ internal class HexusDaemon
     }
 }
 
+[JsonSerializable(typeof(IEnumerable<HexusApplicationResponse>))]
 [JsonSerializable(typeof(HexusApplicationResponse))]
 [JsonSerializable(typeof(ErrorResponse))]
 [JsonSourceGenerationOptions(UseStringEnumConverter = true)]

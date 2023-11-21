@@ -218,7 +218,8 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         application.Process = null;
         
         application.CpuStatsMap.Clear();
-
+        application.LastCpuUsage = 0;
+        
         application.Status = HexusApplicationStatus.Exited;
     
         // If the ASP.NET Core Hosting has stopped then we don't want to save to disk the exited application status

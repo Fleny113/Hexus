@@ -4,7 +4,7 @@ using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Hexus.Daemon.Endpoints;
+namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class StopApplicationEndpoint : IEndpoint
 {

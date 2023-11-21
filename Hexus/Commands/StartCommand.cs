@@ -1,4 +1,5 @@
 ﻿using Hexus.Daemon.Contracts;
+using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Net.Http.Json;
@@ -24,9 +25,9 @@ internal static class StartCommand
         var name = context.ParseResult.GetValueForArgument(NameArgument);
         var ct = context.GetCancellationToken();
 
-        if (!await HttpInvocation.CheckForRunningDaemon())
+        if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
-            Console.Error.WriteLine("There is not daemon running. Start it using the 'daemon start' command.");
+            PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
             return;
         }
 
@@ -34,14 +35,14 @@ internal static class StartCommand
 
         if (!startRequest.IsSuccessStatusCode)
         {
-            var response = await startRequest.Content.ReadFromJsonAsync<ErrorResponse>(ct);
+            var response = await startRequest.Content.ReadFromJsonAsync<ErrorResponse>(HttpInvocation.JsonSerializerOptions, ct);
 
-            response ??= new("The daemon had an internal server error.");
+            response ??= new ErrorResponse("The daemon had an internal server error.");
 
-            Console.Error.WriteLine($"There was an error starting the application \"{name}\": {response.Error}");
+            PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[/] starting the application \"{name}\": {response.Error}");
             return;
         }
 
-        Console.WriteLine($"Application \"{name}\" started!");
+        PrettyConsole.Out.MarkupLine($"Application \"{name}\" [darkseagreen1_1]started[/]!");
     }
 }
