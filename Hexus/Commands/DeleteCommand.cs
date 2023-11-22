@@ -7,18 +7,18 @@ using System.Net.Http.Json;
 
 namespace Hexus.Commands;
 
-internal static class StopCommand
+internal static class DeleteCommand
 {
-    private static readonly Argument<string> NameArgument = new("name", "The name of the application to stop");
-    private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the stop of the application");
+    private static readonly Argument<string> NameArgument = new("name", "The name of the application to delete");
+    private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the stop of the application if it needs to be stopped");
     
-    public static readonly Command Command = new("stop", "Stop an application")
+    public static readonly Command Command = new("delete", "Stops and delete an application")
     {
         NameArgument,
         ForceOption,
     };
 
-    static StopCommand()
+    static DeleteCommand()
     {        
         Command.SetHandler(HandleAsync);
     }
@@ -35,7 +35,7 @@ internal static class StopCommand
             return;
         }
 
-        var stopRequest = await HttpInvocation.HttpClient.DeleteAsync($"/{name}?forceStop={force}", ct);
+        var stopRequest = await HttpInvocation.HttpClient.DeleteAsync($"/{name}/delete?forceStop={force}", ct);
 
         if (!stopRequest.IsSuccessStatusCode)
         {
@@ -43,10 +43,10 @@ internal static class StopCommand
 
             Debug.Assert(response is not null);
 
-            PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[indianred1] stopping the application \"{name}\": {response.Error}");
+            PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[indianred1] deleting the application \"{name}\": {response.Error}");
             return;
         }
 
-        PrettyConsole.Out.MarkupLine($"Application \"{name}\" [indianred1]stopped[/]!");
+        PrettyConsole.Out.MarkupLine($"Application \"{name}\" [darkred_1]deleted[/]!");
     }
 }

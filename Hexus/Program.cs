@@ -8,6 +8,7 @@ using System.CommandLine.Parsing;
 var rootCommand = new RootCommand("The Hexus management CLI");
 
 rootCommand.AddCommand(StopCommand.Command);
+rootCommand.AddCommand(DeleteCommand.Command);
 rootCommand.AddCommand(StartCommand.Command);
 rootCommand.AddCommand(ListCommand.Command);
 
