@@ -44,31 +44,13 @@ internal static class InputCommand
         }
 
         var stdinRequest = await HttpInvocation.HttpClient.PostAsJsonAsync($"/{name}/stdin", new SendInputRequest(text, newLine), ct);
-        
+
         if (!stdinRequest.IsSuccessStatusCode)
         {
-            ErrorResponse? response;
-            
-            if (stdinRequest is { StatusCode: HttpStatusCode.BadRequest, Content.Headers.ContentType.MediaType: "application/problem+json" })
-            {
-                var validationResponse = await stdinRequest.Content.ReadFromJsonAsync<ProblemDetails>(HttpInvocation.JsonSerializerOptions, ct);
-                
-                Debug.Assert(validationResponse is not null);
-                
-                var errorString = string.Join("\n", validationResponse.Errors.SelectMany(kvp => kvp.Value.Select(v => $"- [tan]{kvp.Key}[/]: {v}")));
-
-                response = new ErrorResponse($"Validation errors: \n{errorString}");
-            }
-            else
-            {
-                response = await stdinRequest.Content.ReadFromJsonAsync<ErrorResponse>(HttpInvocation.JsonSerializerOptions, ct);
-                response ??= new ErrorResponse("The daemon had an internal server error.");   
-            }
-
-            PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[/] creating the application \"{name}\": {response.Error}");
+            await HttpInvocation.HandleFailedHttpRequestLogging(stdinRequest, ct);
             return;
         }
         
-        PrettyConsole.Out.MarkupLine($"Sent text to the application \"{name}\".");
+        PrettyConsole.Out.MarkupLineInterpolated($"Sent text to the application \"{name}\".");
     }
 }

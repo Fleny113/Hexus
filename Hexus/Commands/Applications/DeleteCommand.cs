@@ -39,14 +39,10 @@ internal static class DeleteCommand
 
         if (!stopRequest.IsSuccessStatusCode)
         {
-            var response = await stopRequest.Content.ReadFromJsonAsync<ErrorResponse>(HttpInvocation.JsonSerializerOptions, ct);
-
-            Debug.Assert(response is not null);
-
-            PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[indianred1] deleting the application \"{name}\": {response.Error}");
+            await HttpInvocation.HandleFailedHttpRequestLogging(stopRequest, ct);
             return;
         }
 
-        PrettyConsole.Out.MarkupLine($"Application \"{name}\" [darkred_1]deleted[/]!");
+        PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [darkred_1]deleted[/]!");
     }
 }

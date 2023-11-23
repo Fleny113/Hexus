@@ -1,4 +1,9 @@
 ﻿using Hexus.Daemon;
+using Hexus.Daemon.Contracts;
+using Spectre.Console;
+using System.Diagnostics;
+using System.Net;
+using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text.Json;
 
@@ -50,5 +55,34 @@ internal static class HttpInvocation
         {
             return false;
         }
+    }
+
+    public static async Task HandleFailedHttpRequestLogging(HttpResponseMessage request, CancellationToken ct)
+    {
+        ErrorResponse? response;
+            
+        switch (request)
+        {
+            case { StatusCode: HttpStatusCode.BadRequest, Content.Headers.ContentType.MediaType: "application/problem+json" }:
+            {
+                var validationResponse = await request.Content.ReadFromJsonAsync<ProblemDetails>(JsonSerializerOptions, ct);
+            
+                Debug.Assert(validationResponse is not null);
+            
+                var errorString = string.Join("\n", validationResponse.Errors.SelectMany(kvp => kvp.Value.Select(v => $"- [tan]{kvp.Key}[/]: {v}")));
+
+                response = new ErrorResponse($"Validation errors: \n{errorString}");
+                break;
+            }
+            case { StatusCode: HttpStatusCode.NotFound }:
+                response = new ErrorResponse("No application with this name has been found.");
+                break;
+            default:
+                response = await request.Content.ReadFromJsonAsync<ErrorResponse>(JsonSerializerOptions, ct);
+                response ??= new ErrorResponse("The daemon had an internal server error.");
+                break;
+        }
+
+        PrettyConsole.Error.MarkupLineInterpolated($"There [indianred1]was an error[/] in handling the request: {response.Error}");
     }
 }

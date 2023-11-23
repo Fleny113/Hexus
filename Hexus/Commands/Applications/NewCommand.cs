@@ -67,35 +67,17 @@ internal static class NewCommand
             HttpInvocation.JsonSerializerOptions,
             ct
         );
-        
+
         if (!newRequest.IsSuccessStatusCode)
         {
-            ErrorResponse? response;
-            
-            if (newRequest is { StatusCode: HttpStatusCode.BadRequest, Content.Headers.ContentType.MediaType: "application/problem+json" })
-            {
-                var validationResponse = await newRequest.Content.ReadFromJsonAsync<ProblemDetails>(HttpInvocation.JsonSerializerOptions, ct);
-                
-                Debug.Assert(validationResponse is not null);
-                
-                var errorString = string.Join("\n", validationResponse.Errors.SelectMany(kvp => kvp.Value.Select(v => $"- [tan]{kvp.Key}[/]: {v}")));
-
-                response = new ErrorResponse($"Validation errors: \n{errorString}");
-            }
-            else
-            {
-                response = await newRequest.Content.ReadFromJsonAsync<ErrorResponse>(HttpInvocation.JsonSerializerOptions, ct);
-                response ??= new ErrorResponse("The daemon had an internal server error.");   
-            }
-
-            PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[/] creating the application \"{name}\": {response.Error}");
+            await HttpInvocation.HandleFailedHttpRequestLogging(newRequest, ct);
             return;
         }
         
-        PrettyConsole.Out.MarkupLine($"Application \"{name}\" [palegreen3]created[/]!");
+        PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [palegreen3]created[/]!");
     }
 
-    private static string TryResolveExecutable(string executable)
+    internal static string TryResolveExecutable(string executable)
     {
         // relative folders resolver (./.../exe)
         var absolutePath = EnvironmentHelper.NormalizePath(executable);

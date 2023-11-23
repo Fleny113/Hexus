@@ -35,14 +35,10 @@ internal static class StartCommand
 
         if (!startRequest.IsSuccessStatusCode)
         {
-            var response = await startRequest.Content.ReadFromJsonAsync<ErrorResponse>(HttpInvocation.JsonSerializerOptions, ct);
-
-            response ??= new ErrorResponse("The daemon had an internal server error.");
-
-            PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[/] starting the application \"{name}\": {response.Error}");
+            await HttpInvocation.HandleFailedHttpRequestLogging(startRequest, ct);
             return;
         }
 
-        PrettyConsole.Out.MarkupLine($"Application \"{name}\" [darkseagreen1_1]started[/]!");
+        PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [darkseagreen1_1]started[/]!");
     }
 }
