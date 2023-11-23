@@ -7,7 +7,7 @@ using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.Net.Http.Json;
 
-namespace Hexus.Commands;
+namespace Hexus.Commands.Applications;
 
 internal static class ListCommand
 {
@@ -62,7 +62,7 @@ internal static class ListCommand
         PrettyConsole.Out.Write(table);
     }
 
-    private static Color GetStatusColor(HexusApplicationStatus status) => status switch
+    internal static Color GetStatusColor(HexusApplicationStatus status) => status switch
     {
         HexusApplicationStatus.Crashed => Color.LightSalmon3,
         HexusApplicationStatus.Exited => Color.OrangeRed1,

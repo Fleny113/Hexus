@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 
-namespace Hexus.Commands;
+namespace Hexus.Commands.Applications;
 
 internal static class NewCommand
 {

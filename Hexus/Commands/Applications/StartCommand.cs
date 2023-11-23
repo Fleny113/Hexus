@@ -4,7 +4,7 @@ using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Net.Http.Json;
 
-namespace Hexus.Commands;
+namespace Hexus.Commands.Applications;
 
 internal static class StartCommand
 {

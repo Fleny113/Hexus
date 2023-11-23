@@ -5,7 +5,7 @@ using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.Net.Http.Json;
 
-namespace Hexus.Commands;
+namespace Hexus.Commands.Applications;
 
 internal static class StopCommand
 {

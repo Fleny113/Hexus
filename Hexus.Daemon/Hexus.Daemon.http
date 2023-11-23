@@ -20,6 +20,12 @@ Content-Type: application/json
 
 ###
 
+# Get the information for an application
+GET {{baseUrl}}/{{name}}
+Accept: application/json
+
+###
+
 # Start an application
 POST {{baseUrl}}/{{name}}
 Accept: application/json
