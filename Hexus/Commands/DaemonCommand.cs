@@ -9,7 +9,7 @@ internal class DaemonCommand
 {
     private static readonly Argument<string[]> DaemonOptions = new("arguments", "The arguments to pass to the daemon")
     {
-        Arity = ArgumentArity.ZeroOrMore
+        Arity = ArgumentArity.ZeroOrMore,
     };
 
     private static readonly Command StartSubCommand = new("start", "Start the Hexus daemon") { DaemonOptions };

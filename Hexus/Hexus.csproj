@@ -9,8 +9,8 @@
 
     <ItemGroup>
       <PackageReference Include="Humanizer.Core" Version="2.14.1" />
-      <PackageReference Include="Spectre.Console" Version="0.47.0" />
-      <PackageReference Include="Spectre.Console.Analyzer" Version="0.47.0">
+      <PackageReference Include="Spectre.Console" Version="0.48.0" />
+      <PackageReference Include="Spectre.Console.Analyzer" Version="0.48.0">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>

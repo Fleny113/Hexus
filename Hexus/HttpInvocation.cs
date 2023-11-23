@@ -16,12 +16,12 @@ internal static class HttpInvocation
             await socket.ConnectAsync(endpoint, ct);
 
             return new NetworkStream(socket, ownsSocket: true);
-        }
+        },
     };
 
     public static HttpClient HttpClient { get; } = new(HttpClientHandler)
     {
-        BaseAddress = new Uri("http://hexus-socket")
+        BaseAddress = new Uri("http://hexus-socket"),
     };
 
     public static JsonSerializerOptions JsonSerializerOptions { get; } = new()
@@ -30,8 +30,8 @@ internal static class HttpInvocation
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         TypeInfoResolverChain =
         {
-            AppJsonSerializerContext.Default
-        }
+            AppJsonSerializerContext.Default,
+        },
     };
 
     public static async ValueTask<bool> CheckForRunningDaemon(CancellationToken ct)

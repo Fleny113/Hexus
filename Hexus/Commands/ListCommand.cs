@@ -43,6 +43,7 @@ internal static class ListCommand
         table.AddColumns(
             new TableColumn("[cornflowerblue]Name[/]").Centered(),
             new TableColumn("[palegreen1]Status[/]").Centered(),
+            new TableColumn("[slateblue3]PID[/]").Centered(),
             new TableColumn("[lightslateblue]Cpu Usage[/]").Centered(),
             new TableColumn("[skyblue1]Memory Usage[/]").Centered()
         );
@@ -50,8 +51,9 @@ internal static class ListCommand
         foreach (var application in applications)
         {
             table.AddRow(
-                $"{application.Name}",
-                $"[{GetStatusColor(application.Status)}]{application.Status.ToString()}[/]",
+                application.Name,
+                $"[{GetStatusColor(application.Status)}]{application.Status}[/]",
+                $"{application.ProcessId}",
                 $"{application.CpuUsage}%",
                 $"{application.MemoryUsage.Bytes().Humanize()}"
             );
@@ -65,6 +67,6 @@ internal static class ListCommand
         HexusApplicationStatus.Crashed => Color.LightSalmon3,
         HexusApplicationStatus.Exited => Color.OrangeRed1,
         HexusApplicationStatus.Running => Color.Aquamarine1,
-        _ => throw new ArgumentOutOfRangeException(nameof(status), "The requested status is not mapped to a color")
+        _ => throw new ArgumentOutOfRangeException(nameof(status), "The requested status is not mapped to a color"),
     };
 }

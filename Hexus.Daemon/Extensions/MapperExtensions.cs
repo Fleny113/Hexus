@@ -24,7 +24,8 @@ internal static class MapperExtensions
             Executable: EnvironmentHelper.NormalizePath(application.Executable), 
             Arguments: application.Arguments,
             WorkingDirectory: EnvironmentHelper.NormalizePath(application.WorkingDirectory), 
-            Status: application.Status, 
+            Status: application.Status,
+            ProcessId: application.Process is { HasExited: false } ? application.Process.Id : 0,
             CpuUsage: application.LastCpuUsage, 
             MemoryUsage: ProcessManagerService.GetMemoryUsage(application)
         );

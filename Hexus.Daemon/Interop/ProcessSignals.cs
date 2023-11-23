@@ -55,11 +55,11 @@ public enum UnixSignal
     SigProf = 26,   // Profiling alarm clock
     SigWinch = 27,  // Window size change
     SigPoll = 28,   // I/O now possible
-    SigSys = 30     // Bad system call
+    SigSys = 30,    // Bad system call
 }
 
 public enum WindowsSignal : uint
 {
     SigInt = 0,     // Interrupt (CTRL + C)
-    SigBreak = 1    // Break     (CTRL + Break)
+    SigBreak = 1,   // Break     (CTRL + Break)
 }

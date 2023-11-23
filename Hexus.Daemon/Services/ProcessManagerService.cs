@@ -286,7 +286,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             6 or 7 => TimeSpan.FromSeconds(2),
             8 or 9 => TimeSpan.FromSeconds(4),
             10 => TimeSpan.FromSeconds(8),
-            _ => throw new ArgumentOutOfRangeException(nameof(restart))
+            _ => throw new ArgumentOutOfRangeException(nameof(restart)),
         };
 
     #endregion
@@ -317,7 +317,12 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             {
                 if (!application.CpuStatsMap.TryGetValue(proc.Id, out var cpuStats))
                 {
-                    cpuStats = new() { LastTotalProcessorTime = TimeSpan.Zero, LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow };
+                    cpuStats = new HexusApplication.CpuStats
+                    {
+                        LastTotalProcessorTime = TimeSpan.Zero, 
+                        LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
+                    };
+                    
                     application.CpuStatsMap[proc.Id] = cpuStats;
                 }
 
@@ -328,7 +333,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         application.LastCpuUsage = Math.Clamp(Math.Round(cpuUsages, 2), 0, 100);
     }
     
-    private static List<Process> GetApplicationProcesses(HexusApplication application)
+    private static IEnumerable<Process> GetApplicationProcesses(HexusApplication application)
     {
         if (application.Process is null)
             return [];

@@ -1,9 +1,6 @@
 using EndpointMapper;
 using Hexus.Daemon.Configuration;
-using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Services;
-using System.Reflection.Metadata.Ecma335;
-using System.Text.Json.Serialization;
 
 namespace Hexus.Daemon;
 
@@ -52,9 +49,3 @@ internal class HexusDaemon
         app.Run();
     }
 }
-
-[JsonSerializable(typeof(IEnumerable<HexusApplicationResponse>))]
-[JsonSerializable(typeof(HexusApplicationResponse))]
-[JsonSerializable(typeof(ErrorResponse))]
-[JsonSourceGenerationOptions(UseStringEnumConverter = true)]
-internal partial class AppJsonSerializerContext : JsonSerializerContext;
