@@ -8,7 +8,7 @@ using System.Net.Http.Json;
 
 namespace Hexus.Commands.Applications;
 
-public static class InfoCommand
+internal static class InfoCommand
 {
     private static readonly Argument<string> NameArgument = new("name", "The name of the application");
 
