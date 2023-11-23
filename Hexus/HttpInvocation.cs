@@ -75,14 +75,26 @@ internal static class HttpInvocation
                 break;
             }
             case { StatusCode: HttpStatusCode.NotFound }:
+            {
                 response = new ErrorResponse("No application with this name has been found.");
                 break;
+            }
             default:
-                response = await request.Content.ReadFromJsonAsync<ErrorResponse>(JsonSerializerOptions, ct);
-                response ??= new ErrorResponse("The daemon had an internal server error.");
-                break;
+            {
+                try
+                {
+                    response = await request.Content.ReadFromJsonAsync<ErrorResponse>(JsonSerializerOptions, ct);
+                    response ??= new ErrorResponse("The daemon had an internal server error.");
+                    break;
+                }
+                catch
+                {
+                    response = new ErrorResponse("<Unable to get the error from the daemon>");
+                    break;
+                }
+            }
         }
 
-        PrettyConsole.Error.MarkupLineInterpolated($"There [indianred1]was an error[/] in handling the request: {response.Error}");
+        PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[/] in handling the request: {response.Error}");
     }
 }
