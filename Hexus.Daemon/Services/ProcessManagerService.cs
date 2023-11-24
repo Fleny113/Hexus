@@ -13,7 +13,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     private static readonly TimeSpan CpuUsageRefreshInterval = TimeSpan.FromSeconds(5); 
     
     internal ConcurrentDictionary<Process, HexusApplication> Applications { get; } = new();
-
+    
     /// <summary> Start an instance of the application</summary>
     /// <param name="application">The application to start</param>
     /// <returns>Whatever if the application was started or not</returns>
@@ -57,10 +57,6 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         process.Exited += AcknowledgeProcessExit;
         process.Exited += HandleProcessRestart;
-
-        application.LogFile?.Dispose();
-        application.LogFile = File.AppendText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log");
-        application.LogFile.AutoFlush = true;
 
         application.Status = HexusApplicationStatus.Running;
         configManager.SaveConfiguration();
@@ -171,8 +167,10 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         var date = DateTimeOffset.UtcNow.ToString("MMM dd yyyy HH:mm:ss");
 
-        if (application.LogFile is not null && application.LogFile.BaseStream.CanWrite)
-            application.LogFile.WriteLine($"[{date},{logType}] {message}");
+        lock (application.LogUsageLock)
+        {
+            File.AppendAllText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log", $"[{date},{logType}] {message}{Environment.NewLine}");
+        }
     }
 
     private void HandleStdOutLogs(object? sender, DataReceivedEventArgs e)
@@ -207,9 +205,6 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
 
         var exitCode = process.ExitCode;
-        
-        application.LogFile?.Dispose();
-        application.LogFile = null;
 
         application.CpuUsageRefreshTimer?.Dispose();
         application.CpuUsageRefreshTimer = null;
@@ -344,8 +339,12 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         processes.Insert(0, application.Process);
 
+        var liveProcessIds = processes
+            .Where(process => process is { HasExited: false })
+            .Select(child => child.Id);
+        
         // For the killed processes we don't care about tracking their CPU usages
-        foreach (var key in application.CpuStatsMap.Keys.Except(processes.Select(child => child.Id)))
+        foreach (var key in application.CpuStatsMap.Keys.Except(liveProcessIds))
             application.CpuStatsMap.Remove(key, out _);
 
         return processes;

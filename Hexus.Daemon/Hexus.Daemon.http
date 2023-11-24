@@ -66,5 +66,11 @@ Content-Type: application/json
 
 ###
 
+# Get the logs for an application
+GET {{baseUrl}}/{{name}}_pwsh/logs?lines=20
+Accept: application/json
+
+###
+
 # Stop the daemon
 DELETE {{baseUrl}}/daemon/stop

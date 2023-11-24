@@ -15,7 +15,7 @@ public sealed record HexusApplication
 
     #region Internal proprieties
     [YamlIgnore] internal Process? Process { get; set; }
-    [YamlIgnore] internal StreamWriter? LogFile { get; set; }
+    [YamlIgnore] internal object LogUsageLock { get; } = new();
     
     // Performance tracking 
     [YamlIgnore] internal Dictionary<int, CpuStats> CpuStatsMap { get; } = [];
