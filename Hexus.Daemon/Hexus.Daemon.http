@@ -1,5 +1,5 @@
 @baseUrl = http://localhost:5104
-@name = test_application
+@name = test_application_pwsh
 @forceStop = true
 
 # List all applications
@@ -50,7 +50,7 @@ Accept: application/json
 Content-Type: application/json
 
 {
-  "text": "echo Hi world!"
+  "text": "echo Hi world!`ntest"
 }
 
 ###
@@ -67,7 +67,7 @@ Content-Type: application/json
 ###
 
 # Get the logs for an application
-GET {{baseUrl}}/{{name}}_pwsh/logs?lines=20
+GET {{baseUrl}}/{{name}}/logs?lines=20&noStreaming=true
 Accept: application/json
 
 ###

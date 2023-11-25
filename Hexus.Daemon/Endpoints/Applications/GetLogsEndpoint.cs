@@ -2,6 +2,8 @@ using EndpointMapper;
 using Hexus.Daemon.Configuration;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Hexus.Daemon.Endpoints.Applications;
@@ -9,18 +11,42 @@ namespace Hexus.Daemon.Endpoints.Applications;
 internal class GetLogsEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Get, "/{name}/logs")]
-    public static Results<Ok<IEnumerable<string>>, NotFound> Handle(
+    public static Results<Ok<IAsyncEnumerable<string>>, NotFound> Handle(
+        [FromServices] HexusConfiguration configuration,
         [FromRoute] string name,
-        [FromQuery] int lines,
-        [FromServices] HexusConfiguration configuration
+        [FromQuery] int lines = 10,
+        [FromQuery] bool noStreaming = false,
+        CancellationToken ct = default
     )
     {
         if (!configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
 
-        return TypedResults.Ok(GetLogs(application, lines));
+        return TypedResults.Ok(GetLogs(application, lines, noStreaming, ct));
     }
     
+    private static async IAsyncEnumerable<string> GetLogs(HexusApplication application, int lines, bool noStreaming,[EnumeratorCancellation] CancellationToken ct)
+    {
+        var requestTime = DateTimeOffset.UtcNow;
+
+        foreach (var log in GetLogs(application, lines))
+        {
+            yield return log;
+        }
+
+        if (noStreaming)
+            yield break;
+
+        var logAsyncEnumerator = application.LogBuffer
+            .ReadAllAsync(ct)
+            .Where(log => CheckIfSendLog(log, requestTime));
+
+        await foreach (var log in logAsyncEnumerator)
+        {
+            yield return log;
+        }
+    }
+
     private static IEnumerable<string> GetLogs(HexusApplication application, int lines)
     {
         lock (application.LogUsageLock)
@@ -68,5 +94,15 @@ internal class GetLogsEndpoint : IEndpoint
                 yield return line;
             }
         }
+    }
+
+    private static bool CheckIfSendLog(ReadOnlySpan<char> logLine, DateTimeOffset requestTime)
+    {
+        // Extract the date string from the log
+        var dateString = logLine.Slice(1, 20);
+        var logTime = DateTimeOffset.ParseExact(dateString, "MMM dd yyyy HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+
+        // The log has been record after the initial log file read
+        return logTime > requestTime;
     }
 }

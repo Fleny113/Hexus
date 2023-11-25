@@ -165,11 +165,13 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     {
         LogApplicationOutput(logger, application.Name, message);
 
-        var date = DateTimeOffset.UtcNow.ToString("MMM dd yyyy HH:mm:ss");
+        var logLine = $"[{DateTimeOffset.UtcNow:MMM dd yyyy HH:mm:ss},{logType}] {message}";
+
+        application.LogBuffer.Write(logLine);
 
         lock (application.LogUsageLock)
         {
-            File.AppendAllText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log", $"[{date},{logType}] {message}{Environment.NewLine}");
+            File.AppendAllText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log", $"{logLine}{Environment.NewLine}");
         }
     }
 

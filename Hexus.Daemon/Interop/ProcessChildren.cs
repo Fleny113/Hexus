@@ -24,7 +24,7 @@ internal class ProcessChildren
         }
         catch (ArgumentException ex) when (ex.Message.EndsWith("is not running."))
         {
-            return Array.Empty<Process>();
+            return [];
         }
     }
 
@@ -41,7 +41,7 @@ internal class ProcessChildren
         }
         catch (ArgumentException ex) when (ex.Message.EndsWith("is not running."))
         {
-            return Array.Empty<Process>();
+            return [];
         }
     }
 }
