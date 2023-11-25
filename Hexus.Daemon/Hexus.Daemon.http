@@ -45,12 +45,12 @@ Accept: application/json
 ###
 
 # Send text into the Standard Input of a the application
-POST {{baseUrl}}/{{name}}_pwsh/stdin
+POST {{baseUrl}}/{{name}}/stdin
 Accept: application/json
 Content-Type: application/json
 
 {
-  "text": "echo Hi world!`nHI!!!!"
+  "text": "echo Hi world!"
 }
 
 ###
