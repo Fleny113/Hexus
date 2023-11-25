@@ -25,7 +25,12 @@ internal class GetLogsEndpoint : IEndpoint
         return TypedResults.Ok(GetLogs(application, lines, noStreaming, ct));
     }
     
-    private static async IAsyncEnumerable<string> GetLogs(HexusApplication application, int lines, bool noStreaming,[EnumeratorCancellation] CancellationToken ct)
+    private static async IAsyncEnumerable<string> GetLogs(
+        HexusApplication application,
+        int lines,
+        bool noStreaming,
+        [EnumeratorCancellation] CancellationToken ct
+    )
     {
         var requestTime = DateTimeOffset.UtcNow;
 
