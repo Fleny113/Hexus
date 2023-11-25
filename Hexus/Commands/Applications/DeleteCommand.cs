@@ -1,9 +1,6 @@
-using Hexus.Daemon.Contracts;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.Diagnostics;
-using System.Net.Http.Json;
 
 namespace Hexus.Commands.Applications;
 

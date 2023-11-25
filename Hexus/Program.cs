@@ -12,6 +12,7 @@ rootCommand.AddCommand(NewCommand.Command);
 
 rootCommand.AddCommand(ListCommand.Command);
 rootCommand.AddCommand(InfoCommand.Command);
+rootCommand.AddCommand(LogsCommand.Command);
 
 rootCommand.AddCommand(InputCommand.Command);
 rootCommand.AddCommand(StartCommand.Command);

@@ -35,6 +35,12 @@ internal static class InfoCommand
         
         var infoRequest = await HttpInvocation.HttpClient.GetAsync($"/{name}", ct);
         
+        if (!infoRequest.IsSuccessStatusCode)
+        {
+            await HttpInvocation.HandleFailedHttpRequestLogging(infoRequest, ct);
+            return;
+        }
+        
         var application = await infoRequest.Content.ReadFromJsonAsync<HexusApplicationResponse>(HttpInvocation.JsonSerializerOptions, ct);
     
         Debug.Assert(application is not null);
