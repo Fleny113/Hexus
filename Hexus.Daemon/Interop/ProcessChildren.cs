@@ -18,7 +18,8 @@ internal class ProcessChildren
                 .OfType<ManagementObject>()
                 .Select(obj => obj["ProcessId"].ToString() ?? "-1")
                 .Where(pid => pid is not "-1")
-                .Select(int.Parse)
+                .Select(ConvertToInt)
+                .Where(pid => pid is not -1)
                 .Select(Process.GetProcessById)
                 .ToArray();
         }
@@ -35,7 +36,8 @@ internal class ProcessChildren
         {
             return File.ReadAllText($"/proc/{parentId}/task/{parentId}/children")
                 .Split(' ')
-                .Select(int.Parse)
+                .Select(ConvertToInt)
+                .Where(pid => pid is not -1)
                 .Select(Process.GetProcessById)
                 .ToArray();
         }
@@ -43,5 +45,15 @@ internal class ProcessChildren
         {
             return [];
         }
+    }
+
+    private static int ConvertToInt(string value)
+    {
+        if (int.TryParse(value, out var parsed))
+        {
+            return parsed;
+        }
+
+        return -1;
     }
 }
