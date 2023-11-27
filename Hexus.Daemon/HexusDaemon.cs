@@ -10,6 +10,9 @@ internal class HexusDaemon
     {
         var builder = WebApplication.CreateSlimBuilder(args);
 
+        builder.Configuration.AddJsonFile($"{AppContext.BaseDirectory}/appsettings.json", optional: true);
+        builder.Configuration.AddJsonFile($"{AppContext.BaseDirectory}/appsettings.{builder.Environment.EnvironmentName}.json", optional: true);
+
         var configurationManager = new HexusConfigurationManager(builder.Environment.IsDevelopment());
 
         builder.WebHost.UseKestrel((context, options) =>
