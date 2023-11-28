@@ -6,7 +6,7 @@
       "dotnetRunMessages": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        // The urls are setted by UseKestrel in the WebApplication.cs
+        // The urls are setted by UseKestrel in the HexusDaemon.cs
         "ASPNETCORE_URLS": ""
       }
     }
