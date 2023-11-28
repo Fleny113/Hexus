@@ -4,7 +4,9 @@ namespace Hexus.Daemon.Services;
 
 internal sealed class HexusLifecycle(HexusConfigurationManager configManager, ProcessManagerService processManager) : IHostedLifecycleService
 {
-    public static bool IsDaemonStopped { get; private set; }
+    private static readonly CancellationTokenSource DaemonStoppingTokenSource = new();
+    public static CancellationToken DaemonStoppingToken => DaemonStoppingTokenSource.Token;
+    public static bool IsDaemonStopped => DaemonStoppingTokenSource.IsCancellationRequested;
     
     public Task StartedAsync(CancellationToken cancellationToken)
     {
@@ -17,8 +19,6 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
 
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
-        IsDaemonStopped = true;
-
         File.Delete(configManager.Configuration.UnixSocket);
         
         foreach (var application in processManager.Applications.Values) 
@@ -28,7 +28,14 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
     }
 
     public Task StartingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-    public Task StoppingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task StoppingAsync(CancellationToken cancellationToken)
+    {
+        DaemonStoppingTokenSource.Cancel();
+        
+        return Task.CompletedTask;
+    }
+    
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

@@ -1,5 +1,6 @@
 using EndpointMapper;
 using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
@@ -22,7 +23,10 @@ internal class GetLogsEndpoint : IEndpoint
         if (!configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
 
-        return TypedResults.Ok(GetLogs(application, lines, noStreaming, ct));
+        // When the aspnet or hexus CTS get cancelled it cancels this as well
+        var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, HexusLifecycle.DaemonStoppingToken);
+        
+        return TypedResults.Ok(GetLogs(application, lines, noStreaming, combinedCts.Token));
     }
     
     private static async IAsyncEnumerable<string> GetLogs(

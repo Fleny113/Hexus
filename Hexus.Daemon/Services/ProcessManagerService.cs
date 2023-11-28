@@ -324,9 +324,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
                     application.CpuStatsMap[proc.Id] = cpuStats;
                 }
 
-                var usage = proc.GetProcessCpuUsage(cpuStats);
-
-                return usage;
+                return proc.GetProcessCpuUsage(cpuStats);
             })
             .Sum();
 
