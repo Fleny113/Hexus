@@ -45,7 +45,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         ProcessApplicationLog(application, "SYSTEM", "-- Application started --");
         
         application.CpuUsageRefreshTimer?.Dispose();
-        application.CpuUsageRefreshTimer = new Timer(RefreshCpuUsage, application, _cpuUsageRefreshInterval, _cpuUsageRefreshInterval);
+        application.CpuUsageRefreshTimer = new Timer(RefreshCpuUsage, application, TimeSpan.Zero, _cpuUsageRefreshInterval);
 
         // Enable the emitting of events and the reading of the STDOUT and STDERR
         process.EnableRaisingEvents = true;
