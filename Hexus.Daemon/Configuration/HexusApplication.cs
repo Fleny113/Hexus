@@ -25,7 +25,7 @@ public sealed record HexusApplication
     [YamlIgnore] internal Timer? CpuUsageRefreshTimer { get; set; }
     [YamlIgnore] internal double LastCpuUsage { get; set; }
     
-    internal record struct CpuStats
+    internal record CpuStats
     {
         public TimeSpan LastTotalProcessorTime { get; set; }
         public DateTimeOffset LastGetProcessCpuUsageInvocation { get; set; }

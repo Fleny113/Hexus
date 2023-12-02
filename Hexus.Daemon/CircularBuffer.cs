@@ -20,7 +20,7 @@ public class CircularBuffer<T> where T : class
         _writeIndex = (_writeIndex + 1) % _buffer.Length;
     }
 
-    public async IAsyncEnumerable<T> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<T> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var readIndex = (_writeIndex + _buffer.Length - 1) % _buffer.Length;
 

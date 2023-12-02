@@ -4,7 +4,7 @@ using Hexus.Daemon.Services;
 
 namespace Hexus.Daemon;
 
-internal class HexusDaemon
+internal static class HexusDaemon
 {
     public static void StartDaemon(string[] args)
     {

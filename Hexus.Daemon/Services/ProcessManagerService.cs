@@ -298,9 +298,9 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         
         application.Process.Refresh();
 
-        var childProcessesMemoryUsage = application.Process.GetChildProcesses()
-            .Select(proc => proc.PagedMemorySize64)
-            .Aggregate((accumulated, memory) => accumulated + memory);
+        var childProcessesMemoryUsage = GetApplicationProcesses(application)
+            .Select(proc => proc.WorkingSet64)
+            .Sum();
         
         return application.Process.PagedMemorySize64 + childProcessesMemoryUsage;
     }
@@ -324,7 +324,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
                     application.CpuStatsMap[proc.Id] = cpuStats;
                 }
 
-                return proc.GetProcessCpuUsage(ref cpuStats);
+                return proc.GetProcessCpuUsage(cpuStats);
             })
             .Sum();
 
