@@ -298,6 +298,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return 0;
         
         return GetApplicationProcesses(application)
+            .Where(proc => proc is { HasExited: false })
             .Select(proc => {
                 proc.Refresh();
                 
@@ -314,6 +315,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
 
         var cpuUsages = GetApplicationProcesses(application)
+            .Where(proc => proc is { HasExited: false })
             .Select(proc =>
             {
                 if (!application.CpuStatsMap.TryGetValue(proc.Id, out var cpuStats))
