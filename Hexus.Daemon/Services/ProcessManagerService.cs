@@ -178,18 +178,18 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void HandleStdOutLogs(object? sender, DataReceivedEventArgs e)
     {
-        if (sender is not Process process || !Applications.TryGetValue(process, out var application))
+        if (sender is not Process process || e.Data is null || !Applications.TryGetValue(process, out var application))
             return;
 
-        ProcessApplicationLog(application, "STDOUT", e.Data ?? "");
+        ProcessApplicationLog(application, "STDOUT", e.Data);
     }
 
     private void HandleStdErrLogs(object? sender, DataReceivedEventArgs e)
     {
-        if (sender is not Process process || !Applications.TryGetValue(process, out var application))
+        if (sender is not Process process || e.Data is null || !Applications.TryGetValue(process, out var application))
             return;
 
-        ProcessApplicationLog(application, "STDERR", e.Data ?? "");
+        ProcessApplicationLog(application, "STDERR", e.Data);
     }
 
     #endregion
