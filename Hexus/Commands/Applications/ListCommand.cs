@@ -16,10 +16,10 @@ internal static class ListCommand
 
     static ListCommand()
     {
-        Command.SetHandler(Handle);    
+        Command.SetHandler(Handler);    
     }
 
-    private static async Task Handle(InvocationContext context)
+    private static async Task Handler(InvocationContext context)
     {
         var ct = context.GetCancellationToken();
 

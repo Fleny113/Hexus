@@ -30,10 +30,10 @@ internal static class EditCommand
 
     static EditCommand()
     {
-        Command.SetHandler(Handle);
+        Command.SetHandler(Handler);
     }
 
-    private static async Task Handle(InvocationContext context)
+    private static async Task Handler(InvocationContext context)
     {
         var name = context.ParseResult.GetValueForArgument(NameArgument);
         var newName = context.ParseResult.GetValueForOption(NameOption);

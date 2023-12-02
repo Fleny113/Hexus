@@ -23,11 +23,11 @@ internal class DaemonCommand
 
     static DaemonCommand()
     {
-        StartSubCommand.SetHandler(HandleStartSubCommand);
-        StopSubCommand.SetHandler(HandleStopSubCommand);
+        StartSubCommand.SetHandler(StartSubCommandHandler);
+        StopSubCommand.SetHandler(StopSubCommandHandler);
     }
 
-    private static async Task HandleStartSubCommand(InvocationContext context)
+    private static async Task StartSubCommandHandler(InvocationContext context)
     {
         var args = context.ParseResult.GetValueForArgument(DaemonOptions);
         var ct = context.GetCancellationToken();
@@ -41,7 +41,7 @@ internal class DaemonCommand
         HexusDaemon.StartDaemon(args);
     }
 
-    private static async Task HandleStopSubCommand(InvocationContext context)
+    private static async Task StopSubCommandHandler(InvocationContext context)
     {
         var ct = context.GetCancellationToken();
         

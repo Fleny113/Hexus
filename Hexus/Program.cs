@@ -18,6 +18,7 @@ rootCommand.AddCommand(InputCommand.Command);
 rootCommand.AddCommand(StartCommand.Command);
 rootCommand.AddCommand(EditCommand.Command);
 rootCommand.AddCommand(StopCommand.Command);
+rootCommand.AddCommand(RestartCommand.Command);
 rootCommand.AddCommand(DeleteCommand.Command);
 
 rootCommand.AddCommand(DaemonCommand.Command);

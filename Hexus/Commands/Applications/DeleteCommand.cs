@@ -17,10 +17,10 @@ internal static class DeleteCommand
 
     static DeleteCommand()
     {        
-        Command.SetHandler(HandleAsync);
+        Command.SetHandler(Handler);
     }
     
-    private static async Task HandleAsync(InvocationContext context)
+    private static async Task Handler(InvocationContext context)
     {
         var name = context.ParseResult.GetValueForArgument(NameArgument);
         var force = context.ParseResult.GetValueForOption(ForceOption);
