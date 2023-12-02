@@ -10,7 +10,7 @@ namespace Hexus.Daemon.Services;
 
 internal partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager)
 {
-    private static readonly TimeSpan CpuUsageRefreshInterval = TimeSpan.FromSeconds(5); 
+    private readonly TimeSpan _cpuUsageRefreshInterval = TimeSpan.FromSeconds(configManager.Configuration.CpuRefreshIntervalSeconds); 
     
     internal ConcurrentDictionary<Process, HexusApplication> Applications { get; } = new();
     
@@ -45,7 +45,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         ProcessApplicationLog(application, "SYSTEM", "-- Application started --");
         
         application.CpuUsageRefreshTimer?.Dispose();
-        application.CpuUsageRefreshTimer = new Timer(RefreshCpuUsage, application, CpuUsageRefreshInterval, CpuUsageRefreshInterval);
+        application.CpuUsageRefreshTimer = new Timer(RefreshCpuUsage, application, _cpuUsageRefreshInterval, _cpuUsageRefreshInterval);
 
         // Enable the emitting of events and the reading of the STDOUT and STDERR
         process.EnableRaisingEvents = true;
@@ -164,7 +164,8 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void ProcessApplicationLog(HexusApplication application, string logType, string message)
     {
-        LogApplicationOutput(logger, application.Name, message);
+        if (logType != "SYSTEM")
+            LogApplicationOutput(logger, application.Name, message);
 
         var logLine = $"[{DateTimeOffset.UtcNow:MMM dd yyyy HH:mm:ss},{logType}] {message}";
 
@@ -296,13 +297,15 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         if (application.Process is not { HasExited: false })
             return 0;
         
-        application.Process.Refresh();
-
-        var childProcessesMemoryUsage = GetApplicationProcesses(application)
-            .Select(proc => proc.WorkingSet64)
+        return GetApplicationProcesses(application)
+            .Select(proc => {
+                proc.Refresh();
+                
+                return OperatingSystem.IsWindows()
+                    ? proc.PagedMemorySize64
+                    : proc.WorkingSet64;
+            })
             .Sum();
-        
-        return application.Process.PagedMemorySize64 + childProcessesMemoryUsage;
     }
     
     private static void RefreshCpuUsage(object? state)
