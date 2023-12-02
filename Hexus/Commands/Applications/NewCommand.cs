@@ -12,7 +12,7 @@ internal static class NewCommand
     private static readonly Argument<string> NameArgument = 
         new("name", "The name for the application");
     private static readonly Argument<string> ExecutableArgument = 
-        new("executable", "The file to execute, can resolved through the PATH env");
+        new("executable", "The file to execute, can resolved through the PATH env") { Arity = ArgumentArity.ExactlyOne };
     private static readonly Argument<string[]> ArgumentsArgument =
         new("arguments", "The additional argument for the executable") { Arity = ArgumentArity.ZeroOrMore };
     private static readonly Option<string> WorkingDirectoryOption =
@@ -28,8 +28,7 @@ internal static class NewCommand
 
     static NewCommand()
     {
-        Command.AddAlias("create");
-        
+        ArgumentsArgument.SetDefaultValue("");
         Command.SetHandler(Handler);
     }
 
