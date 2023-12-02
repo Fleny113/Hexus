@@ -8,6 +8,7 @@ public sealed record HexusApplicationResponse(
     string Arguments,
     string WorkingDirectory,
     HexusApplicationStatus Status,
+    TimeSpan ProcessUptime,
     long ProcessId,
     double CpuUsage,
     long MemoryUsage

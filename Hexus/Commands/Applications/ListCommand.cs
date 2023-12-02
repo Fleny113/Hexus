@@ -1,6 +1,7 @@
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 using Humanizer;
+using Humanizer.Localisation;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
@@ -31,32 +32,41 @@ internal static class ListCommand
         var listRequest = await HttpInvocation.HttpClient.GetAsync("/list", ct);
 
         var applications = await listRequest.Content.ReadFromJsonAsync<IEnumerable<HexusApplicationResponse>>(HttpInvocation.JsonSerializerOptions, ct);
-    
         Debug.Assert(applications is not null);
         
         var table = new Table();
 
-        table.Border(TableBorder.Simple);
-        table.BorderColor(Color.Gold1);
-        table.Title("[deepskyblue3]Hexus applications[/]");
+        table
+            .Title("[deepskyblue3]Hexus applications[/]")
+            .Border(TableBorder.Simple)
+            .BorderColor(Color.Gold1)
+            .AddColumns(
+                new TableColumn("[cornflowerblue]Name[/]").Centered(),
+                new TableColumn("[palegreen1]Status[/]").Centered(),
+                new TableColumn("[lightsalmon1]Uptime[/]").Centered(),
+                new TableColumn("[slateblue1]PID[/]").Centered(),
+                new TableColumn("[lightslateblue]Cpu Usage[/]").Centered(),
+                new TableColumn("[skyblue1]Memory Usage[/]").Centered()
+            );
         
-        table.AddColumns(
-            new TableColumn("[cornflowerblue]Name[/]").Centered(),
-            new TableColumn("[palegreen1]Status[/]").Centered(),
-            new TableColumn("[slateblue3]PID[/]").Centered(),
-            new TableColumn("[lightslateblue]Cpu Usage[/]").Centered(),
-            new TableColumn("[skyblue1]Memory Usage[/]").Centered()
-        );
-
         foreach (var application in applications)
         {
+            var isStopped = application.ProcessId == 0;
+            
             table.AddRow(
-                application.Name,
+                application.Name.EscapeMarkup(),
                 $"[{GetStatusColor(application.Status)}]{application.Status}[/]",
-                $"{application.ProcessId}",
-                $"{application.CpuUsage}%",
-                $"{application.MemoryUsage.Bytes().Humanize()}"
+                isStopped ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, precision: 1)}",
+                isStopped ? "N/A" : $"{application.ProcessId}",
+                isStopped ? "N/A" : $"{application.CpuUsage}%",
+                isStopped ? "N/A" : $"{application.MemoryUsage.Bytes().Humanize()}"
             );
+        }
+
+        if (table.Rows.Count == 0)
+        {
+            table.AddEmptyRow();
+            table.Caption("[italic grey39]it's quiet here...\nAdd a new application using the new command[/]");
         }
         
         PrettyConsole.Out.Write(table);

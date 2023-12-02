@@ -1,6 +1,7 @@
 ﻿using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Services;
+using System.Diagnostics;
 
 namespace Hexus.Daemon.Extensions;
 
@@ -25,6 +26,7 @@ internal static class MapperExtensions
             Arguments: application.Arguments,
             WorkingDirectory: EnvironmentHelper.NormalizePath(application.WorkingDirectory), 
             Status: application.Status,
+            ProcessUptime: application.Process is { HasExited: false } ? DateTime.Now - application.Process.StartTime : TimeSpan.Zero,
             ProcessId: application.Process is { HasExited: false } ? application.Process.Id : 0,
             CpuUsage: application.LastCpuUsage, 
             MemoryUsage: ProcessManagerService.GetMemoryUsage(application)
