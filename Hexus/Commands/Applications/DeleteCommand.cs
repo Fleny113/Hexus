@@ -29,6 +29,7 @@ internal static class DeleteCommand
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
+            context.ExitCode = 1;
             return;
         }
 
@@ -37,6 +38,7 @@ internal static class DeleteCommand
         if (!stopRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(stopRequest, ct);
+            context.ExitCode = 1;
             return;
         }
 

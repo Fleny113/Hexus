@@ -38,6 +38,7 @@ internal static class InputCommand
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
+            context.ExitCode = 1;
             return;
         }
 
@@ -46,6 +47,7 @@ internal static class InputCommand
         if (!stdinRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(stdinRequest, ct);
+            context.ExitCode = 1;
             return;
         }
         

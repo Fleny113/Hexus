@@ -26,6 +26,7 @@ internal static class StartCommand
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
+            context.ExitCode = 1;
             return;
         }
 
@@ -34,6 +35,7 @@ internal static class StartCommand
         if (!startRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(startRequest, ct);
+            context.ExitCode = 1;
             return;
         }
 

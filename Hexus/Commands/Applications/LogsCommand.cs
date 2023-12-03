@@ -33,6 +33,7 @@ internal static class LogsCommand
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
+            context.ExitCode = 1;
             return;
         }
 
@@ -45,6 +46,7 @@ internal static class LogsCommand
         if (!logsRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
+            context.ExitCode = 1;
             return;
         }
 

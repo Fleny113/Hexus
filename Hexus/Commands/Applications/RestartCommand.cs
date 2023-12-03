@@ -29,6 +29,7 @@ internal static class RestartCommand
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
+            context.ExitCode = 1;
             return;
         }
 
@@ -37,6 +38,7 @@ internal static class RestartCommand
         if (!restartRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(restartRequest, ct);
+            context.ExitCode = 1;
             return;
         }
 

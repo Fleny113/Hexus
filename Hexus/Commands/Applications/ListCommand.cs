@@ -26,11 +26,19 @@ internal static class ListCommand
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
+            context.ExitCode = 1;
             return;
         }
 
         var listRequest = await HttpInvocation.HttpClient.GetAsync("/list", ct);
 
+        if (!listRequest.IsSuccessStatusCode)
+        {
+            await HttpInvocation.HandleFailedHttpRequestLogging(listRequest, ct);
+            context.ExitCode = 1;
+            return;
+        }
+        
         var applications = await listRequest.Content.ReadFromJsonAsync<IEnumerable<HexusApplicationResponse>>(HttpInvocation.JsonSerializerOptions, ct);
         Debug.Assert(applications is not null);
         

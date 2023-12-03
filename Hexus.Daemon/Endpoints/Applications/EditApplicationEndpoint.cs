@@ -61,7 +61,7 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         configurationManager.Configuration.Applications.Remove(application.Name);
         configurationManager.Configuration.Applications.Add(editRequest.Name, application);
         
-        // If wew are reloading from shell, use the new object entirely and discard our
+        // If we are reloading from shell, use the new object entirely and discard our
         var newEnvironmentVariables = editRequest.IsReloadingEnvironmentVariables == true
             ? editRequest.NewEnvironmentVariables 
             : application.EnvironmentVariables;

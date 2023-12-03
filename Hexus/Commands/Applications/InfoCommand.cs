@@ -35,6 +35,7 @@ internal static class InfoCommand
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
+            context.ExitCode = 1;
             return;
         }
         
@@ -43,6 +44,7 @@ internal static class InfoCommand
         if (!infoRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(infoRequest, ct);
+            context.ExitCode = 1;
             return;
         }
         
