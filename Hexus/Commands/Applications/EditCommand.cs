@@ -107,7 +107,7 @@ internal static class EditCommand
             new EditApplicationRequest(
                 newName,
                 newExecutable,
-                newArgumentsOptionValue is null
+                newArgumentsOptionValue is { Length: 0 }
                     ? null
                     : newArguments,
                 newWorkingDirectory,
