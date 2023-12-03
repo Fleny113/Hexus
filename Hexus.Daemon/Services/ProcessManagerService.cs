@@ -34,6 +34,12 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             StandardInputEncoding = Encoding.ASCII,
         };
 
+        processInfo.Environment.Clear();
+        foreach (var (key, value) in application.EnvironmentVariables)
+        {
+            processInfo.Environment.Add(key, value);
+        }
+
         var process = Process.Start(processInfo);
 
         if (process is null or { HasExited: true })
@@ -43,7 +49,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         Applications[process] = application;
 
         ProcessApplicationLog(application, "SYSTEM", "-- Application started --");
-        
+
         application.CpuUsageRefreshTimer?.Dispose();
         application.CpuUsageRefreshTimer = new Timer(RefreshCpuUsage, application, TimeSpan.Zero, _cpuUsageRefreshInterval);
 

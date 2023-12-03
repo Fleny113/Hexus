@@ -13,6 +13,8 @@ public sealed record HexusApplication
     [DefaultValue("")] public string WorkingDirectory { get; set; } = "";
     public HexusApplicationStatus Status { get; set; } = HexusApplicationStatus.Exited;
 
+    public Dictionary<string, string> EnvironmentVariables { get; set; } = [];
+
     #region Internal proprieties
     [YamlIgnore] internal Process? Process { get; set; }
 

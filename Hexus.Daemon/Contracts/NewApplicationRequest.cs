@@ -7,8 +7,10 @@ public sealed record NewApplicationRequest(
     [property: Required] string Name, 
     [property: Required, AbsolutePath] string Executable, 
     string Arguments = "", 
-    string WorkingDirectory = ""
+    string WorkingDirectory = "",
+    Dictionary<string, string> EnvironmentVariables = null!
 ) : IContract
 {
     [Required, AbsolutePath] public string WorkingDirectory { get; set; } = WorkingDirectory;
+    public Dictionary<string, string> EnvironmentVariables { get; set; } = EnvironmentVariables ?? [];
 }

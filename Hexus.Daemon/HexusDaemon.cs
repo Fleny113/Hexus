@@ -27,8 +27,8 @@ internal static class HexusDaemon
 
             options.ListenUnixSocket(configurationManager.Configuration.UnixSocket);
 
-            if (configurationManager.Configuration.HttpPort is not -1)
-                options.ListenLocalhost(configurationManager.Configuration.HttpPort);
+            if (configurationManager.Configuration.HttpPort is { } httpPort && httpPort is > 0)
+                options.ListenLocalhost(httpPort);
 
             if (context.HostingEnvironment.IsDevelopment())
                 options.ListenLocalhost(5104);

@@ -1,6 +1,20 @@
-﻿namespace Hexus.Daemon.Configuration;
+﻿using System.ComponentModel;
 
-public sealed record HexusConfiguration : HexusConfigurationFile
+namespace Hexus.Daemon.Configuration;
+
+public sealed record HexusConfiguration
 {
-    public new Dictionary<string, HexusApplication> Applications { get; init; } = [];
+    public string UnixSocket { get; init; } = EnvironmentHelper.SocketFile;
+    public int? HttpPort { get; init; }
+    public double CpuRefreshIntervalSeconds { get; init; }
+    public Dictionary<string, HexusApplication> Applications { get; init; } = [];
+}
+
+
+public sealed record HexusConfigurationFile
+{
+    public string UnixSocket { get; init; } = EnvironmentHelper.SocketFile;
+    public int? HttpPort { get; init; }
+    [DefaultValue(1d)] public double CpuRefreshIntervalSeconds { get; init; }
+    public IEnumerable<HexusApplication>? Applications { get; init; }
 }

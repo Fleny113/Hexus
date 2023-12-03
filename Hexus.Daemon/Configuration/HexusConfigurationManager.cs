@@ -13,7 +13,7 @@ internal class HexusConfigurationManager
         .Build();
 
     private static readonly ISerializer YamlSerializer = new SerializerBuilder()
-        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitDefaults)
+        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitDefaults | DefaultValuesHandling.OmitEmptyCollections)
         .WithIndentedSequences()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
@@ -38,7 +38,7 @@ internal class HexusConfigurationManager
             UnixSocket = configFile.UnixSocket,
             HttpPort = configFile.HttpPort,
             CpuRefreshIntervalSeconds = configFile.CpuRefreshIntervalSeconds,
-            Applications = configFile.Applications.ToDictionary(application => application.Name),
+            Applications = configFile.Applications?.ToDictionary(application => application.Name) ?? [],
         };
     }
 

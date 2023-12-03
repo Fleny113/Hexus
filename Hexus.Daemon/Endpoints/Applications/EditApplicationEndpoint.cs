@@ -27,10 +27,13 @@ internal sealed class EditApplicationEndpoint : IEndpoint
             return TypedResults.Conflict(ErrorResponses.ApplicationWithTheSameNameAlreadyExiting);
         
         var editRequest = new EditApplicationRequest(
-            Name: request.Name ?? application.Name,
-            Executable: EnvironmentHelper.NormalizePath(request.Executable ?? application.Executable),
-            Arguments: request.Arguments ?? application.Arguments,
-            WorkingDirectory: EnvironmentHelper.NormalizePath(request.WorkingDirectory ?? application.WorkingDirectory)
+            Name: request.Name ?? application.Name, 
+            Executable: EnvironmentHelper.NormalizePath(request.Executable ?? application.Executable), 
+            Arguments: request.Arguments ?? application.Arguments, 
+            WorkingDirectory: EnvironmentHelper.NormalizePath(request.WorkingDirectory ?? application.WorkingDirectory), 
+            NewEnvironmentVariables: request.NewEnvironmentVariables ?? [], 
+            RemoveEnvironmentVariables: request.RemoveEnvironmentVariables ?? [], 
+            IsReloadingEnvironmentVariables: request.IsReloadingEnvironmentVariables ?? false
         );
         
         if (!editRequest.ValidateContract(out var errors))
@@ -41,7 +44,10 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         Debug.Assert(editRequest.Executable is not null);
         Debug.Assert(editRequest.Arguments is not null);
         Debug.Assert(editRequest.WorkingDirectory is not null);
-        
+        Debug.Assert(editRequest.NewEnvironmentVariables is not null);
+        Debug.Assert(editRequest.RemoveEnvironmentVariables is not null);
+        Debug.Assert(editRequest.IsReloadingEnvironmentVariables is not null);
+
         // Rename the log file
         File.Move(
             sourceFileName: $"{EnvironmentHelper.LogsDirectory}/{application.Name}.log",
@@ -50,13 +56,36 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         );
         
         // Edit the configuration
+        
+        // Edit the name
         configurationManager.Configuration.Applications.Remove(application.Name);
         configurationManager.Configuration.Applications.Add(editRequest.Name, application);
         
+        // If wew are reloading from shell, use the new object entirely and discard our
+        var newEnvironmentVariables = editRequest.IsReloadingEnvironmentVariables == true
+            ? editRequest.NewEnvironmentVariables 
+            : application.EnvironmentVariables;
+
+        // If we aren't reloading from shell, we need to overwrite the keys based on editRequest.NewEnvironmentVariables
+        if (editRequest.IsReloadingEnvironmentVariables == false)
+        {   
+            foreach (var (key, value) in editRequest.NewEnvironmentVariables)
+            {
+                newEnvironmentVariables[key] = value;
+            }
+        }
+
+        foreach (var env in editRequest.RemoveEnvironmentVariables)
+        {
+            newEnvironmentVariables.Remove(env);
+        }
+        
+        // Edit the configuration
         application.Name = editRequest.Name;
         application.Executable = editRequest.Executable;
         application.Arguments = editRequest.Arguments;
         application.WorkingDirectory = editRequest.WorkingDirectory;
+        application.EnvironmentVariables = newEnvironmentVariables;
         
         configurationManager.SaveConfiguration();
         
