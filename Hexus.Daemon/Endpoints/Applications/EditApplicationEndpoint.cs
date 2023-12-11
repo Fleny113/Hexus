@@ -25,17 +25,18 @@ internal sealed class EditApplicationEndpoint : IEndpoint
 
         if (request.Name is not null && configurationManager.Configuration.Applications.TryGetValue(request.Name, out _))
             return TypedResults.Conflict(ErrorResponses.ApplicationWithTheSameNameAlreadyExiting);
-        
+
         var editRequest = new EditApplicationRequest(
-            Name: request.Name ?? application.Name, 
-            Executable: EnvironmentHelper.NormalizePath(request.Executable ?? application.Executable), 
-            Arguments: request.Arguments ?? application.Arguments, 
-            WorkingDirectory: EnvironmentHelper.NormalizePath(request.WorkingDirectory ?? application.WorkingDirectory), 
-            NewEnvironmentVariables: request.NewEnvironmentVariables ?? [], 
-            RemoveEnvironmentVariables: request.RemoveEnvironmentVariables ?? [], 
+            Name: request.Name ?? application.Name,
+            Executable: EnvironmentHelper.NormalizePath(request.Executable ?? application.Executable),
+            Arguments: request.Arguments ?? application.Arguments,
+            Note: request.Note ?? application.Note,
+            WorkingDirectory: EnvironmentHelper.NormalizePath(request.WorkingDirectory ?? application.WorkingDirectory),
+            NewEnvironmentVariables: request.NewEnvironmentVariables ?? [],
+            RemoveEnvironmentVariables: request.RemoveEnvironmentVariables ?? [],
             IsReloadingEnvironmentVariables: request.IsReloadingEnvironmentVariables ?? false
         );
-        
+
         if (!editRequest.ValidateContract(out var errors))
             return TypedResults.ValidationProblem(errors);
 
@@ -43,6 +44,7 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         Debug.Assert(editRequest.Name is not null);
         Debug.Assert(editRequest.Executable is not null);
         Debug.Assert(editRequest.Arguments is not null);
+        Debug.Assert(editRequest.Note is not null);
         Debug.Assert(editRequest.WorkingDirectory is not null);
         Debug.Assert(editRequest.NewEnvironmentVariables is not null);
         Debug.Assert(editRequest.RemoveEnvironmentVariables is not null);
@@ -54,21 +56,21 @@ internal sealed class EditApplicationEndpoint : IEndpoint
             destFileName: $"{EnvironmentHelper.LogsDirectory}/{editRequest.Name}.log",
             overwrite: true
         );
-        
+
         // Edit the configuration
-        
+
         // Edit the name
         configurationManager.Configuration.Applications.Remove(application.Name);
         configurationManager.Configuration.Applications.Add(editRequest.Name, application);
-        
+
         // If we are reloading from shell, use the new object entirely and discard our
         var newEnvironmentVariables = editRequest.IsReloadingEnvironmentVariables == true
-            ? editRequest.NewEnvironmentVariables 
+            ? editRequest.NewEnvironmentVariables
             : application.EnvironmentVariables;
 
         // If we aren't reloading from shell, we need to overwrite the keys based on editRequest.NewEnvironmentVariables
         if (editRequest.IsReloadingEnvironmentVariables == false)
-        {   
+        {
             foreach (var (key, value) in editRequest.NewEnvironmentVariables)
             {
                 newEnvironmentVariables[key] = value;
@@ -79,16 +81,17 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         {
             newEnvironmentVariables.Remove(env);
         }
-        
+
         // Edit the configuration
         application.Name = editRequest.Name;
         application.Executable = editRequest.Executable;
         application.Arguments = editRequest.Arguments;
+        application.Note = editRequest.Note;
         application.WorkingDirectory = editRequest.WorkingDirectory;
         application.EnvironmentVariables = newEnvironmentVariables;
-        
+
         configurationManager.SaveConfiguration();
-        
+
         return TypedResults.NoContent();
     }
 }

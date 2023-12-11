@@ -14,6 +14,7 @@ internal static class MapperExtensions
             Executable = EnvironmentHelper.NormalizePath(request.Executable),
             Arguments = request.Arguments,
             WorkingDirectory = EnvironmentHelper.NormalizePath(request.WorkingDirectory),
+            Note = request.Note,
             EnvironmentVariables = request.EnvironmentVariables,
         };
     }
@@ -21,15 +22,16 @@ internal static class MapperExtensions
     public static HexusApplicationResponse MapToResponse(this HexusApplication application)
     {
         return new HexusApplicationResponse(
-            Name: application.Name, 
-            Executable: EnvironmentHelper.NormalizePath(application.Executable), 
+            Name: application.Name,
+            Executable: EnvironmentHelper.NormalizePath(application.Executable),
             Arguments: application.Arguments,
+            Note: application.Note,
             WorkingDirectory: EnvironmentHelper.NormalizePath(application.WorkingDirectory),
             EnvironmentVariables: application.EnvironmentVariables,
             Status: application.Status,
             ProcessUptime: application.Process is { HasExited: false } ? DateTime.Now - application.Process.StartTime : TimeSpan.Zero,
             ProcessId: application.Process is { HasExited: false } ? application.Process.Id : 0,
-            CpuUsage: application.LastCpuUsage, 
+            CpuUsage: application.LastCpuUsage,
             MemoryUsage: ProcessManagerService.GetMemoryUsage(application)
         );
     }

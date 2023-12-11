@@ -10,10 +10,10 @@ namespace Hexus.Daemon.Services;
 
 internal partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager)
 {
-    private readonly TimeSpan _cpuUsageRefreshInterval = TimeSpan.FromSeconds(configManager.Configuration.CpuRefreshIntervalSeconds); 
-    
+    private readonly TimeSpan _cpuUsageRefreshInterval = TimeSpan.FromSeconds(configManager.Configuration.CpuRefreshIntervalSeconds);
+
     internal ConcurrentDictionary<Process, HexusApplication> Applications { get; } = new();
-    
+
     /// <summary> Start an instance of the application</summary>
     /// <param name="application">The application to start</param>
     /// <returns>Whatever if the application was started or not</returns>
@@ -84,7 +84,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         application.Process.Exited -= HandleProcessRestart;
 
         StopProcess(application.Process, forceStop);
-        
+
         // If the ASP.NET Core Hosting has stopped then we don't want to save to disk the exited application status
         if (!HexusLifecycle.IsDaemonStopped)
             configManager.SaveConfiguration();
@@ -104,7 +104,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     /// <returns>If the application is running</returns>
     public static bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application)
         => application is { Status: HexusApplicationStatus.Running, Process.HasExited: false };
-    
+
     /// <summary>Send a message into the Standard Input (STDIN) of an application</summary>
     /// <param name="name">The name of the application</param>
     /// <param name="text">The text to send into the STDIN</param>
@@ -177,9 +177,15 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         application.LogBuffer.Write(logLine);
 
-        lock (application.LogUsageLock)
+        application.LogSemaphore.Wait();
+
+        try
         {
             File.AppendAllText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log", $"{logLine}{Environment.NewLine}");
+        }
+        finally
+        {
+            application.LogSemaphore.Release();
         }
     }
 
@@ -216,17 +222,19 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         var exitCode = process.ExitCode;
 
+        ProcessApplicationLog(application, "SYSTEM", "-- Application stopped --");
+
         application.CpuUsageRefreshTimer?.Dispose();
         application.CpuUsageRefreshTimer = null;
 
         application.Process?.Close();
         application.Process = null;
-        
+
         application.CpuStatsMap.Clear();
         application.LastCpuUsage = 0;
-        
+
         application.Status = HexusApplicationStatus.Exited;
-    
+
         // If the ASP.NET Core Hosting has stopped then we don't want to save to disk the exited application status
         if (!HexusLifecycle.IsDaemonStopped)
             configManager.SaveConfiguration();
@@ -240,17 +248,17 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
 
         var status = _consequentialRestarts.GetValueOrDefault(application.Name, (0, null));
-        
+
         status.Restarts++;
         status.CancellationTokenSource?.Dispose();
         status.CancellationTokenSource = new CancellationTokenSource(ResetTimeWindow);
 
         _consequentialRestarts[application.Name] = status;
-        
+
         if (status.Restarts > MaxRestarts)
         {
             LogCrashedApplication(logger, application.Name, status.Restarts, ResetTimeWindow.TotalSeconds);
-            
+
             status.CancellationTokenSource.Dispose();
             _consequentialRestarts.TryRemove(application.Name, out _);
 
@@ -267,7 +275,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         Task.Delay(delay).ContinueWith(_ =>
         {
-            StartApplication(application); 
+            StartApplication(application);
             configManager.SaveConfiguration();
         });
     }
@@ -279,7 +287,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         _consequentialRestarts.TryRemove(name, out var status);
         status.CancellationTokenSource?.Dispose();
-        
+
         LogConsequentialRestartsStop(logger, status.Restarts, name);
     }
 
@@ -297,24 +305,25 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     #endregion
 
     #region Performance tracking
-    
+
     internal static long GetMemoryUsage(HexusApplication application)
     {
         if (application.Process is not { HasExited: false })
             return 0;
-        
+
         return GetApplicationProcesses(application)
             .Where(proc => proc is { HasExited: false })
-            .Select(proc => {
+            .Select(proc =>
+            {
                 proc.Refresh();
-                
+
                 return OperatingSystem.IsWindows()
                     ? proc.PagedMemorySize64
                     : proc.WorkingSet64;
             })
             .Sum();
     }
-    
+
     private static void RefreshCpuUsage(object? state)
     {
         if (state is not HexusApplication application)
@@ -328,10 +337,10 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
                 {
                     cpuStats = new HexusApplication.CpuStats
                     {
-                        LastTotalProcessorTime = TimeSpan.Zero, 
+                        LastTotalProcessorTime = TimeSpan.Zero,
                         LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
                     };
-                    
+
                     application.CpuStatsMap[proc.Id] = cpuStats;
                 }
 
@@ -341,7 +350,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         application.LastCpuUsage = Math.Clamp(Math.Round(cpuUsages, 2), 0, 100);
     }
-    
+
     private static IEnumerable<Process> GetApplicationProcesses(HexusApplication application)
     {
         if (application.Process is null)
@@ -356,28 +365,28 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         var liveProcessIds = processes
             .Where(process => process is { HasExited: false })
             .Select(child => child.Id);
-        
+
         // For the killed processes we don't care about tracking their CPU usages
         foreach (var key in application.CpuStatsMap.Keys.Except(liveProcessIds))
             application.CpuStatsMap.Remove(key, out _);
 
         return processes;
     }
-    
+
     #endregion
-    
+
     [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed")]
     private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, double timeWindow);
-    
+
     [LoggerMessage(LogLevel.Debug, "Acknowledging about \"{Name}\" exiting with code: {ExitCode}")]
     private static partial void LogAcknowledgeProcessExit(ILogger logger, string name, int exitCode);
-    
+
     [LoggerMessage(LogLevel.Debug, "After {Restarts} restarts, application \"{Name}\" stopped restarting")]
     private static partial void LogConsequentialRestartsStop(ILogger logger, int restarts, string name);
-    
+
     [LoggerMessage(LogLevel.Debug, "Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting")]
     private static partial void LogRestartAttemptDelay(ILogger logger, string name, double seconds);
-    
+
     [LoggerMessage(LogLevel.Trace, "Application \"{Name}\" says: '{OutputData}'")]
     private static partial void LogApplicationOutput(ILogger logger, string name, string outputData);
 }

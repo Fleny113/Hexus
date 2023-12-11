@@ -4,10 +4,11 @@ using System.ComponentModel.DataAnnotations;
 namespace Hexus.Daemon.Contracts;
 
 public sealed record NewApplicationRequest(
-    [property: Required] string Name, 
-    [property: Required, AbsolutePath] string Executable, 
-    string Arguments = "", 
+    [property: Required] string Name,
+    [property: Required, AbsolutePath] string Executable,
+    string Arguments = "",
     string WorkingDirectory = "",
+    string Note = "",
     Dictionary<string, string> EnvironmentVariables = null!
 ) : IContract
 {

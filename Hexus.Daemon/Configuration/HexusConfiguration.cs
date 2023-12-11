@@ -15,6 +15,6 @@ public sealed record HexusConfigurationFile
 {
     public string UnixSocket { get; init; } = EnvironmentHelper.SocketFile;
     public int? HttpPort { get; init; }
-    [DefaultValue(1d)] public double CpuRefreshIntervalSeconds { get; init; }
+    [DefaultValue(1d)] public double CpuRefreshIntervalSeconds { get; init; } = 1d;
     public IEnumerable<HexusApplication>? Applications { get; init; }
 }

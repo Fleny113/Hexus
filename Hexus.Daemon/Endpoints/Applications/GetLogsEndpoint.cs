@@ -25,10 +25,10 @@ internal class GetLogsEndpoint : IEndpoint
 
         // When the aspnet or hexus CTS get cancelled it cancels this as well
         var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, HexusLifecycle.DaemonStoppingToken);
-        
+
         return TypedResults.Ok(GetLogs(application, lines, noStreaming, combinedCts.Token));
     }
-    
+
     private static async IAsyncEnumerable<string> GetLogs(
         HexusApplication application,
         int lines,
@@ -58,7 +58,9 @@ internal class GetLogsEndpoint : IEndpoint
 
     private static IEnumerable<string> GetLogs(HexusApplication application, int lines)
     {
-        lock (application.LogUsageLock)
+        application.LogSemaphore.Wait();
+
+        try
         {
             using var stream = File.OpenRead($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log");
             var newLineFound = 0;
@@ -84,7 +86,7 @@ internal class GetLogsEndpoint : IEndpoint
                     stream.Seek(-2, SeekOrigin.Current);
                     continue;
                 }
-                
+
                 newLineFound++;
 
                 // On the last iteration we don't want to move the position
@@ -102,6 +104,10 @@ internal class GetLogsEndpoint : IEndpoint
 
                 yield return line;
             }
+        }
+        finally
+        {
+            application.LogSemaphore.Release();
         }
     }
 

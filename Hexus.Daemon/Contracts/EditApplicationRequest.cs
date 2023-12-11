@@ -3,11 +3,12 @@ using Hexus.Daemon.Validators;
 namespace Hexus.Daemon.Contracts;
 
 public record EditApplicationRequest(
-    string? Name, 
-    [property: AbsolutePath] string? Executable, 
-    string? Arguments,
-    [property: AbsolutePath] string? WorkingDirectory,
-    Dictionary<string, string>? NewEnvironmentVariables,
-    string[]? RemoveEnvironmentVariables,
-    bool? IsReloadingEnvironmentVariables
+    string? Name = null,
+    [property: AbsolutePath] string? Executable = null,
+    string? Arguments = null,
+    [property: AbsolutePath] string? WorkingDirectory = null,
+    string? Note = null,
+    Dictionary<string, string>? NewEnvironmentVariables = null,
+    string[]? RemoveEnvironmentVariables = null,
+    bool? IsReloadingEnvironmentVariables = null
 ) : IContract;

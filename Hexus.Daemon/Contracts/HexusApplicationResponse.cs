@@ -7,6 +7,7 @@ public sealed record HexusApplicationResponse(
     string Executable,
     string Arguments,
     string WorkingDirectory,
+    string Note,
     Dictionary<string, string> EnvironmentVariables,
     HexusApplicationStatus Status,
     TimeSpan ProcessUptime,

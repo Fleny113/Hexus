@@ -10,9 +10,9 @@ internal static class LogsCommand
     private static readonly Argument<string> NameArgument = new("name", "The name of the application");
     private static readonly Option<int?> LinesOption = new(["-l", "--lines"], "The number of lines to show from the log file");
     private static readonly Option<bool> DontStream = new("--no-streaming", "Disable the streaming of new logs. It Will only fetch from the log file");
-    
+
     public static readonly Command Command = new("logs", "View the logs of an application")
-    {   
+    {
         NameArgument,
         LinesOption,
         DontStream,
@@ -20,6 +20,7 @@ internal static class LogsCommand
 
     static LogsCommand()
     {
+        Command.AddAlias("log");
         Command.SetHandler(Handler);
     }
 
@@ -29,7 +30,7 @@ internal static class LogsCommand
         var lines = context.ParseResult.GetValueForOption(LinesOption) ?? 10;
         var noStreaming = context.ParseResult.GetValueForOption(DontStream);
         var ct = context.GetCancellationToken();
-        
+
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
@@ -42,7 +43,7 @@ internal static class LogsCommand
             HttpCompletionOption.ResponseHeadersRead,
             ct
         );
-        
+
         if (!logsRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
@@ -67,11 +68,11 @@ internal static class LogsCommand
 
     private static void PrintLogLine(ReadOnlySpan<char> logLine)
     {
-        var dateString = logLine.Slice(1, 20);
-        var logScope = logLine.Slice(22, 6);
-        var message = logLine.Slice(30).ToString();
-        
-        PrettyConsole.Out.MarkupLine($"{dateString} [{GetLogTypeColor(logScope)}]| {logScope} |[/] {message.EscapeMarkup()}");
+        var dateString = logLine[1..20];
+        var logScope = logLine[22..28];
+        var message = logLine[30..];
+
+        PrettyConsole.Out.MarkupLine($"{dateString} [{GetLogTypeColor(logScope)}]| {logScope} |[/] {message.ToString().EscapeMarkup()}");
     }
 
     private static Color GetLogTypeColor(ReadOnlySpan<char> logType) => logType switch

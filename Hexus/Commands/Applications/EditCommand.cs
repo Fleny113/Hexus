@@ -20,27 +20,29 @@ internal static class EditCommand
         AllowMultipleArgumentsPerToken = true,
     };
     private static readonly Option<string> WorkingDirectoryOption = new(["-w", "--working-directory"], "The new working directory for the application");
-    private static readonly Option<bool> ReloadFromShell = 
+    private static readonly Option<string> NoteOption = new(["-n", "--note"], "The new note for the application");
+    private static readonly Option<bool> ReloadFromShell =
         new("--reload-from-shell", "Use the current shell environment for the application");
-    private static readonly Option<Dictionary<string, string>> AddEnvironmentVariables = 
+    private static readonly Option<Dictionary<string, string>> AddEnvironmentVariables =
         new(["-e", "--environment"], "Add an environment variable for the application, format: 'key:value' or 'key=value'")
         {
-            Arity = ArgumentArity.OneOrMore, 
+            Arity = ArgumentArity.OneOrMore,
             AllowMultipleArgumentsPerToken = true,
         };
-    private static readonly Option<string[]> RemoveEnvironmentVariables = 
+    private static readonly Option<string[]> RemoveEnvironmentVariables =
         new(["-r", "--remove-environment"], "Remove an environment variable for the application")
         {
-            Arity = ArgumentArity.OneOrMore, 
+            Arity = ArgumentArity.OneOrMore,
             AllowMultipleArgumentsPerToken = true,
         };
-    
+
     public static readonly Command Command = new("edit", "Edit an exiting application")
     {
         NameArgument,
         NameOption,
         ExecutableOptions,
         ArgumentsOption,
+        NoteOption,
         WorkingDirectoryOption,
         ReloadFromShell,
         AddEnvironmentVariables,
@@ -55,12 +57,13 @@ internal static class EditCommand
     private static async Task Handler(InvocationContext context)
     {
         var binder = new DictionaryBinder(AddEnvironmentVariables);
-        
+
         var name = context.ParseResult.GetValueForArgument(NameArgument);
         var newName = context.ParseResult.GetValueForOption(NameOption);
         var newExecutable = context.ParseResult.GetValueForOption(ExecutableOptions);
         var newArgumentsOptionValue = context.ParseResult.GetValueForOption(ArgumentsOption);
         var newWorkingDirectory = context.ParseResult.GetValueForOption(WorkingDirectoryOption);
+        var newNote = context.ParseResult.GetValueForOption(NoteOption);
         var addEnv = context.BindingContext.GetValueForBinder(binder);
         var remove = context.ParseResult.GetValueForOption(RemoveEnvironmentVariables);
         var reloadEnv = context.ParseResult.GetValueForOption(ReloadFromShell);
@@ -77,15 +80,15 @@ internal static class EditCommand
 
         if (newWorkingDirectory is not null)
             newWorkingDirectory = EnvironmentHelper.NormalizePath(newWorkingDirectory);
-        
+
         if (newExecutable is not null)
-            newExecutable = Path.IsPathFullyQualified(newExecutable) 
-                ? EnvironmentHelper.NormalizePath(newExecutable) 
+            newExecutable = Path.IsPathFullyQualified(newExecutable)
+                ? EnvironmentHelper.NormalizePath(newExecutable)
                 : NewCommand.TryResolveExecutable(newExecutable);
 
         if (reloadEnv)
         {
-            addEnv ??= new Dictionary<string, string>();
+            addEnv ??= [];
 
             foreach (var env in Environment.GetEnvironmentVariables())
             {
@@ -97,11 +100,11 @@ internal static class EditCommand
 
                 if (value is null)
                     continue;
-                
+
                 addEnv.TryAdd(key, value);
             }
         }
-        
+
         var editRequest = await HttpInvocation.HttpClient.PatchAsJsonAsync(
             $"{name}",
             new EditApplicationRequest(
@@ -111,6 +114,7 @@ internal static class EditCommand
                     ? null
                     : newArguments,
                 newWorkingDirectory,
+                newNote,
                 addEnv,
                 remove,
                 reloadEnv
@@ -124,7 +128,7 @@ internal static class EditCommand
             context.ExitCode = 1;
             return;
         }
-        
+
         PrettyConsole.Out.MarkupLineInterpolated(
             $"Application \"{name}\" [plum2]edited[/]. You can now run it with the '[darkcyan]start[/] [cornflowerblue]{newName ?? name}[/]' command"
         );
