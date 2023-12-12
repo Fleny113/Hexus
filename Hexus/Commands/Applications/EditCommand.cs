@@ -20,7 +20,7 @@ internal static class EditCommand
         AllowMultipleArgumentsPerToken = true,
     };
     private static readonly Option<string> WorkingDirectoryOption = new(["-w", "--working-directory"], "The new working directory for the application");
-    private static readonly Option<string> NoteOption = new(["-n", "--note"], "The new note for the application");
+    private static readonly Option<string> NoteOption = new(["-t", "--note"], "The new note for the application");
     private static readonly Option<bool> ReloadFromShell =
         new("--reload-from-shell", "Use the current shell environment for the application");
     private static readonly Option<Dictionary<string, string>> AddEnvironmentVariables =
@@ -108,16 +108,16 @@ internal static class EditCommand
         var editRequest = await HttpInvocation.HttpClient.PatchAsJsonAsync(
             $"{name}",
             new EditApplicationRequest(
-                newName,
-                newExecutable,
-                newArgumentsOptionValue is { Length: 0 }
+                Name: newName,
+                Executable: newExecutable,
+                Arguments: newArgumentsOptionValue is { Length: 0 }
                     ? null
                     : newArguments,
-                newWorkingDirectory,
-                newNote,
-                addEnv,
-                remove,
-                reloadEnv
+                WorkingDirectory: newWorkingDirectory,
+                Note: newNote,
+                NewEnvironmentVariables: addEnv,
+                RemoveEnvironmentVariables: remove,
+                IsReloadingEnvironmentVariables: reloadEnv
             ),
             ct
         );

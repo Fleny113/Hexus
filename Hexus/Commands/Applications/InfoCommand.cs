@@ -61,8 +61,9 @@ internal static class InfoCommand
             Application configuration:
             - [cornflowerblue]Name[/]: {application.Name.EscapeMarkup()}
             - [salmon1]Executable file[/]: [link]{application.Executable.EscapeMarkup()}[/]
-            - [lightseagreen]Arguments[/]: {(string.IsNullOrWhiteSpace(application.Arguments) ? "[italic gray39]<No arguments specified>[/]" : application.Arguments.EscapeMarkup())}
+            - [lightseagreen]Arguments[/]: {(string.IsNullOrWhiteSpace(application.Arguments) ? "[italic gray39]No arguments specified[/]" : application.Arguments.EscapeMarkup())}
             - [plum2]Working Directory[/]: [link]{application.WorkingDirectory.EscapeMarkup()}[/]
+            - [lightgoldenrod2_1]Note[/]: {(string.IsNullOrWhiteSpace(application.Note) ? "[italic gray39]No note added[/]" : application.Note)}
             - [aquamarine1]Environment variables[/]: {environmentVariables}
             
             Current status:
