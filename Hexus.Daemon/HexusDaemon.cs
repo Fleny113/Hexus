@@ -27,7 +27,7 @@ internal static class HexusDaemon
 
             options.ListenUnixSocket(configurationManager.Configuration.UnixSocket);
 
-            if (configurationManager.Configuration.HttpPort is { } httpPort && httpPort is > 0)
+            if (configurationManager.Configuration.HttpPort is { } httpPort and > 0)
                 options.ListenLocalhost(httpPort);
 
             if (context.HostingEnvironment.IsDevelopment())
@@ -36,17 +36,21 @@ internal static class HexusDaemon
 
         builder.Services.ConfigureHttpJsonOptions(options =>
         {
+            options.SerializerOptions.TypeInfoResolverChain.Clear();
             options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
         });
+        builder.Services.AddProblemDetails();
 
         builder.Services.AddSingleton(configurationManager);
         builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
 
         builder.Services.AddHostedService<HexusLifecycle>();
+        builder.Services.AddHostedService<PerformaceTrackingService>();
         builder.Services.AddSingleton<ProcessManagerService>();
 
         var app = builder.Build();
         
+        app.UseExceptionHandler();
         app.MapEndpointMapperEndpoints();
 
         app.Run();

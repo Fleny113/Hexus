@@ -3,11 +3,12 @@ using System.Text.Json.Serialization;
 
 namespace Hexus.Daemon;
 
+[JsonSerializable(typeof(ErrorResponse))]
 [JsonSerializable(typeof(ProblemDetails))]
+[JsonSerializable(typeof(HexusApplicationResponse))]
+[JsonSerializable(typeof(IEnumerable<HexusApplicationResponse>))]
 [JsonSerializable(typeof(NewApplicationRequest))]
 [JsonSerializable(typeof(EditApplicationRequest))]
-[JsonSerializable(typeof(IEnumerable<HexusApplicationResponse>))]
-[JsonSerializable(typeof(HexusApplicationResponse))]
-[JsonSerializable(typeof(ErrorResponse))]
+[JsonSerializable(typeof(SendInputRequest))]
 [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
 internal partial class AppJsonSerializerContext : JsonSerializerContext;

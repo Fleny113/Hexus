@@ -20,12 +20,11 @@ public sealed record HexusApplication
     [YamlIgnore] internal Process? Process { get; set; }
 
     // Logs
-    [YamlIgnore] internal SemaphoreSlim LogSemaphore { get; } = new(initialCount: 0, maxCount: 1);
+    [YamlIgnore] internal SemaphoreSlim LogSemaphore { get; } = new(initialCount: 1, maxCount: 1);
     [YamlIgnore] internal CircularBuffer<string> LogBuffer { get; } = new(30);
 
     // Performance tracking
     [YamlIgnore] internal Dictionary<int, CpuStats> CpuStatsMap { get; } = [];
-    [YamlIgnore] internal Timer? CpuUsageRefreshTimer { get; set; }
     [YamlIgnore] internal double LastCpuUsage { get; set; }
 
     internal record CpuStats

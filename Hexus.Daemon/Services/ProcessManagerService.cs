@@ -10,8 +10,6 @@ namespace Hexus.Daemon.Services;
 
 internal partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager)
 {
-    private readonly TimeSpan _cpuUsageRefreshInterval = TimeSpan.FromSeconds(configManager.Configuration.CpuRefreshIntervalSeconds);
-
     internal ConcurrentDictionary<Process, HexusApplication> Applications { get; } = new();
 
     /// <summary> Start an instance of the application</summary>
@@ -49,9 +47,6 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         Applications[process] = application;
 
         ProcessApplicationLog(application, "SYSTEM", "-- Application started --");
-
-        application.CpuUsageRefreshTimer?.Dispose();
-        application.CpuUsageRefreshTimer = new Timer(RefreshCpuUsage, application, TimeSpan.Zero, _cpuUsageRefreshInterval);
 
         // Enable the emitting of events and the reading of the STDOUT and STDERR
         process.EnableRaisingEvents = true;
@@ -224,9 +219,6 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         ProcessApplicationLog(application, "SYSTEM", "-- Application stopped --");
 
-        application.CpuUsageRefreshTimer?.Dispose();
-        application.CpuUsageRefreshTimer = null;
-
         application.Process?.Close();
         application.Process = null;
 
@@ -294,84 +286,14 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     private static TimeSpan CalculateDelay(int restart) =>
         restart switch
         {
-            1 or 2 or 3 => TimeSpan.Zero,
+            1 => TimeSpan.FromSeconds(.1),
+            2 or 3 => TimeSpan.FromSeconds(.5),
             4 or 5 => TimeSpan.FromSeconds(1),
             6 or 7 => TimeSpan.FromSeconds(2),
             8 or 9 => TimeSpan.FromSeconds(4),
             10 => TimeSpan.FromSeconds(8),
             _ => throw new ArgumentOutOfRangeException(nameof(restart)),
         };
-
-    #endregion
-
-    #region Performance tracking
-
-    internal static long GetMemoryUsage(HexusApplication application)
-    {
-        if (application.Process is not { HasExited: false })
-            return 0;
-
-        return GetApplicationProcesses(application)
-            .Where(proc => proc is { HasExited: false })
-            .Select(proc =>
-            {
-                proc.Refresh();
-
-                return OperatingSystem.IsWindows()
-                    ? proc.PagedMemorySize64
-                    : proc.WorkingSet64;
-            })
-            .Sum();
-    }
-
-    private static void RefreshCpuUsage(object? state)
-    {
-        if (state is not HexusApplication application)
-            return;
-
-        var cpuUsages = GetApplicationProcesses(application)
-            .Where(proc => proc is { HasExited: false })
-            .Select(proc =>
-            {
-                if (!application.CpuStatsMap.TryGetValue(proc.Id, out var cpuStats))
-                {
-                    cpuStats = new HexusApplication.CpuStats
-                    {
-                        LastTotalProcessorTime = TimeSpan.Zero,
-                        LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
-                    };
-
-                    application.CpuStatsMap[proc.Id] = cpuStats;
-                }
-
-                return proc.GetProcessCpuUsage(cpuStats);
-            })
-            .Sum();
-
-        application.LastCpuUsage = Math.Clamp(Math.Round(cpuUsages, 2), 0, 100);
-    }
-
-    private static IEnumerable<Process> GetApplicationProcesses(HexusApplication application)
-    {
-        if (application.Process is null)
-            return [];
-
-        var processes = application.Process
-            .GetChildProcesses()
-            .ToList();
-
-        processes.Insert(0, application.Process);
-
-        var liveProcessIds = processes
-            .Where(process => process is { HasExited: false })
-            .Select(child => child.Id);
-
-        // For the killed processes we don't care about tracking their CPU usages
-        foreach (var key in application.CpuStatsMap.Keys.Except(liveProcessIds))
-            application.CpuStatsMap.Remove(key, out _);
-
-        return processes;
-    }
 
     #endregion
 

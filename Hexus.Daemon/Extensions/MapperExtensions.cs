@@ -32,7 +32,7 @@ internal static class MapperExtensions
             ProcessUptime: application.Process is { HasExited: false } ? DateTime.Now - application.Process.StartTime : TimeSpan.Zero,
             ProcessId: application.Process is { HasExited: false } ? application.Process.Id : 0,
             CpuUsage: application.LastCpuUsage,
-            MemoryUsage: ProcessManagerService.GetMemoryUsage(application)
+            MemoryUsage: PerformaceTrackingService.GetMemoryUsage(application)
         );
     }
 
