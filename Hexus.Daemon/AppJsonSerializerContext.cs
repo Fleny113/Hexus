@@ -7,6 +7,7 @@ namespace Hexus.Daemon;
 [JsonSerializable(typeof(ProblemDetails))]
 [JsonSerializable(typeof(HexusApplicationResponse))]
 [JsonSerializable(typeof(IEnumerable<HexusApplicationResponse>))]
+[JsonSerializable(typeof(IAsyncEnumerable<string>))]
 [JsonSerializable(typeof(NewApplicationRequest))]
 [JsonSerializable(typeof(EditApplicationRequest))]
 [JsonSerializable(typeof(SendInputRequest))]
