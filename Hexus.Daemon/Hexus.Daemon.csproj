@@ -7,12 +7,9 @@
         <ServerGarbageCollection>false</ServerGarbageCollection>
         <InvariantGlobalization>true</InvariantGlobalization>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-
-
-        <!--
-        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+        
         <PublishSingleFile>true</PublishSingleFile>
-        -->
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
 
     <ItemGroup>
@@ -24,11 +21,10 @@
         <InternalsVisibleTo Include="Hexus" />
     </ItemGroup>
 
-    <ItemGroup>
-	    <Content Update="windows-kill.dll">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-            <ExcludeFromSingleFile>false</ExcludeFromSingleFile>
-        </Content>
+    <ItemGroup Condition="'$(SelfContained)' == 'true' And '$(OS)' == 'Windows_NT' Or '$(SelfContained)' == 'false'">
+	    <None Update="windows-kill.dll">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+        </None>
     </ItemGroup>
 </Project>
