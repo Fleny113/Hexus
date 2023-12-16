@@ -10,21 +10,15 @@ internal static class HexusDaemon
     {
         var builder = WebApplication.CreateSlimBuilder(args);
 
-        builder.Configuration.AddJsonFile($"{AppContext.BaseDirectory}/appsettings.json", optional: true);
-        builder.Configuration.AddJsonFile($"{AppContext.BaseDirectory}/appsettings.{builder.Environment.EnvironmentName}.json", optional: true);
+        var isDevelopment = builder.Environment.IsDevelopment();
+        
+        var configurationManager = new HexusConfigurationManager(isDevelopment);
 
-        var configurationManager = new HexusConfigurationManager(builder.Environment.IsDevelopment());
-
+        AddAppSettings(builder.Configuration, configurationManager.AppSettings, isDevelopment);
+        CleanSocketFile(configurationManager.Configuration);
+        
         builder.WebHost.UseKestrel((context, options) =>
         {
-            var name = Path.GetDirectoryName(configurationManager.Configuration.UnixSocket)
-                       ?? throw new InvalidOperationException("Cannot get the directory name for the unix socket");
-
-            Directory.CreateDirectory(name);
-
-            // On Windows .NET doesn't remove the socket, so it might be still there
-            File.Delete(configurationManager.Configuration.UnixSocket);
-
             options.ListenUnixSocket(configurationManager.Configuration.UnixSocket);
 
             if (configurationManager.Configuration.HttpPort is { } httpPort and > 0)
@@ -39,8 +33,9 @@ internal static class HexusDaemon
             options.SerializerOptions.TypeInfoResolverChain.Clear();
             options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
         });
+        
         builder.Services.AddProblemDetails();
-
+        
         builder.Services.AddSingleton(configurationManager);
         builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
 
@@ -54,5 +49,28 @@ internal static class HexusDaemon
         app.MapEndpointMapperEndpoints();
 
         app.Run();
+    }
+
+    private static void CleanSocketFile(HexusConfiguration configuration)
+    {
+        var name = Path.GetDirectoryName(configuration.UnixSocket)
+                   ?? throw new InvalidOperationException("Cannot get the directory name for the unix socket");
+
+        Directory.CreateDirectory(name);
+
+        // On Windows .NET doesn't remove the socket, so it might be still there
+        File.Delete(configuration.UnixSocket);
+    }
+    
+    private static void AddAppSettings(
+        ConfigurationManager configManager, Dictionary<string, object?>? appSettings, bool isDevelopment = false)
+    {
+        configManager.GetSection("Logging:LogLevel:Default").Value = LogLevel.Information.ToString();
+        configManager.GetSection("Logging:LogLevel:Microsoft.AspNetCore").Value = LogLevel.Warning.ToString();
+        
+        if (isDevelopment)
+            configManager.GetSection("Logging:LogLevel:Hexus.Daemon").Value = LogLevel.Trace.ToString();
+        
+        configManager.AddInMemoryCollection(HexusConfigurationManager.FlatDictionary(appSettings));
     }
 }

@@ -6,6 +6,7 @@ namespace Hexus.Daemon.Configuration;
 internal class HexusConfigurationManager
 {
     public HexusConfiguration Configuration { get; private set; } = null!;
+    public Dictionary<string, object?>? AppSettings { get; private set; }
     private static string ConfigurationFile { get; set; } = EnvironmentHelper.ConfigurationFile;
 
     private static readonly IDeserializer YamlDeserializer = new DeserializerBuilder()
@@ -32,7 +33,7 @@ internal class HexusConfigurationManager
 
         // For whatever reason: if the yaml deserializer receives an empty string, it uses null for the result
         var configFile = YamlDeserializer.Deserialize<HexusConfigurationFile?>(configurationFile) ?? new HexusConfigurationFile();
-        
+
         Configuration = new HexusConfiguration
         {
             UnixSocket = configFile.UnixSocket,
@@ -40,6 +41,7 @@ internal class HexusConfigurationManager
             CpuRefreshIntervalSeconds = configFile.CpuRefreshIntervalSeconds,
             Applications = configFile.Applications?.ToDictionary(application => application.Name) ?? [],
         };
+        AppSettings = configFile.AppSettings;
     }
 
     internal void SaveConfiguration()
@@ -52,6 +54,7 @@ internal class HexusConfigurationManager
             HttpPort = Configuration.HttpPort,
             CpuRefreshIntervalSeconds = Configuration.CpuRefreshIntervalSeconds,
             Applications = Configuration.Applications.Values,
+            AppSettings = AppSettings,
         };
         
         var yamlString = YamlSerializer.Serialize(configFile);
@@ -78,5 +81,20 @@ internal class HexusConfigurationManager
         {
             throw new Exception("Unable to parse the configuration file", exception);
         }
+    }
+    
+    internal static IEnumerable<KeyValuePair<string, string?>> FlatDictionary(Dictionary<string, object?>? dictionary)
+    {
+        if (dictionary is null)
+            return [];
+
+        return dictionary
+            .SelectMany(
+                pair => pair.Value switch
+                {
+                    Dictionary<string, object?> subDictionary => FlatDictionary(subDictionary).AsEnumerable(),
+                    _ => new KeyValuePair<string, string?>[] { new(pair.Key, pair.Value?.ToString()) },
+                }
+            );
     }
 }

@@ -8,8 +8,11 @@
         <InvariantGlobalization>true</InvariantGlobalization>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
+
+        <!--
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
         <PublishSingleFile>true</PublishSingleFile>
-        <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+        -->
     </PropertyGroup>
 
     <ItemGroup>
@@ -22,18 +25,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="windows-kill.dll">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-        </None>
-        <None Include="appsettings.json">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-        </None>
-        <None Include="appsettings.Development.json">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-            <DependentUpon>appsettings.json</DependentUpon>
-        </None>
+	    <Content Update="windows-kill.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <ExcludeFromSingleFile>false</ExcludeFromSingleFile>
+        </Content>
     </ItemGroup>
 </Project>
