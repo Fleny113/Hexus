@@ -122,7 +122,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     {
         if (forceStop)
         {
-            KillProcess(process);
+            KillProcess(process, true);
             return;
         }
 
@@ -135,7 +135,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             if (code is 0 && process.WaitForExit(TimeSpan.FromSeconds(30)))
                 return;
 
-            KillProcess(process);
+            KillProcess(process, true);
         }
         catch (InvalidOperationException exception) when (exception.Message == "No process is associated with this object.")
         {
@@ -150,13 +150,13 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
                 return;
 
             // Fallback to the .NET build-in Kernel call to force stop the process
-            KillProcess(process);
+            KillProcess(process, true);
         }
     }
 
-    private static void KillProcess(Process process)
+    private static void KillProcess(Process process, bool killTree = false)
     {
-        process.Kill();
+        process.Kill(killTree);
         // The getter for HasExited calls the Exited event if it hasn't been called yet
         _ = process.HasExited;
     }
