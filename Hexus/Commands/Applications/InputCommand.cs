@@ -9,13 +9,14 @@ namespace Hexus.Commands.Applications;
 internal static class InputCommand
 {
     private static readonly Argument<string> NameArgument = new("name", "The name of the application");
+
     private static readonly Argument<string[]> InputArgument = new("input", "The text to send in the STDIN of the application")
     {
         Arity = ArgumentArity.OneOrMore,
     };
 
     private static readonly Option<bool> DontAddNewLineOption = new(["-n", "--remove-new-line"], "Don't add a new line at the end of the text");
-    
+
     public static readonly Command Command = new("input", "Get the information for an application")
     {
         NameArgument,
@@ -50,7 +51,7 @@ internal static class InputCommand
             context.ExitCode = 1;
             return;
         }
-        
+
         PrettyConsole.Out.MarkupLineInterpolated($"Sent text to the application \"{name}\".");
     }
 }

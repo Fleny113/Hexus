@@ -7,23 +7,19 @@ namespace Hexus.Extensions;
 public class DictionaryBinder(Option<Dictionary<string, string>> option) : BinderBase<Dictionary<string, string>>
 {
     private static readonly char[] StringKeyValuePair = [':', '='];
-    
+
     protected override Dictionary<string, string> GetBoundValue(BindingContext bindingContext)
     {
-        if (option is not Option genericOption)
-        {
+        if (option is not Option genericOption) 
             throw new ArgumentException("Couldn't convert option to the generic variant");
-        }
 
         var tokens = bindingContext.ParseResult.GetValueForOption(genericOption);
 
         if (tokens is null)
             return [];
-        
-        if (tokens is not List<Token> tokenList)
-        {
-            throw new Exception("Couldn't parse the options as a list of strings");
-        }
+
+        if (tokens is not List<Token> tokenList) 
+            throw new Exception("Couldn't parse the options as a list of tokens");
 
         return tokenList
             .Select(token => token.Value)

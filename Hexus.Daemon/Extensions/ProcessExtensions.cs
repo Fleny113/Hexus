@@ -19,7 +19,7 @@ internal static class ProcessExtensions
         var processorTimeDifference = currentTotalProcessorTime - cpuStats.LastTotalProcessorTime;
 
         var cpuUsage = processorTimeDifference / Environment.ProcessorCount / timeDifference;
-        
+
         cpuStats.LastTotalProcessorTime = currentTotalProcessorTime;
         cpuStats.LastGetProcessCpuUsageInvocation = currentTime;
 
@@ -31,17 +31,11 @@ internal static class ProcessExtensions
         Func<int, Process[]> function;
 
         if (OperatingSystem.IsWindows())
-        {
             function = ProcessChildren.GetChildProcessesWindows;
-        }
         else if (OperatingSystem.IsLinux())
-        {
             function = ProcessChildren.GetChildProcessesLinux;
-        }
         else
-        {
             throw new NotSupportedException("Getting the child processes is only supported on Windows and Linux");
-        }
 
         return GetChildProcesses(function, process.Id);
     }

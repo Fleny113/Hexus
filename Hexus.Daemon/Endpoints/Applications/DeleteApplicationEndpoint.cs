@@ -10,10 +10,8 @@ internal sealed class DeleteApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Delete, "/{name}/delete")]
     public static Results<NoContent, NotFound> Handle(
-        [FromServices]
-        HexusConfigurationManager configManager,
-        [FromServices]
-        ProcessManagerService processManager,
+        [FromServices] HexusConfigurationManager configManager,
+        [FromServices] ProcessManagerService processManager,
         [FromRoute] string name,
         [FromQuery] bool forceStop = false)
     {

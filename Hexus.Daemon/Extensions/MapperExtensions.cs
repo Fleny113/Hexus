@@ -6,9 +6,8 @@ namespace Hexus.Daemon.Extensions;
 
 internal static class MapperExtensions
 {
-    public static HexusApplication MapToApplication(this NewApplicationRequest request)
-    {
-        return new HexusApplication
+    public static HexusApplication MapToApplication(this NewApplicationRequest request) =>
+        new()
         {
             Name = request.Name,
             Executable = EnvironmentHelper.NormalizePath(request.Executable),
@@ -17,14 +16,12 @@ internal static class MapperExtensions
             Note = request.Note,
             EnvironmentVariables = request.EnvironmentVariables,
         };
-    }
 
-    public static HexusApplicationResponse MapToResponse(this HexusApplication application)
-    {
-        return new HexusApplicationResponse(
-            Name: application.Name,
-            Executable: EnvironmentHelper.NormalizePath(application.Executable),
-            Arguments: application.Arguments,
+    public static HexusApplicationResponse MapToResponse(this HexusApplication application) =>
+        new(
+            application.Name,
+            EnvironmentHelper.NormalizePath(application.Executable),
+            application.Arguments,
             Note: application.Note,
             WorkingDirectory: EnvironmentHelper.NormalizePath(application.WorkingDirectory),
             EnvironmentVariables: application.EnvironmentVariables,
@@ -34,11 +31,8 @@ internal static class MapperExtensions
             CpuUsage: application.LastCpuUsage,
             MemoryUsage: PerformanceTrackingService.GetMemoryUsage(application)
         );
-    }
 
-    public static IEnumerable<HexusApplicationResponse> MapToResponse(this Dictionary<string, HexusApplication> applications)
-    {
-        return applications
+    public static IEnumerable<HexusApplicationResponse> MapToResponse(this Dictionary<string, HexusApplication> applications) =>
+        applications
             .Select(pair => pair.Value.MapToResponse());
-    }
 }

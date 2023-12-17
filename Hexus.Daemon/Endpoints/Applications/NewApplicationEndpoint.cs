@@ -20,7 +20,7 @@ internal sealed class NewApplicationEndpoint : IEndpoint
     {
         if (request.WorkingDirectory is "")
             request.WorkingDirectory = EnvironmentHelper.Home;
-        
+
         if (!request.ValidateContract(out var errors))
             return TypedResults.ValidationProblem(errors);
 
@@ -38,4 +38,3 @@ internal sealed class NewApplicationEndpoint : IEndpoint
         return TypedResults.Ok(application.MapToResponse());
     }
 }
-

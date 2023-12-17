@@ -10,7 +10,6 @@ public sealed record HexusConfiguration
     public Dictionary<string, HexusApplication> Applications { get; init; } = [];
 }
 
-
 public sealed record HexusConfigurationFile
 {
     public string? UnixSocket { get; init; }

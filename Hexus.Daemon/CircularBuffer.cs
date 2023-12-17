@@ -30,10 +30,8 @@ public class CircularBuffer<T> where T : class
             {
                 var bufferRead = _buffer[readIndex];
 
-                if (bufferRead is not null)
-                {
+                if (bufferRead is not null) 
                     yield return bufferRead;
-                }
 
                 readIndex = (readIndex + 1) % _buffer.Length;
                 continue;

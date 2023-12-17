@@ -8,7 +8,7 @@ internal static class RestartCommand
 {
     private static readonly Argument<string> NameArgument = new("name", "The name of the application to restart");
     private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the restart of the application");
-    
+
     public static readonly Command Command = new("restart", "Restart an application")
     {
         NameArgument,
@@ -16,7 +16,7 @@ internal static class RestartCommand
     };
 
     static RestartCommand()
-    {        
+    {
         Command.SetHandler(Handler);
     }
 

@@ -9,7 +9,7 @@ internal class ProcessChildren
     [SupportedOSPlatform("windows")]
     public static Process[] GetChildProcessesWindows(int parentId)
     {
-        var searcher = new ManagementObjectSearcher(queryString: $"SELECT ProcessId FROM Win32_Process WHERE ParentProcessId={parentId}");
+        var searcher = new ManagementObjectSearcher($"SELECT ProcessId FROM Win32_Process WHERE ParentProcessId={parentId}");
 
         try
         {
@@ -49,10 +49,8 @@ internal class ProcessChildren
 
     private static int ConvertToInt(string value)
     {
-        if (int.TryParse(value, out var parsed))
-        {
+        if (int.TryParse(value, out var parsed)) 
             return parsed;
-        }
 
         return -1;
     }

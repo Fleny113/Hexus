@@ -4,11 +4,12 @@ using System.Diagnostics;
 
 namespace Hexus.Daemon.Services;
 
-internal class PerformanceTrackingService(HexusConfiguration configuration) : BackgroundService {
+internal class PerformanceTrackingService(HexusConfiguration configuration) : BackgroundService
+{
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         var timer = new PeriodicTimer(TimeSpan.FromSeconds(configuration.CpuRefreshIntervalSeconds));
-        
+
         while (!ct.IsCancellationRequested && await timer.WaitForNextTickAsync(ct))
         {
             foreach (var application in configuration.Applications.Values)
@@ -17,7 +18,7 @@ internal class PerformanceTrackingService(HexusConfiguration configuration) : Ba
             }
         }
     }
-    
+
     internal static long GetMemoryUsage(HexusApplication application)
     {
         if (application.Process is not { HasExited: false })
@@ -46,13 +47,13 @@ internal class PerformanceTrackingService(HexusConfiguration configuration) : Ba
                     application.CpuStatsMap.Remove(process.Id);
                     return 0;
                 }
-                
-                var cpuStats = application.CpuStatsMap.GetOrCreate(process.Id, _ => new HexusApplication.CpuStats
-                {
-                    LastTotalProcessorTime = TimeSpan.Zero,
-                    LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
-                });
-                
+
+                var cpuStats = application.CpuStatsMap.GetOrCreate(process.Id,
+                    _ => new HexusApplication.CpuStats
+                    {
+                        LastTotalProcessorTime = TimeSpan.Zero, LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
+                    });
+
                 return process.GetProcessCpuUsage(cpuStats);
             })
             .Sum();

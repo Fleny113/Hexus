@@ -31,7 +31,7 @@ internal class DaemonCommand
     {
         var args = context.ParseResult.GetValueForArgument(DaemonOptions);
         var ct = context.GetCancellationToken();
-        
+
         if (await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonAlreadyRunningError);
@@ -44,7 +44,7 @@ internal class DaemonCommand
     private static async Task StopSubCommandHandler(InvocationContext context)
     {
         var ct = context.GetCancellationToken();
-        
+
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);

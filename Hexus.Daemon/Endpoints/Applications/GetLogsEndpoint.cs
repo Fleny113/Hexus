@@ -38,10 +38,8 @@ internal class GetLogsEndpoint : IEndpoint
     {
         var requestTime = DateTimeOffset.UtcNow;
 
-        foreach (var log in GetLogs(application, lines))
-        {
+        foreach (var log in GetLogs(application, lines)) 
             yield return log;
-        }
 
         if (noStreaming)
             yield break;
@@ -50,10 +48,8 @@ internal class GetLogsEndpoint : IEndpoint
             .ReadAllAsync(ct)
             .Where(log => CheckIfSendLog(log, requestTime));
 
-        await foreach (var log in logAsyncEnumerator)
-        {
+        await foreach (var log in logAsyncEnumerator) 
             yield return log;
-        }
     }
 
     private static IEnumerable<string> GetLogs(HexusApplication application, int lines)

@@ -13,16 +13,22 @@ internal static class NewCommand
 {
     private static readonly Argument<string> NameArgument =
         new("name", "The name for the application");
+
     private static readonly Argument<string> ExecutableArgument =
         new("executable", "The file to execute, can resolved through the PATH env") { Arity = ArgumentArity.ExactlyOne };
+
     private static readonly Argument<string[]> ArgumentsArgument =
         new("arguments", "The additional argument for the executable") { Arity = ArgumentArity.ZeroOrMore };
+
     private static readonly Option<string> WorkingDirectoryOption =
         new(["-w", "--working-directory"], "Set the current working directory for the application, defaults to the current folder");
+
     private static readonly Option<string?> NoteOption =
-    new(["-n", "--note"], "Set an optional note for this application");
+        new(["-n", "--note"], "Set an optional note for this application");
+
     private static readonly Option<bool> DoNotUseShellEnvironment =
         new("--do-not-use-shell-env", "Don't use the current shell environment for the application");
+
     private static readonly Option<Dictionary<string, string>> EnvironmentVariables =
         new(["-e", "--environment"], "Add an environment variable for the application, format: 'key:value' or 'key=value'")
         {

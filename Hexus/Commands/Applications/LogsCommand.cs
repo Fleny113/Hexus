@@ -55,10 +55,8 @@ internal static class LogsCommand
         {
             var logs = logsRequest.Content.ReadFromJsonAsAsyncEnumerable<string>(HttpInvocation.JsonSerializerOptions, ct);
 
-            await foreach (var logLine in logs)
-            {
+            await foreach (var logLine in logs) 
                 PrintLogLine(logLine);
-            }
         }
         catch (TaskCanceledException)
         {

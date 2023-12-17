@@ -1,5 +1,4 @@
 ﻿using Hexus.Daemon.Configuration;
-using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Interop;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -33,10 +32,9 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         };
 
         processInfo.Environment.Clear();
-        foreach (var (key, value) in application.EnvironmentVariables)
-        {
+
+        foreach (var (key, value) in application.EnvironmentVariables) 
             processInfo.Environment.Add(key, value);
-        }
 
         var process = Process.Start(processInfo);
 

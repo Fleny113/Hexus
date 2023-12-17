@@ -9,7 +9,7 @@ public sealed record NewApplicationRequest(
     string Arguments = "",
     string WorkingDirectory = "",
     string Note = "",
-    Dictionary<string, string> EnvironmentVariables = null!
+    Dictionary<string, string>? EnvironmentVariables = null
 ) : IContract
 {
     [Required, AbsolutePath] public string WorkingDirectory { get; set; } = WorkingDirectory;

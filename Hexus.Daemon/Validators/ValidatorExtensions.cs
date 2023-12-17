@@ -20,11 +20,10 @@ internal static class ValidatorExtensions
             .SelectMany(result => result.MemberNames, (result, member) => (Member: member, result.ErrorMessage))
             .GroupBy(tuple => tuple.Member)
             .ToDictionary(
-                tuples => tuples.Key, 
+                tuples => tuples.Key,
                 tuples => tuples.Select(x => x.ErrorMessage ?? string.Empty).ToArray()
             );
-        
+
         return false;
     }
 }
-

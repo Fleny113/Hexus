@@ -26,9 +26,6 @@ public static class EnvironmentHelper
 
         Directory.CreateDirectory(LogsDirectory);
     }
-    
-    public static string NormalizePath(string path)
-    {
-        return Path.GetFullPath(path);
-    }
+
+    public static string NormalizePath(string path) => Path.GetFullPath(path);
 }

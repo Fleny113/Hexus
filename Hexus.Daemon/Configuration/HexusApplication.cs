@@ -17,6 +17,7 @@ public sealed record HexusApplication
     public Dictionary<string, string> EnvironmentVariables { get; set; } = [];
 
     #region Internal proprieties
+
     [YamlIgnore] internal Process? Process { get; set; }
 
     // Logs

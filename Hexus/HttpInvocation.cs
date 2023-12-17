@@ -33,10 +33,7 @@ internal static class HttpInvocation
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        TypeInfoResolverChain =
-        {
-            AppJsonSerializerContext.Default,
-        },
+        TypeInfoResolverChain = { AppJsonSerializerContext.Default },
     };
 
     public static async ValueTask<bool> CheckForRunningDaemon(CancellationToken ct)
@@ -60,15 +57,15 @@ internal static class HttpInvocation
     public static async Task HandleFailedHttpRequestLogging(HttpResponseMessage request, CancellationToken ct)
     {
         ErrorResponse? response;
-            
+
         switch (request)
         {
             case { StatusCode: HttpStatusCode.BadRequest, Content.Headers.ContentType.MediaType: "application/problem+json" }:
             {
                 var validationResponse = await request.Content.ReadFromJsonAsync<ProblemDetails>(JsonSerializerOptions, ct);
-            
+
                 Debug.Assert(validationResponse is not null);
-            
+
                 var errorString = string.Join("\n", validationResponse.Errors.SelectMany(kvp => kvp.Value.Select(v => $"- [tan]{kvp.Key}[/]: {v}")));
 
                 response = new ErrorResponse($"Validation errors: \n{errorString}");

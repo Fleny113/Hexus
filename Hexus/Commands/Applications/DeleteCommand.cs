@@ -8,7 +8,7 @@ internal static class DeleteCommand
 {
     private static readonly Argument<string> NameArgument = new("name", "The name of the application to delete");
     private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the stop of the application if it needs to be stopped");
-    
+
     public static readonly Command Command = new("delete", "Stops and delete an application")
     {
         NameArgument,
@@ -16,10 +16,10 @@ internal static class DeleteCommand
     };
 
     static DeleteCommand()
-    {        
+    {
         Command.SetHandler(Handler);
     }
-    
+
     private static async Task Handler(InvocationContext context)
     {
         var name = context.ParseResult.GetValueForArgument(NameArgument);

@@ -12,7 +12,8 @@ namespace Hexus.Commands.Applications;
 internal static class InfoCommand
 {
     private static readonly Argument<string> NameArgument = new("name", "The name of the application");
-    private static readonly Option<bool> ShowEnvironmentVariables = 
+
+    private static readonly Option<bool> ShowEnvironmentVariables =
         new(["-e", "--show-environment"], "Show the environment variables the application has set");
 
     public static readonly Command Command = new("info", "Get the information for an application")
@@ -38,25 +39,25 @@ internal static class InfoCommand
             context.ExitCode = 1;
             return;
         }
-        
+
         var infoRequest = await HttpInvocation.HttpClient.GetAsync($"/{name}", ct);
-        
+
         if (!infoRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(infoRequest, ct);
             context.ExitCode = 1;
             return;
         }
-        
+
         var application = await infoRequest.Content.ReadFromJsonAsync<HexusApplicationResponse>(HttpInvocation.JsonSerializerOptions, ct);
-    
+
         Debug.Assert(application is not null);
 
         var isStopped = application.ProcessId == 0;
         var environmentVariables = showEnv
             ? $"\n{string.Join("\n", application.EnvironmentVariables.Select(kvp => $"  - [tan]{kvp.Key}[/]: {kvp.Value}"))}"
             : "[italic gray39]Use the --show-environment option to list them[/]";
-        
+
         PrettyConsole.Out.MarkupLine($"""
             Application configuration:
             - [cornflowerblue]Name[/]: {application.Name.EscapeMarkup()}

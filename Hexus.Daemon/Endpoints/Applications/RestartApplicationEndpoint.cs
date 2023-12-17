@@ -18,12 +18,12 @@ internal sealed class RestartApplicationEndpoint : IEndpoint
     {
         if (!configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
-        
+
         processManager.StopApplication(application.Name, forceStop);
-        
+
         if (!processManager.StartApplication(application))
             return TypedResults.StatusCode((int)HttpStatusCode.InternalServerError);
-        
+
         return TypedResults.NoContent();
     }
 }

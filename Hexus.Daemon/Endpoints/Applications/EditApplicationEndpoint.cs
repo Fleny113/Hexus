@@ -72,15 +72,11 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         if (editRequest.IsReloadingEnvironmentVariables == false)
         {
             foreach (var (key, value) in editRequest.NewEnvironmentVariables)
-            {
                 newEnvironmentVariables[key] = value;
-            }
         }
 
         foreach (var env in editRequest.RemoveEnvironmentVariables)
-        {
             newEnvironmentVariables.Remove(env);
-        }
 
         // Edit the configuration
         application.Name = editRequest.Name;

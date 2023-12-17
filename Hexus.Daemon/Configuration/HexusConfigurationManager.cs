@@ -26,10 +26,7 @@ internal class HexusConfigurationManager
 
         if (!File.Exists(_configurationFile))
         {
-            Configuration = new HexusConfiguration
-            {
-                UnixSocket = _socketFile,
-            };
+            Configuration = new HexusConfiguration { UnixSocket = _socketFile };
 
             SaveConfiguration();
             return;
@@ -64,7 +61,7 @@ internal class HexusConfigurationManager
             Applications = Configuration.Applications.Values,
             AppSettings = AppSettings,
         };
-        
+
         var yamlString = YamlSerializer.Serialize(configFile);
 
         lock (this)
@@ -93,7 +90,7 @@ internal class HexusConfigurationManager
             throw new Exception("Unable to parse the configuration file", exception);
         }
     }
-    
+
     internal static IEnumerable<KeyValuePair<string, string?>> FlatDictionary(Dictionary<object, object?>? dictionary, string prefix = "")
     {
         if (dictionary is null)

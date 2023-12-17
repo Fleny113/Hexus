@@ -14,21 +14,28 @@ internal static class EditCommand
     private static readonly Argument<string> NameArgument = new("name", "The name of the application to edit");
     private static readonly Option<string> NameOption = new(["-n", "--name"], "The new name for the application");
     private static readonly Option<string> ExecutableOptions = new(["-x", "--executable"], "The new executable for the application");
+
     private static readonly Option<string[]> ArgumentsOption = new(["-a", "--arguments"], "The new arguments for the application")
     {
         Arity = ArgumentArity.ZeroOrMore,
         AllowMultipleArgumentsPerToken = true,
     };
-    private static readonly Option<string> WorkingDirectoryOption = new(["-w", "--working-directory"], "The new working directory for the application");
+
+    private static readonly Option<string> WorkingDirectoryOption =
+        new(["-w", "--working-directory"], "The new working directory for the application");
+
     private static readonly Option<string> NoteOption = new(["-t", "--note"], "The new note for the application");
+
     private static readonly Option<bool> ReloadFromShell =
         new("--reload-from-shell", "Use the current shell environment for the application");
+
     private static readonly Option<Dictionary<string, string>> AddEnvironmentVariables =
         new(["-e", "--environment"], "Add an environment variable for the application, format: 'key:value' or 'key=value'")
         {
             Arity = ArgumentArity.OneOrMore,
             AllowMultipleArgumentsPerToken = true,
         };
+
     private static readonly Option<string[]> RemoveEnvironmentVariables =
         new(["-r", "--remove-environment"], "Remove an environment variable for the application")
         {

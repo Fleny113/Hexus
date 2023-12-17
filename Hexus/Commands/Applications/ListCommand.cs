@@ -16,7 +16,7 @@ internal static class ListCommand
 
     static ListCommand()
     {
-        Command.SetHandler(Handler);    
+        Command.SetHandler(Handler);
     }
 
     private static async Task Handler(InvocationContext context)
@@ -38,10 +38,10 @@ internal static class ListCommand
             context.ExitCode = 1;
             return;
         }
-        
+
         var applications = await listRequest.Content.ReadFromJsonAsync<IEnumerable<HexusApplicationResponse>>(HttpInvocation.JsonSerializerOptions, ct);
         Debug.Assert(applications is not null);
-        
+
         var table = new Table();
 
         table
@@ -56,11 +56,11 @@ internal static class ListCommand
                 new TableColumn("[lightslateblue]Cpu Usage[/]").Centered(),
                 new TableColumn("[skyblue1]Memory Usage[/]").Centered()
             );
-        
+
         foreach (var application in applications)
         {
             var isStopped = application.ProcessId == 0;
-            
+
             table.AddRow(
                 application.Name.EscapeMarkup(),
                 $"[{GetStatusColor(application.Status)}]{application.Status}[/]",
@@ -76,7 +76,7 @@ internal static class ListCommand
             table.AddEmptyRow();
             table.Caption("[italic grey39]it's quiet here...\nAdd a new application using the new command[/]");
         }
-        
+
         PrettyConsole.Out.Write(table);
     }
 
