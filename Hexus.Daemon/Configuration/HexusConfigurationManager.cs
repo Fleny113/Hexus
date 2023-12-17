@@ -6,7 +6,7 @@ namespace Hexus.Daemon.Configuration;
 internal class HexusConfigurationManager
 {
     public HexusConfiguration Configuration { get; private set; } = null!;
-    public Dictionary<string, object?>? AppSettings { get; private set; }
+    public Dictionary<object, object?>? AppSettings { get; private set; }
     private readonly string _configurationFile = EnvironmentHelper.ConfigurationFile;
     private readonly string _socketFile = EnvironmentHelper.SocketFile;
 
@@ -94,17 +94,18 @@ internal class HexusConfigurationManager
         }
     }
     
-    internal static IEnumerable<KeyValuePair<string, string?>> FlatDictionary(Dictionary<string, object?>? dictionary)
+    internal static IEnumerable<KeyValuePair<string, string?>> FlatDictionary(Dictionary<object, object?>? dictionary, string prefix = "")
     {
         if (dictionary is null)
             return [];
 
         return dictionary
+            .Select(pair => new KeyValuePair<string, object?>(pair.Key.ToString() ?? "", pair.Value))
             .SelectMany(
                 pair => pair.Value switch
                 {
-                    Dictionary<string, object?> subDictionary => FlatDictionary(subDictionary).AsEnumerable(),
-                    _ => new KeyValuePair<string, string?>[] { new(pair.Key, pair.Value?.ToString()) },
+                    Dictionary<object, object?> subDictionary => FlatDictionary(subDictionary, $"{prefix}{pair.Key}:").AsEnumerable(),
+                    _ => new KeyValuePair<string, string?>[] { new($"{prefix}{pair.Key}", pair.Value?.ToString()) },
                 }
             );
     }

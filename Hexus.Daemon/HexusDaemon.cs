@@ -63,7 +63,7 @@ internal static class HexusDaemon
     }
     
     private static void AddAppSettings(
-        ConfigurationManager configManager, Dictionary<string, object?>? appSettings, bool isDevelopment = false)
+        ConfigurationManager configManager, Dictionary<object, object?>? appSettings, bool isDevelopment = false)
     {
         configManager.GetSection("Logging:LogLevel:Default").Value = LogLevel.Information.ToString();
         configManager.GetSection("Logging:LogLevel:Microsoft.AspNetCore").Value = LogLevel.Warning.ToString();
