@@ -5,7 +5,7 @@ using System.CommandLine.Invocation;
 
 namespace Hexus.Commands;
 
-internal class DaemonCommand
+internal static class DaemonCommand
 {
     private static readonly Argument<string[]> DaemonOptions = new("arguments", "The arguments to pass to the daemon")
     {

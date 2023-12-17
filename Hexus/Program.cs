@@ -22,6 +22,7 @@ rootCommand.AddCommand(RestartCommand.Command);
 rootCommand.AddCommand(DeleteCommand.Command);
 
 rootCommand.AddCommand(DaemonCommand.Command);
+rootCommand.AddCommand(StartupCommand.Command);
 
 var builder = new CommandLineBuilder(rootCommand);
 
