@@ -8,8 +8,8 @@
         <ServerGarbageCollection>false</ServerGarbageCollection>
         <InvariantGlobalization>true</InvariantGlobalization>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        
-        <PublishSingleFile>true</PublishSingleFile>
+
+	<PublishSingleFile>true</PublishSingleFile>
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
 
