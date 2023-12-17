@@ -7,7 +7,8 @@ internal class HexusConfigurationManager
 {
     public HexusConfiguration Configuration { get; private set; } = null!;
     public Dictionary<string, object?>? AppSettings { get; private set; }
-    private static string ConfigurationFile { get; set; } = EnvironmentHelper.ConfigurationFile;
+    private readonly string _configurationFile = EnvironmentHelper.ConfigurationFile;
+    private readonly string _socketFile = EnvironmentHelper.SocketFile;
 
     private static readonly IDeserializer YamlDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
@@ -23,25 +24,32 @@ internal class HexusConfigurationManager
     {
         EnvironmentHelper.EnsureDirectoriesExistence();
 
-        if (!File.Exists(ConfigurationFile))
+        if (!File.Exists(_configurationFile))
         {
-            Configuration = new HexusConfiguration();
+            Configuration = new HexusConfiguration
+            {
+                UnixSocket = _socketFile,
+            };
+
+            SaveConfiguration();
             return;
         }
 
-        var configurationFile = File.ReadAllText(ConfigurationFile);
+        var configurationFile = File.ReadAllText(_configurationFile);
 
         // For whatever reason: if the yaml deserializer receives an empty string, it uses null for the result
         var configFile = YamlDeserializer.Deserialize<HexusConfigurationFile?>(configurationFile) ?? new HexusConfigurationFile();
 
         Configuration = new HexusConfiguration
         {
-            UnixSocket = configFile.UnixSocket,
+            UnixSocket = configFile.UnixSocket ?? _socketFile,
             HttpPort = configFile.HttpPort,
             CpuRefreshIntervalSeconds = configFile.CpuRefreshIntervalSeconds,
             Applications = configFile.Applications?.ToDictionary(application => application.Name) ?? [],
         };
         AppSettings = configFile.AppSettings;
+
+        SaveConfiguration();
     }
 
     internal void SaveConfiguration()
@@ -61,7 +69,7 @@ internal class HexusConfigurationManager
 
         lock (this)
         {
-            File.WriteAllText(ConfigurationFile, yamlString);
+            File.WriteAllText(_configurationFile, yamlString);
         }
     }
 
@@ -69,7 +77,10 @@ internal class HexusConfigurationManager
     {
         // If we are in development mode we can change to another file to not pollute the normal file
         if (isDevelopment)
-            ConfigurationFile = EnvironmentHelper.DevelopmentConfigurationFile;
+        {
+            _configurationFile = EnvironmentHelper.DevelopmentConfigurationFile;
+            _socketFile = EnvironmentHelper.DevelopmentSocketFile;
+        }
 
         EnvironmentHelper.EnsureDirectoriesExistence();
 

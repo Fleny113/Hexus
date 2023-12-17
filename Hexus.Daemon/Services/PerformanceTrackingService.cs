@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace Hexus.Daemon.Services;
 
-internal class PerformaceTrackingService(HexusConfiguration configuration) : BackgroundService {
+internal class PerformanceTrackingService(HexusConfiguration configuration) : BackgroundService {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         var timer = new PeriodicTimer(TimeSpan.FromSeconds(configuration.CpuRefreshIntervalSeconds));

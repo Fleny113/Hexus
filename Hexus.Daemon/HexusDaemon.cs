@@ -40,7 +40,7 @@ internal static class HexusDaemon
         builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
 
         builder.Services.AddHostedService<HexusLifecycle>();
-        builder.Services.AddHostedService<PerformaceTrackingService>();
+        builder.Services.AddHostedService<PerformanceTrackingService>();
         builder.Services.AddSingleton<ProcessManagerService>();
 
         var app = builder.Build();
