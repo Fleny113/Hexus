@@ -16,7 +16,13 @@ public static class PrettyConsole
         ColorSystem = ColorSystemSupport.Detect,
         Out = new AnsiConsoleOutput(Console.Out),
     });
-
+    
+    public static IAnsiConsole OutLimitlessWidth { get; } = AnsiConsole.Create(new AnsiConsoleSettings
+    {
+        Ansi = AnsiSupport.Detect,
+        ColorSystem = ColorSystemSupport.Detect,
+        Out = new AnsiConsoleOutput(Console.Out),
+    });
 
     public static IAnsiConsole Error { get; } = AnsiConsole.Create(new AnsiConsoleSettings
     {
@@ -24,4 +30,9 @@ public static class PrettyConsole
         ColorSystem = ColorSystemSupport.Detect,
         Out = new AnsiConsoleOutput(Console.Error),
     });
+
+    static PrettyConsole()
+    {
+        OutLimitlessWidth.Profile.Width = int.MaxValue;
+    }
 }

@@ -68,9 +68,9 @@ internal static class LogsCommand
     {
         var dateString = logLine[1..20];
         var logScope = logLine[22..28];
-        var message = logLine[30..];
+        var message = logLine[30..].ToString().EscapeMarkup();
 
-        PrettyConsole.Out.MarkupLine($"{dateString} [{GetLogTypeColor(logScope)}]| {logScope} |[/] {message.ToString().EscapeMarkup()}");
+        PrettyConsole.OutLimitlessWidth.MarkupLine($"{dateString} [{GetLogTypeColor(logScope)}]| {logScope} |[/] {message}");
     }
 
     private static Color GetLogTypeColor(ReadOnlySpan<char> logType) => logType switch

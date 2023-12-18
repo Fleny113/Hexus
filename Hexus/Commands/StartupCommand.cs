@@ -64,13 +64,13 @@ internal static class StartupCommand
 
             if (Console.IsOutputRedirected)
             {
-                PrettyConsole.Out.MarkupLine(powershellCommand);
+                PrettyConsole.OutLimitlessWidth.MarkupLine(powershellCommand);
                 return;
             }
             
             PrettyConsole.Out.Write(startRule);
             PrettyConsole.Out.WriteLine();
-            PrettyConsole.Out.MarkupLine(powershellCommand);
+            PrettyConsole.OutLimitlessWidth.MarkupLine(powershellCommand);
             PrettyConsole.Out.WriteLine();
             PrettyConsole.Out.Write(endRule);
             
@@ -106,13 +106,13 @@ internal static class StartupCommand
             
             if (Console.IsOutputRedirected)
             {
-                PrettyConsole.Out.MarkupLine(unitFile);
+                PrettyConsole.OutLimitlessWidth.MarkupLine(unitFile);
                 return;
             }
             
             PrettyConsole.Out.Write(startRule);
             PrettyConsole.Out.WriteLine();
-            PrettyConsole.Out.MarkupLine(unitFile);
+            PrettyConsole.OutLimitlessWidth.MarkupLine(unitFile);
             PrettyConsole.Out.WriteLine();
             PrettyConsole.Out.Write(endRule);
             

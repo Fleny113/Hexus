@@ -58,7 +58,7 @@ internal static class InfoCommand
             ? $"\n{string.Join("\n", application.EnvironmentVariables.Select(kvp => $"  - [tan]{kvp.Key}[/]: {kvp.Value}"))}"
             : "[italic gray39]Use the --show-environment option to list them[/]";
 
-        PrettyConsole.Out.MarkupLine($"""
+        PrettyConsole.OutLimitlessWidth.MarkupLine($"""
             Application configuration:
             - [cornflowerblue]Name[/]: {application.Name.EscapeMarkup()}
             - [salmon1]Executable file[/]: [link]{application.Executable.EscapeMarkup()}[/]
