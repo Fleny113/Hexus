@@ -26,7 +26,7 @@ jobs:
     needs: build
     strategy:
       matrix:
-        # There will be composed based on the .NET Known RIDs (https://learn.microsoft.com/en-us/dotnet/core/rid-catalog#known-rids)
+        # The runtime id will be composed based on parts of the .NET Known RIDs (https://learn.microsoft.com/en-us/dotnet/core/rid-catalog#known-rids)
         arch: ["x64", "arm64"]
         platform: ["win", "linux"]
         self-contained: ["no-self-contained", "self-contained"]

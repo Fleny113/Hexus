@@ -23,11 +23,10 @@
         <InternalsVisibleTo Include="Hexus.Daemon.Runner"/>
     </ItemGroup>
 
-    <ItemGroup Condition="('$(SelfContained)' == 'true' And '$(OS)' == 'Windows_NT') Or '$(SelfContained)' == 'false'">
+    <ItemGroup>
         <None Update="windows-kill.dll">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
             <CopyToPublishDirectory>Always</CopyToPublishDirectory>
         </None>
-        <None Remove="Properties\launchSettings.json"/>
     </ItemGroup>
 </Project>
