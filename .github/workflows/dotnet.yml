@@ -30,7 +30,7 @@ jobs:
         self-contained: ["no-self-contained", "self-contained"]
     steps:
       - name: Publish for ${{ matrix.platform }}-${{ matrix.arch }} (${{ matrix.self-contained }})
-        run: dotnet publish Hexus --${{ matrix.self-contained }} -runtime ${{ matrix.platform }}-${{ matrix.arch }}
+        run: dotnet publish Hexus --${{ matrix.self-contained }} --runtime ${{ matrix.platform }}-${{ matrix.arch }}
       - name: Upload Publish Artifact
         uses: actions/upload-artifact@v4
         with:
