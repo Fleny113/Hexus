@@ -29,6 +29,7 @@ jobs:
         platform: ["win", "linux"]
         self-contained: ["no-self-contained", "self-contained"]
     steps:
+      - uses: actions/checkout@v4
       - name: Publish for ${{ matrix.platform }}-${{ matrix.arch }} (${{ matrix.self-contained }})
         run: dotnet publish Hexus --${{ matrix.self-contained }} --runtime ${{ matrix.platform }}-${{ matrix.arch }}
       - name: Upload Publish Artifact
