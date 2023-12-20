@@ -24,21 +24,28 @@ jobs:
     name: Publish for ${{ matrix.platform }}-${{ matrix.arch }} (${{ matrix.self-contained }})
     runs-on: ubuntu-latest
     needs: build
+    env:
+      self-contained-friendly-name: ${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }}
+      file-extension: ${{ matrix.platform == 'win' && '.exe' || '' }}
     strategy:
       matrix:
         # The runtime id will be composed based on parts of the .NET Known RIDs (https://learn.microsoft.com/en-us/dotnet/core/rid-catalog#known-rids)
         arch: ["x64", "arm64"]
         platform: ["win", "linux"]
-        self-contained: ["no-self-contained", "self-contained"]
+        self-contained: ["true", "false"]
     steps:
       - uses: actions/checkout@v4
       - name: Restore dependencies
         run: dotnet restore --runtime ${{ matrix.platform }}-${{ matrix.arch }}
-      - name: Publish for ${{ matrix.platform }}-${{ matrix.arch }} (${{ matrix.self-contained }})
-        run: dotnet publish Hexus --no-restore --runtime ${{ matrix.platform }}-${{ matrix.arch }} --${{ matrix.self-contained }}
-      - name: Upload Publish Artifact
+      - name: Publish for ${{ matrix.platform }}-${{ matrix.arch }} (${{ env.self-contained-friendly-name }})
+        run: dotnet publish Hexus --no-restore --runtime ${{ matrix.platform }}-${{ matrix.arch }} --self-contained ${{ matrix.self-contained }}
+      - name: Rename publish output
+        run: mv ./artifacts/publish/Hexus/release_${{ matrix.platform }}-${{ matrix.arch }}/Hexus${{ env.file-extension }} hexus${{ env.file-extension }}
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.self-contained }}
-          path: artifacts/publish/Hexus/release_${{ matrix.platform }}-${{ matrix.arch }}/Hexus${{ matrix.platform == 'win' && '.exe' || '' }}
+          name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ env.self-contained-friendly-name }}
+          path: hexus${{ env.file-extension }}
           if-no-files-found: error
+      - name: Upload artifact to CI release
+        run: gh release upload ci hexus${{ env.file-extension }}#${{ matrix.platform }}-${{ matrix.arch }}-${{ env.self-contained-friendly-name }}${{ env.file-extension }}
