@@ -41,7 +41,7 @@ jobs:
         run: dotnet publish Hexus --no-restore --runtime ${{ matrix.platform }}-${{ matrix.arch }} --self-contained ${{ matrix.self-contained }}
       - name: Prepare artifact for CI release
         run: |
-          mv artifacts/publish/test-ci/release_${{ matrix.platform }}-${{ matrix.arch }}/Hexus${{ matrix.platform == 'win' && '.exe' || '' }} hexus${{ matrix.platform == 'win' && '.exe' || '' }}
+          mv artifacts/publish/Hexus/release_${{ matrix.platform }}-${{ matrix.arch }}/Hexus${{ matrix.platform == 'win' && '.exe' || '' }} hexus${{ matrix.platform == 'win' && '.exe' || '' }}
           tar -czf ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }}.tar.gz hexus${{ matrix.platform == 'win' && '.exe' || '' }}
       - name: Upload artifact
         uses: actions/upload-artifact@v4
