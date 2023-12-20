@@ -1,8 +1,156 @@
 # Hexus
 
-Hexus is a modern, cross-platform process manager
+[![.NET build status](https://github.com/Fleny113/Hexus/actions/workflows/dotnet.yml/badge.svg?branch=main&event=push)](https://github.com/Fleny113/Hexus/actions/workflows/dotnet.yml)
+![](https://img.shields.io/badge/.NET-8.0-purple)
 
-# License
+Hexus is a processes manager built using .NET 8 designed to work on Linux and Windows seamlessly
+while keeping a nice and simple to use
 
-Hexus is under the [MIT license](./LICENSE.md) and uses [windows-kill](https://github.com/ElyDotDev/windows-kill) to manage the send of
-CTRL + C on windows, the license for windows-kill can be found on the [LICENSE.md](./LICENSE.md) file at the relative section
+## Features
+
+- Performant
+- Supports sending CTRL + C (SIGINT) signals on both Linux and Windows
+- All the logs are in a single place ready to be read with timestamps and type of output
+- Keeps track of the complete usage of resources of an application, including child processes
+- Has a nice and simple CLI to use to manage all your applications
+- Can autogenerates the startup scripts for you to customize based on your needs for Windows (Windows Task Scheduler) and Linux (systemd)
+- Exposes both socket and HTTP port for the requests to the daemon, _under windows sockets are supported_
+
+## Installation
+
+Download the binary from the latest CI release below or compile it using the [`.NET 8`](https://get.dot.net/8) SDK.
+
+| Architecture |                                           Windows                                           |                                       Windows self contained                                       |                                             Linux                                             |                                         Linux self contained                                         |
+| :----------: | :-----------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------: |
+|     x64      |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-x64-runtime.tar.gz)  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-x64-self-contained.tar.gz)  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-x64-runtime.tar.gz)  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-x64-self-contained.tar.gz)  |
+|    arm64     | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-arm64-runtime.tar.gz) | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-arm64-self-contained.tar.gz) | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-arm64-runtime.tar.gz) | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-arm64-self-contained.tar.gz) |
+
+### Compilation
+
+If you want to compile the binary for yourself you need to install:
+
+- [`.NET 8`](https://get.dot.net/8) SDK
+- `ASP.NET Core`, usually bundled with the SDK
+
+To create a release build to use run the following command after have cloned the repo and being in the top directory
+
+```sh
+dotnet publish Hexus
+```
+
+Optionally you can add `--self-contained` to remove the need for the .NET Runtime to be installed or with the `--runtime` flag to specify a target runtime like `linux-arm64` or `win-x64`
+
+## Usage
+
+#### Start the daemon
+
+Hexus requires you to start the daemon manually before you can start using it. To start the daemon run the command `hexus daemon start` and if you want to stop it without sending a CTRL + C
+or a kill signal to the process you can use the `hexus daemon stop` command.
+
+If you want to add the Hexus daemon to the startup you can use the `hexus startup` command that will detect what platform you are on and give you a powershell script for the windows task scheduler
+when run under windows and a systemd unit service file when running under Linux to quickly setup the startup process.
+
+> [!TIP]
+> When the command of `hexus startup` is redirected it won't output the decorations around the text to be easier to use the script/service that it creates
+
+> [!NOTE]
+> Hexus only supports Windows task scheduler and systemd unit services as startup scripts so using another platform will require you to set it up manually.
+
+#### New application
+
+To create a new application is really easy: Just give your application a name and then type the command to run it just as normal and optionally add flags to for example add an environment variable
+
+```sh
+hexus new <name> <executable> [<arguments>] [<flags>]
+```
+
+#### List applications
+
+To list all the application currently running you can use the list command
+
+```sh
+hexus list
+```
+
+The list command will provide some basic information on the application but you can use the `hexus info` command with the name of the application to get some more info on it
+
+#### Get applications logs
+
+To read all the application logs (By default stored under `~/.local/state/hexus/logs/<application name>.log`) you can use the logs command like in the example:
+
+```sh
+hexus logs <application name>
+```
+
+You can also pass the `--lines` (or `-l`) to select the number of lines to fetch from the log file or you can use the `--no-streaming` flag to disable the streaming of logs to the console while the command is active
+
+If you want to manually parse the log files the format is as follows: `[<date>,<type>] <message>` where
+
+- `date` is a date in UTC time using the following format: `MMM dd yyyy HH:mm:ss`
+- `type` is one of `STDOUT`, `STDERR` or `SYSTEM`, with `SYSTEM` being used for Hexus messages like the application start or stop while `STDOUT` and `STDERR`for the actual logs of the application
+- `message` is the actual message the application logged to the console
+
+#### Start / Stop / Restart / Delete application
+
+To start an application you can use the `hexus start <name>` command with the name right after and to stop an application you can use the `hexus stop <name>` command with the name right after,
+for the stop command you can also specify the `--force` flag what will kill as soon as possibile the application without sending a CTRl + C.
+
+Similar to the stop command you can also restart an application with the name of it using the `hexus restart <name>` command with, if wanted, the `--force` flag to force the stop of the application
+
+If you don't want to have an application you can use the `hexus delete <name>` command to remove it from the applications. This command also supports the `--force` flag to stop the application by force
+
+> [!WARNING]
+> When deleting an application the log file will also be deleted
+
+#### Edit application
+
+To edit an application you will first need to stop it using the `hexus stop` command and then you can change add the different options for it, check the `--help` for all the flags.
+
+#### Send input to the application
+
+Hexus allows you to also sends messages in the application `STDIN` by using the `hexus info <name> <message>` command where name is the application name and message whatever you need to send to the application.
+
+Keep in mind Hexus will send the message to the direct child so in a situation where the direct child is not the application you want to send the input to you might have troubles
+
+## Configuration
+
+By default the config file will be located in `~/.config/hexus.yaml` (If in development it will be used `~/.config/hexus.dev.yaml` instead) but you can
+change where the location for the Hexus file is by using the `XDG_CONFIG_HOME` environment to change the `~/.config` directory and the
+`XDG_STATE_HOME` environment to change the directory used (by default) for the socket and logs (defaults to `~/.local/state`)
+
+The available options in the yaml file are:
+
+- unixSocket: changes where the socket is located, the CLI will read this file to connect to the daemon,
+  defaults to `$XDG_STATE_HOME/daemon.sock` (or `$XDG_STATE_HOME/daemon.sock` in development)
+- httpPort: (optional) The http port to listen as an addition to the required socket, useful for interfacing with software that cant use the socket
+- cpuRefreshIntervalSeconds: Hexus will refresh the CPU usage of application every tot based on this setting. The lower the value, the more CPU will be consumed.
+  Under windows you might see a `WmiPrvSE.exe` process actually using the CPU, the reason relies in how Hexus fetches the child processes under windows, that is using WMI.
+- applications: a list of all the application and their configs.
+  - name: required, the name of the application
+  - executable: required, the file to execute when spawning the child
+  - arguments: optional, the arguments to give the executable in a string
+  - workingDirectory: required, the directory where the application will operate
+  - status: required, needs to match the `HexusApplicationStatus` enum, indicates the status of the application. Possible values: `Crashed`, `Exited`, `Running`
+  - note: optional, a note that can be seen in the info command, an usage is to indicate ports used for example.
+  - environmentVariables: optional, all the environment variables for the application. The application **WILL NOT** inherit the env from the daemon
+- appSettings: the .NET `Microsoft.Extensions.Configuration` app settings to be customized. You can change the verbosity of the `ASP.NET core` logger for example
+
+## Roadmap
+
+- Add log rotation support
+- Add update command
+
+## Limitations
+
+- MacOS is not supported as Hexus to calculate the correct ram and cpu usages needs go get the child processes for an application,
+  and i don't have anything to test how to get them.
+- Hexus will not and can not update itself at the moment, you will need to manually check for updates and install them at this time but it might get implemented in the future.
+
+## License
+
+Hexus is under the [MIT license](./LICENSE.md)
+
+### Third party
+
+Hexus uses [windows-kill](https://github.com/ElyDotDev/windows-kill) to manage the send of
+CTRL + C on Windows, due to the complication it brings having to send a SIGINT in a Windows environment. The license for [windows-kill](https://github.com/ElyDotDev/windows-kill) can be found in the [LICENSE](./LICENSE.md) file under the Third party section.
