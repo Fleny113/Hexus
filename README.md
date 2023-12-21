@@ -3,8 +3,8 @@
 [![.NET build status](https://github.com/Fleny113/Hexus/actions/workflows/dotnet.yml/badge.svg?branch=main&event=push)](https://github.com/Fleny113/Hexus/actions/workflows/dotnet.yml)
 ![](https://img.shields.io/badge/.NET-8.0-purple)
 
-Hexus is a processes manager built using .NET 8 designed to work on Linux and Windows seamlessly
-while keeping a nice and simple to use
+Hexus is a process manager built using .NET 8 designed to work on Linux and Windows seamlessly
+while being nice and simple to use
 
 ## Features
 
@@ -58,7 +58,7 @@ when run under windows and a systemd unit service file when running under Linux 
 
 #### New application
 
-To create a new application is really easy: Just give your application a name and then type the command to run it just as normal and optionally add flags to for example add an environment variable
+Creating a new application is really easy: Just give your application a name and then type the command to run it just as normal and optionally add flags to for example add an environment variable
 
 ```sh
 hexus new <name> <executable> [<arguments>] [<flags>]
@@ -108,7 +108,7 @@ To edit an application you will first need to stop it using the `hexus stop` com
 
 #### Send input to the application
 
-Hexus allows you to also sends messages in the application `STDIN` by using the `hexus info <name> <message>` command where name is the application name and message whatever you need to send to the application.
+Hexus also allows sending messages in the application `STDIN` by using the `hexus info <name> <message>` command where name is the application name and message whatever you need to send to the application.
 
 Keep in mind Hexus will send the message to the direct child so in a situation where the direct child is not the application you want to send the input to you might have troubles
 
@@ -142,7 +142,7 @@ The available options in the yaml file are:
 
 ## Limitations
 
-- MacOS is not supported as Hexus to calculate the correct ram and cpu usages needs go get the child processes for an application,
+- MacOS is not supported as Hexus needs to get the child processes for an application to calculate the correct RAM and CPU usages,
   and i don't have anything to test how to get them.
 - Hexus will not and can not update itself at the moment, you will need to manually check for updates and install them at this time but it might get implemented in the future.
 
