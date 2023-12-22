@@ -101,15 +101,17 @@ internal static class MigratePm2Command
             foreach (var listNode in pm2ConfigNode.AsArray())
             {
                 var appConfig = listNode!.AsObject();
-                var hexusApplication = new HexusApplication { Name = null!, Executable = null! };
 
                 var execMode = appConfig["exec_mode"]!.GetValue<string>();
-
+                var name = appConfig["name"]!.GetValue<string>();
+                
                 if (execMode != "fork_mode")
                 {
-                    PrettyConsole.Error.MarkupLineInterpolated($"[yellow]WARNING[/]: An application where the exec mode is set to \"{execMode}\" has been ignored as Hexus supports fork_mode applications only");
+                    PrettyConsole.Error.MarkupLineInterpolated($"[yellow]WARNING[/]: The application \"{name}\" where the exec mode is set to \"{execMode}\" has been ignored as Hexus supports fork_mode applications only");
                     continue;
                 }
+
+                var hexusApplication = new HexusApplication { Name = name, Executable = null! };
                 
                 foreach (var (key, value) in appConfig)
                 {
@@ -123,9 +125,6 @@ internal static class MigratePm2Command
                     
                     switch (key)
                     {
-                        case "name":
-                            hexusApplication.Name = value!.GetValue<string>();
-                            break;
                         case "pm_exec_path":
                             hexusApplication.Executable = value!.GetValue<string>();
 
