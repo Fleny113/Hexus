@@ -70,7 +70,7 @@ internal static class MigratePm2Command
         var pm2Dump = context.ParseResult.GetValueForOption(Pm2DumpFile);
         var ct = context.GetCancellationToken();
         
-        PrettyConsole.Error.MarkupLine("[yellow]WARNING[/]: This as been tested with PM2 5.3.0. It might not work with other versions.");
+        PrettyConsole.Error.MarkupLine("[yellow]WARNING[/]: This has been tested with PM2 5.3.0. It might not work with other versions.");
         
         if (await HttpInvocation.CheckForRunningDaemon(ct))
         {
@@ -102,6 +102,14 @@ internal static class MigratePm2Command
                 var appConfig = listNode!.AsObject();
                 var hexusApplication = new HexusApplication { Name = null!, Executable = null! };
 
+                var execMode = appConfig["exec_mode"]!.GetValue<string>();
+
+                if (execMode != "fork_mode")
+                {
+                    PrettyConsole.Error.MarkupLineInterpolated($"[yellow]WARNING[/]: An application where the exec mode is set to \"{execMode}\" has been ignored as Hexus supports fork_mode applications only");
+                    continue;
+                }
+                
                 foreach (var (key, value) in appConfig)
                 {
                     if (!Pm2KnownConfig.Contains(key))
