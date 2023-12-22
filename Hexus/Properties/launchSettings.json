@@ -3,8 +3,9 @@
   "profiles": {
     "Hexus": {
       "commandName": "Project",
-      "dotnetRunMessages": true,
+      "dotnetRunMessages": false,
       "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development",
         "ASPNETCORE_ENVIRONMENT": "Development",
         // The urls are setted by UseKestrel in the HexusDaemon.cs
         "ASPNETCORE_URLS": ""

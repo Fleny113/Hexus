@@ -18,7 +18,7 @@ public static class EnvironmentHelper
 
     // Used by the CLI to detect when to use the Development configuration
     public static readonly bool IsDevelopment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development";
-
+    
     public static void EnsureDirectoriesExistence()
     {
         Directory.CreateDirectory(HexusStateDirectory);

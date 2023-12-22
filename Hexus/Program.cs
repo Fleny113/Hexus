@@ -1,6 +1,7 @@
 ﻿using Hexus;
 using Hexus.Commands;
 using Hexus.Commands.Applications;
+using Hexus.Commands.Utils;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Builder;
@@ -22,7 +23,9 @@ rootCommand.AddCommand(RestartCommand.Command);
 rootCommand.AddCommand(DeleteCommand.Command);
 
 rootCommand.AddCommand(DaemonCommand.Command);
+
 rootCommand.AddCommand(StartupCommand.Command);
+rootCommand.AddCommand(MigratePm2Command.Command);
 
 var builder = new CommandLineBuilder(rootCommand);
 

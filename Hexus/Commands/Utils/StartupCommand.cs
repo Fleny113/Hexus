@@ -5,7 +5,7 @@ using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.Security.Principal;
 
-namespace Hexus.Commands;
+namespace Hexus.Commands.Utils;
 
 internal static class StartupCommand
 {
