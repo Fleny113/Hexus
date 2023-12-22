@@ -1,3 +1,4 @@
+using Hexus.Commands.Applications;
 using Hexus.Daemon.Configuration;
 using Spectre.Console;
 using System.CommandLine;
@@ -127,10 +128,18 @@ internal static class MigratePm2Command
                             break;
                         case "pm_exec_path":
                             hexusApplication.Executable = value!.GetValue<string>();
+
+                            if (hexusApplication.Executable.EndsWith(".js"))
+                            {
+                                hexusApplication.Arguments = $"{hexusApplication.Executable} {hexusApplication.Arguments}";
+                            }
+                            
+                            hexusApplication.Executable = NewCommand.TryResolveExecutable("node");
+                            
                             break;
                         case "args":
                             var joinedArgs = string.Join(" ", value!.AsArray());
-                            hexusApplication.Arguments = joinedArgs;
+                            hexusApplication.Arguments += joinedArgs;
                             break;
                         case "pm_cwd":
                             hexusApplication.WorkingDirectory = value!.GetValue<string>();
