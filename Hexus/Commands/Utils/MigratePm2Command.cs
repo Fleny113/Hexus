@@ -132,9 +132,8 @@ internal static class MigratePm2Command
                             if (hexusApplication.Executable.EndsWith(".js"))
                             {
                                 hexusApplication.Arguments = $"{hexusApplication.Executable} {hexusApplication.Arguments}";
+                                hexusApplication.Executable = NewCommand.TryResolveExecutable("node");
                             }
-                            
-                            hexusApplication.Executable = NewCommand.TryResolveExecutable("node");
                             
                             break;
                         case "args":
