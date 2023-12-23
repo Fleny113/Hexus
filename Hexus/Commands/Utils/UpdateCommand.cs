@@ -109,6 +109,6 @@ internal static class UpdateCommand
             return;
         }
         
-        File.Move(tempFileExec, currentFilename, overwrite: true);
+        File.Move(tempFileExec, currentPath, overwrite: true);
     }
 }
