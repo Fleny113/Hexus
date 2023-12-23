@@ -135,6 +135,17 @@ The available options in the yaml file are:
   - environmentVariables: optional, all the environment variables for the application. The application **WILL NOT** inherit the env from the daemon
 - appSettings: the .NET `Microsoft.Extensions.Configuration` app settings to be customized. You can change the verbosity of the `ASP.NET core` logger for example
 
+#### PM2 Migration
+
+Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2` file. You can use the `migrate-pm2` command with, optionally, the `--pm2-dump` option in case you are not using the default `$HOME/.pm2/dump.pm2` file, just remember to run `pm2 save` before you run the command.
+
+> [!WARNING]
+> Hexus only supports migrating from pm2 `5.3.0`, using another version might give errors. Migrating apps that are configured as cluster in pm2 will fail
+> and Hexus will skip them as Hexus supports `fork_mode` only.
+>
+> Hexus also will try to avoid name conflicts by adding the `-pm2` suffix if an application is already found in the exiting configuration.
+> If with the suffix Hexus wasn't able to save the application it will skip the application.
+
 ## Roadmap
 
 - Add log rotation support
