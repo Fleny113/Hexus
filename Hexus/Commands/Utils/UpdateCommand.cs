@@ -99,7 +99,7 @@ internal static class UpdateCommand
             
             await File.WriteAllTextAsync(tempFileScript, script, ct);
             
-            PrettyConsole.Out.MarkupLine("[yellow]WARNING[/]: To update hexus a batch script will run to replace the file. Please wait a about 5 seconds before restarting hexus.");
+            PrettyConsole.Out.MarkupLine("[yellow]WARNING[/]: To update hexus a batch script will run to replace the file. Please wait about 5 seconds before restarting hexus.");
             Process.Start(new ProcessStartInfo(tempFileScript)
             {
                 UseShellExecute = false, 
