@@ -43,7 +43,7 @@ internal static class UpdateCommand
         
         var link = ci 
             ? $"https://github.com/Fleny113/Hexus/releases/download/ci/{file}" 
-            : $"https://github.com/Fleny113/test-ci/releases/latest/download/{file}";
+            : $"https://github.com/Fleny113/Hexus/releases/latest/download/{file}";
         
         var currentPath = Environment.ProcessPath;
 
