@@ -33,9 +33,9 @@ internal static class UpdateCommand
         var ci = context.ParseResult.GetValueForOption(CiBuildOption);
         var ct = context.GetCancellationToken();
         
-        if (await HttpInvocation.CheckForRunningDaemon(ct))
+        if (await HttpInvocation.CheckForRunningDaemon(ct) && OperatingSystem.IsWindows())
         {
-            PrettyConsole.Error.MarkupLine("The [indianred1]daemon needs to not be running[/] to update hexus. Stop it first using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.");
+            PrettyConsole.Error.MarkupLine("The [indianred1]daemon needs to not be running[/] to update hexus on Windows. Stop it first using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.");
             return;
         }
 
@@ -70,7 +70,6 @@ internal static class UpdateCommand
         await using var gzipStream = new GZipStream(stream, CompressionMode.Decompress);
         await using var tarReader = new TarReader(gzipStream);
 
-        var currentFilename = Path.GetFileName(currentPath);
         var tempFileExec = Path.GetTempFileName();
         
         while (await tarReader.GetNextEntryAsync(cancellationToken: ct) is { DataStream: not null } entry)
@@ -91,7 +90,7 @@ internal static class UpdateCommand
             // there is a timeout delay to allow for the CLI to exit
             var script = $"""
                           @echo off
-                          timeout /t 5 > NUL
+                          timeout /t 3 > NUL
                           del "{currentPath}"
                           move "{tempFileExec}" "{currentPath}"
                           del "%~f0"
@@ -105,10 +104,11 @@ internal static class UpdateCommand
                 UseShellExecute = false, 
                 CreateNoWindow = true,
             });
-            
+
             return;
         }
         
         File.Move(tempFileExec, currentPath, overwrite: true);
+        PrettyConsole.Out.MarkupLine("[springgreen1]Update done[/], restart the daemon to make the update have effect on it too.");
     }
 }
