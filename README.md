@@ -149,13 +149,13 @@ Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2
 ## Roadmap
 
 - Add log rotation support
-- Add update command
 
 ## Limitations
 
 - MacOS is not supported as Hexus needs to get the child processes for an application to calculate the correct RAM and CPU usages,
   and i don't have anything to test how to get them.
-- Hexus will not and can not update itself at the moment, you will need to manually check for updates and install them at this time but it might get implemented in the future.
+- Under Windows the update command requires a about 5 seconds to wait to allow the CLI to exit and the script to replace the file 
+  to run. This is to bypass the file locking in Windows 
 
 ## License
 

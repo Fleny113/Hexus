@@ -10,6 +10,10 @@
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
 
+    <PropertyGroup Condition="'$(SelfContained)' == 'true'">
+        <DefineConstants>$(DefineConstants);SELF_CONTAINED</DefineConstants>
+    </PropertyGroup>
+
     <ItemGroup>
         <PackageReference Include="Humanizer.Core" Version="2.14.1"/>
         <PackageReference Include="Spectre.Console" Version="0.48.0"/>

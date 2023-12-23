@@ -24,6 +24,7 @@ rootCommand.AddCommand(DeleteCommand.Command);
 
 rootCommand.AddCommand(DaemonCommand.Command);
 
+rootCommand.AddCommand(UpdateCommand.Command);
 rootCommand.AddCommand(StartupCommand.Command);
 rootCommand.AddCommand(MigratePm2Command.Command);
 
