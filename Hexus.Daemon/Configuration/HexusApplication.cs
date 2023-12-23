@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
+using System.Threading.Channels;
 using YamlDotNet.Serialization;
 
 namespace Hexus.Daemon.Configuration;
@@ -22,7 +23,7 @@ public sealed record HexusApplication
 
     // Logs
     [YamlIgnore] internal SemaphoreSlim LogSemaphore { get; } = new(initialCount: 1, maxCount: 1);
-    [YamlIgnore] internal CircularBuffer<string> LogBuffer { get; } = new(30);
+    [YamlIgnore] internal List<Channel<string>> LogChannels { get; } = [];
 
     // Performance tracking
     [YamlIgnore] internal Dictionary<int, CpuStats> CpuStatsMap { get; } = [];

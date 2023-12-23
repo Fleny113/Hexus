@@ -168,8 +168,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         var logLine = $"[{DateTimeOffset.UtcNow:MMM dd yyyy HH:mm:ss},{logType}] {message}";
 
-        application.LogBuffer.Write(logLine);
-
+        application.LogChannels.ForEach(channel => channel.Writer.TryWrite(logLine));
         application.LogSemaphore.Wait();
 
         try

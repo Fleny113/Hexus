@@ -3,9 +3,9 @@ using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Channels;
 
 namespace Hexus.Daemon.Endpoints.Applications;
 
@@ -17,8 +17,7 @@ internal class GetLogsEndpoint : IEndpoint
         [FromRoute] string name,
         [FromQuery] int lines = 10,
         [FromQuery] bool noStreaming = false,
-        CancellationToken ct = default
-    )
+        CancellationToken ct = default)
     {
         if (!configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
@@ -33,23 +32,35 @@ internal class GetLogsEndpoint : IEndpoint
         HexusApplication application,
         int lines,
         bool noStreaming,
-        [EnumeratorCancellation] CancellationToken ct
-    )
+        [EnumeratorCancellation] CancellationToken ct)
     {
-        var requestTime = DateTimeOffset.UtcNow;
+        Channel<string>? channel = null;
+        
+        if (!noStreaming)
+        {
+            channel = Channel.CreateUnbounded<string>();
+            application.LogChannels.Add(channel);
+        }
 
-        foreach (var log in GetLogs(application, lines)) 
-            yield return log;
+        try
+        {
+            foreach (var log in GetLogs(application, lines))
+                yield return log;
 
-        if (noStreaming)
-            yield break;
+            if (noStreaming || channel is null)
+                yield break;
 
-        var logAsyncEnumerator = application.LogBuffer
-            .ReadAllAsync(ct)
-            .Where(log => CheckIfSendLog(log, requestTime));
-
-        await foreach (var log in logAsyncEnumerator) 
-            yield return log;
+            await foreach (var log in channel.Reader.ReadAllAsync(ct))
+                yield return log;
+        }
+        finally
+        {
+            if (channel is not null)
+            {
+                channel.Writer.Complete();
+                application.LogChannels.Remove(channel);
+            }
+        }
     }
 
     private static IEnumerable<string> GetLogs(HexusApplication application, int lines)
@@ -65,7 +76,7 @@ internal class GetLogsEndpoint : IEndpoint
                 yield break;
 
             // Go to the end of the file
-            stream.Position = stream.Length - 1;
+            stream.Position = stream.Seek(-1, SeekOrigin.End);
 
             while (newLineFound <= lines)
             {
@@ -105,15 +116,5 @@ internal class GetLogsEndpoint : IEndpoint
         {
             application.LogSemaphore.Release();
         }
-    }
-
-    private static bool CheckIfSendLog(ReadOnlySpan<char> logLine, DateTimeOffset requestTime)
-    {
-        // Extract the date string from the log
-        var dateString = logLine.Slice(1, 20);
-        var logTime = DateTimeOffset.ParseExact(dateString, "MMM dd yyyy HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
-
-        // The log has been record after the initial log file read
-        return logTime > requestTime;
     }
 }
