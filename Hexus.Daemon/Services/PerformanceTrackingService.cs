@@ -14,7 +14,14 @@ internal class PerformanceTrackingService(HexusConfiguration configuration) : Ba
         {
             foreach (var application in configuration.Applications.Values)
             {
-                RefreshCpuUsage(application);
+                try
+                {
+                    RefreshCpuUsage(application);
+                }
+                catch
+                {
+                    // We don't care, it will just retry later.
+                }
             }
         }
     }
@@ -42,13 +49,13 @@ internal class PerformanceTrackingService(HexusConfiguration configuration) : Ba
         var cpuUsages = GetApplicationProcesses(application)
             .Select(process =>
             {
-                if (process is not { HasExited: false })
+                if (process is not { HasExited: false, Id: var processId })
                 {
                     application.CpuStatsMap.Remove(process.Id);
                     return 0;
                 }
 
-                var cpuStats = application.CpuStatsMap.GetOrCreate(process.Id,
+                var cpuStats = application.CpuStatsMap.GetOrCreate(processId,
                     _ => new HexusApplication.CpuStats
                     {
                         LastTotalProcessorTime = TimeSpan.Zero, LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
