@@ -92,8 +92,8 @@ internal static class UpdateCommand
             var script = $"""
                           @echo off
                           timeout /t 5 > NUL
-                          del "{currentFilename}"
-                          move "{tempFileExec}" "{currentFilename}"
+                          del "{currentPath}"
+                          move "{tempFileExec}" "{currentPath}"
                           del "%~f0"
                           """;
             
