@@ -10,8 +10,10 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
 
     public Task StartedAsync(CancellationToken cancellationToken)
     {
-        foreach (var application in configManager.Configuration.Applications.Values.Where(application =>
-                     application is { Status: HexusApplicationStatus.Running }))
+        var runningApplications = configManager.Configuration.Applications.Values
+            .Where(application => application is { Status: HexusApplicationStatus.Running });
+        
+        foreach (var application in runningApplications)
             processManager.StartApplication(application);
 
         return Task.CompletedTask;
