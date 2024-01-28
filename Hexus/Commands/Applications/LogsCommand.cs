@@ -1,3 +1,4 @@
+using Hexus.Daemon.Configuration;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
@@ -53,10 +54,14 @@ internal static class LogsCommand
 
         try
         {
-            var logs = logsRequest.Content.ReadFromJsonAsAsyncEnumerable<string>(HttpInvocation.JsonSerializerOptions, ct);
+            var logs = logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
 
-            await foreach (var logLine in logs) 
+            await foreach (var logLine in logs)
+            {
+                if (logLine is null) continue;
+             
                 PrintLogLine(logLine);
+            }
         }
         catch (TaskCanceledException)
         {
@@ -64,13 +69,9 @@ internal static class LogsCommand
         }
     }
 
-    private static void PrintLogLine(ReadOnlySpan<char> logLine)
+    private static void PrintLogLine(ApplicationLog log)
     {
-        var dateString = logLine[1..20];
-        var logScope = logLine[22..28];
-        var message = logLine[30..].ToString().EscapeMarkup();
-
-        PrettyConsole.OutLimitlessWidth.MarkupLine($"{dateString} [{GetLogTypeColor(logScope)}]| {logScope} |[/] {message}");
+        PrettyConsole.OutLimitlessWidth.MarkupLine($"{log.Date.ToString(ApplicationLog.DateTimeFormat)} [{GetLogTypeColor(log.LogType.Name)}]| {log.LogType.Name} |[/] {log.Text.EscapeMarkup()}");
     }
 
     private static Color GetLogTypeColor(ReadOnlySpan<char> logType) => logType switch

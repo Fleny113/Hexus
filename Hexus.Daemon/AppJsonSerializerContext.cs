@@ -1,3 +1,4 @@
+using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 using System.Text.Json.Serialization;
 
@@ -7,7 +8,7 @@ namespace Hexus.Daemon;
 [JsonSerializable(typeof(ProblemDetails))]
 [JsonSerializable(typeof(HexusApplicationResponse))]
 [JsonSerializable(typeof(IEnumerable<HexusApplicationResponse>))]
-[JsonSerializable(typeof(IAsyncEnumerable<string>))]
+[JsonSerializable(typeof(IAsyncEnumerable<ApplicationLog>))]
 [JsonSerializable(typeof(NewApplicationRequest))]
 [JsonSerializable(typeof(EditApplicationRequest))]
 [JsonSerializable(typeof(SendInputRequest))]

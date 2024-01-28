@@ -1,4 +1,5 @@
 ﻿using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Interop;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -44,7 +45,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         application.Process = process;
         Applications[process] = application;
 
-        ProcessApplicationLog(application, "SYSTEM", "-- Application started --");
+        ProcessApplicationLog(application, LogType.System, "-- Application started --");
 
         // Enable the emitting of events and the reading of the STDOUT and STDERR
         process.EnableRaisingEvents = true;
@@ -161,19 +162,22 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     #region Log process events handlers
 
-    private void ProcessApplicationLog(HexusApplication application, string logType, string message)
+    private void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
     {
-        if (logType != "SYSTEM")
+        if (logType != LogType.System)
             LogApplicationOutput(logger, application.Name, message);
-
-        var logLine = $"[{DateTimeOffset.UtcNow:MMM dd yyyy HH:mm:ss},{logType}] {message}";
-
-        application.LogChannels.ForEach(channel => channel.Writer.TryWrite(logLine));
+        
+        var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
+        
+        application.LogChannels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
         application.LogSemaphore.Wait();
 
         try
         {
-            File.AppendAllText($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log", $"{logLine}{Environment.NewLine}");
+            File.AppendAllText(
+                $"{EnvironmentHelper.LogsDirectory}/{application.Name}.log",
+                $"[{applicationLog.Date.ToString(ApplicationLog.DateTimeFormat)},{applicationLog.LogType.Name}] {applicationLog.Text}{Environment.NewLine}"
+            );
         }
         finally
         {
@@ -186,7 +190,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         if (sender is not Process process || e.Data is null || !Applications.TryGetValue(process, out var application))
             return;
 
-        ProcessApplicationLog(application, "STDOUT", e.Data);
+        ProcessApplicationLog(application, LogType.StdOut, e.Data);
     }
 
     private void HandleStdErrLogs(object? sender, DataReceivedEventArgs e)
@@ -194,7 +198,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         if (sender is not Process process || e.Data is null || !Applications.TryGetValue(process, out var application))
             return;
 
-        ProcessApplicationLog(application, "STDERR", e.Data);
+        ProcessApplicationLog(application, LogType.StdErr, e.Data);
     }
 
     #endregion
@@ -214,7 +218,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         var exitCode = process.ExitCode;
 
-        ProcessApplicationLog(application, "SYSTEM", "-- Application stopped --");
+        ProcessApplicationLog(application, LogType.System, "-- Application stopped --");
 
         application.Process?.Close();
         application.Process = null;

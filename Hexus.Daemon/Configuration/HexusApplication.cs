@@ -23,7 +23,7 @@ public sealed record HexusApplication
 
     // Logs
     [YamlIgnore] internal SemaphoreSlim LogSemaphore { get; } = new(initialCount: 1, maxCount: 1);
-    [YamlIgnore] internal List<Channel<string>> LogChannels { get; } = [];
+    [YamlIgnore] internal List<Channel<ApplicationLog>> LogChannels { get; } = [];
 
     // Performance tracking
     [YamlIgnore] internal Dictionary<int, CpuStats> CpuStatsMap { get; } = [];
