@@ -21,7 +21,7 @@ while being nice and simple to use
 Download the binary from the latest CI release below or compile it using the [`.NET 8`](https://get.dot.net/8) SDK.
 
 | Architecture |                                           Windows                                           |                                       Windows self contained                                       |                                             Linux                                             |                                         Linux self contained                                         |
-| :----------: | :-----------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------: |
+| :----------: | :-----------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------: |:----------------------------------------------------------------------------------------------------:|
 |     x64      |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-x64-runtime.tar.gz)  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-x64-self-contained.tar.gz)  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-x64-runtime.tar.gz)  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-x64-self-contained.tar.gz)  |
 |    arm64     | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-arm64-runtime.tar.gz) | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-arm64-self-contained.tar.gz) | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-arm64-runtime.tar.gz) | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-arm64-self-contained.tar.gz) |
 
@@ -121,7 +121,7 @@ change where the location for the Hexus file is by using the `XDG_CONFIG_HOME` e
 The available options in the yaml file are:
 
 - unixSocket: changes where the socket is located, the CLI will read this file to connect to the daemon,
-  defaults to `$XDG_STATE_HOME/daemon.sock` (or `$XDG_STATE_HOME/daemon.sock` in development)
+  defaults to `$XDG_STATE_HOME/daemon.sock` (or `$XDG_STATE_HOME/daemon.dev.sock` in development)
 - httpPort: (optional) The http port to listen as an addition to the required socket, useful for interfacing with software that cant use the socket
 - cpuRefreshIntervalSeconds: Hexus will refresh the CPU usage of application every tot based on this setting. The lower the value, the more CPU will be consumed.
   Under windows you might see a `WmiPrvSE.exe` process actually using the CPU, the reason relies in how Hexus fetches the child processes under windows, that is using WMI.
