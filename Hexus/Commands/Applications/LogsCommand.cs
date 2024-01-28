@@ -12,11 +12,15 @@ internal static class LogsCommand
     private static readonly Option<int?> LinesOption = new(["-l", "--lines"], "The number of lines to show from the log file");
     private static readonly Option<bool> DontStream = new("--no-streaming", "Disable the streaming of new logs. It Will only fetch from the log file");
 
+    private static readonly Option<bool> DontShowDates = new("--no-dates",
+        "Disable the dates of the log lines. Useful if you already have those in your log file");
+    
     public static readonly Command Command = new("logs", "View the logs of an application")
     {
         NameArgument,
         LinesOption,
         DontStream,
+        DontShowDates,
     };
 
     static LogsCommand()
@@ -30,6 +34,7 @@ internal static class LogsCommand
         var name = context.ParseResult.GetValueForArgument(NameArgument);
         var lines = context.ParseResult.GetValueForOption(LinesOption) ?? 10;
         var noStreaming = context.ParseResult.GetValueForOption(DontStream);
+        var noDates = context.ParseResult.GetValueForOption(DontShowDates);
         var ct = context.GetCancellationToken();
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
@@ -60,7 +65,7 @@ internal static class LogsCommand
             {
                 if (logLine is null) continue;
              
-                PrintLogLine(logLine);
+                PrintLogLine(logLine, !noDates);
             }
         }
         catch (TaskCanceledException)
@@ -69,9 +74,18 @@ internal static class LogsCommand
         }
     }
 
-    private static void PrintLogLine(ApplicationLog log)
+    private static void PrintLogLine(ApplicationLog log, bool showDates)
     {
-        PrettyConsole.OutLimitlessWidth.MarkupLine($"{log.Date.ToString(ApplicationLog.DateTimeFormat)} [{GetLogTypeColor(log.LogType.Name)}]| {log.LogType.Name} |[/] {log.Text.EscapeMarkup()}");
+        var baseLogLine = $"{log.LogType.Name} |[/] {log.Text.EscapeMarkup()}";
+        var color = GetLogTypeColor(log.LogType.Name);
+        
+        if (showDates)
+        {
+            PrettyConsole.OutLimitlessWidth.MarkupLine($"{log.Date.ToString(ApplicationLog.DateTimeFormat)} [{color}]| {baseLogLine}");
+            return;
+        }
+        
+        PrettyConsole.OutLimitlessWidth.MarkupLine($"[{color}]{baseLogLine}");
     }
 
     private static Color GetLogTypeColor(ReadOnlySpan<char> logType) => logType switch
