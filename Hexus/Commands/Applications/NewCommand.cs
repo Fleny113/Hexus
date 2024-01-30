@@ -97,7 +97,8 @@ internal static class NewCommand
             ? EnvironmentHelper.NormalizePath(executable)
             : TryResolveExecutable(executable);
 
-        var newRequest = await HttpInvocation.HttpClient.PostAsJsonAsync(
+        var newRequest = await HttpInvocation.PostAsJsonAsync(
+            "Creating new application",
             "/new",
             new NewApplicationRequest(
                 name,

@@ -112,7 +112,8 @@ internal static class EditCommand
             }
         }
 
-        var editRequest = await HttpInvocation.HttpClient.PatchAsJsonAsync(
+        var editRequest = await HttpInvocation.PatchAsJsonAsync(
+            "Editing application",
             $"{name}",
             new EditApplicationRequest(
                 Name: newName,
@@ -126,6 +127,7 @@ internal static class EditCommand
                 RemoveEnvironmentVariables: remove,
                 IsReloadingEnvironmentVariables: reloadEnv
             ),
+            HttpInvocation.JsonSerializerOptions,
             ct
         );
 

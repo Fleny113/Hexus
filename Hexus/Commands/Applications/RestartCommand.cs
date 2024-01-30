@@ -33,7 +33,7 @@ internal static class RestartCommand
             return;
         }
 
-        var restartRequest = await HttpInvocation.HttpClient.PatchAsync($"/{name}/restart?forceStop={force}", null, ct);
+        var restartRequest = await HttpInvocation.PatchAsync("Restarting application", $"/{name}/restart?forceStop={force}", null, ct);
 
         if (!restartRequest.IsSuccessStatusCode)
         {

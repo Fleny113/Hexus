@@ -2,6 +2,7 @@
 using Hexus.Daemon.Contracts;
 using Spectre.Console;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
@@ -24,7 +25,7 @@ internal static class HttpInvocation
         },
     };
 
-    public static HttpClient HttpClient { get; } = new(HttpClientHandler)
+    private static HttpClient HttpClient { get; } = new(HttpClientHandler)
     {
         BaseAddress = new Uri("http://hexus-socket"),
     };
@@ -36,23 +37,76 @@ internal static class HttpInvocation
         TypeInfoResolverChain = { AppJsonSerializerContext.Default },
     };
 
-    public static async ValueTask<bool> CheckForRunningDaemon(CancellationToken ct)
+    #region Status wrappers
+
+    public static async Task<bool> CheckForRunningDaemon(CancellationToken ct)
     {
         if (!File.Exists(Configuration.HexusConfiguration.UnixSocket))
             return false;
 
-        try
-        {
-            // This in fact returns a 404, we only care to check if the daemon is running, so this is fine.
-            await HttpClient.GetAsync("/", ct);
-
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await PrettyConsole.Out.Status()
+            .Spinner(PrettyConsole.Spinner)
+            .SpinnerStyle(PrettyConsole.SpinnerStyle)
+            .StartAsync("Checking daemon status", _ => CheckForRunningDaemonCore(ct));
     }
+
+    public static async Task<HttpResponseMessage> GetAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, CancellationToken ct)
+    {
+        return await PrettyConsole.Out.Status()
+            .Spinner(PrettyConsole.Spinner)
+            .SpinnerStyle(PrettyConsole.SpinnerStyle)
+            .StartAsync(status, _ => HttpClient.GetAsync(url, ct));
+    }
+
+    public static async Task<HttpResponseMessage> GetAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpCompletionOption completionOption, CancellationToken ct)
+    {
+        return await PrettyConsole.Out.Status()
+            .Spinner(PrettyConsole.Spinner)
+            .SpinnerStyle(PrettyConsole.SpinnerStyle)
+            .StartAsync(status, _ => HttpClient.GetAsync(url, completionOption, ct));
+    }
+
+    public static async Task<HttpResponseMessage> PostAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content, CancellationToken ct)
+    {
+        return await PrettyConsole.Out.Status()
+            .Spinner(PrettyConsole.Spinner)
+            .SpinnerStyle(PrettyConsole.SpinnerStyle)
+            .StartAsync(status, _ => HttpClient.PostAsync(url, content, ct));
+    }
+
+    public static async Task<HttpResponseMessage> PostAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content, JsonSerializerOptions jsonOptions, CancellationToken ct)
+    {
+        return await PrettyConsole.Out.Status()
+            .Spinner(PrettyConsole.Spinner)
+            .SpinnerStyle(PrettyConsole.SpinnerStyle)
+            .StartAsync(status, _ => HttpClient.PostAsJsonAsync(url, content, jsonOptions, ct));
+    }
+
+    public static async Task<HttpResponseMessage> PatchAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content, CancellationToken ct)
+    {
+        return await PrettyConsole.Out.Status()
+            .Spinner(PrettyConsole.Spinner)
+            .SpinnerStyle(PrettyConsole.SpinnerStyle)
+            .StartAsync(status, _ => HttpClient.PatchAsync(url, content, ct));
+    }
+
+    public static async Task<HttpResponseMessage> PatchAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content, JsonSerializerOptions jsonOptions, CancellationToken ct)
+    {
+        return await PrettyConsole.Out.Status()
+            .Spinner(PrettyConsole.Spinner)
+            .SpinnerStyle(PrettyConsole.SpinnerStyle)
+            .StartAsync(status, _ => HttpClient.PatchAsJsonAsync(url, content, jsonOptions, ct));
+    }
+
+    public static async Task<HttpResponseMessage> DeleteAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, CancellationToken ct)
+    {
+        return await PrettyConsole.Out.Status()
+            .Spinner(PrettyConsole.Spinner)
+            .SpinnerStyle(PrettyConsole.SpinnerStyle)
+            .StartAsync(status, _ => HttpClient.DeleteAsync(url, ct));
+    }
+
+    #endregion
 
     public static async Task HandleFailedHttpRequestLogging(HttpResponseMessage request, CancellationToken ct)
     {
@@ -93,5 +147,20 @@ internal static class HttpInvocation
         }
 
         PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[/] in handling the request: {response.Error}");
+    }
+
+    private static async Task<bool> CheckForRunningDaemonCore(CancellationToken ct)
+    {
+        try
+        {
+            // This in fact returns a 404, we only care to check if the daemon is running, so this is fine.
+            await HttpClient.GetAsync("/", ct);
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

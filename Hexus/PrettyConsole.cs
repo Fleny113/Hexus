@@ -10,6 +10,9 @@ public static class PrettyConsole
     public const string DaemonAlreadyRunningError =
         "The [indianred1]daemon is already running[/]. Stop it first to run a new instance using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.";
 
+    public static readonly Style SpinnerStyle = new(foreground: Color.DarkTurquoise);
+    public static readonly Spinner Spinner = Spinner.Known.Dots2;
+
     public static IAnsiConsole Out { get; } = AnsiConsole.Create(new AnsiConsoleSettings
     {
         Ansi = AnsiSupport.Detect,

@@ -43,7 +43,11 @@ internal static class InputCommand
             return;
         }
 
-        var stdinRequest = await HttpInvocation.HttpClient.PostAsJsonAsync($"/{name}/stdin", new SendInputRequest(text, newLine), ct);
+        var stdinRequest = await HttpInvocation.PostAsJsonAsync("Sending text to STDIN",
+            $"/{name}/stdin",
+            new SendInputRequest(text, newLine),
+            HttpInvocation.JsonSerializerOptions,
+            ct);
 
         if (!stdinRequest.IsSuccessStatusCode)
         {

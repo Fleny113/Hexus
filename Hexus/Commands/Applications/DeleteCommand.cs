@@ -33,7 +33,7 @@ internal static class DeleteCommand
             return;
         }
 
-        var stopRequest = await HttpInvocation.HttpClient.DeleteAsync($"/{name}/delete?forceStop={force}", ct);
+        var stopRequest = await HttpInvocation.DeleteAsync("Stopping and deleting", $"/{name}/delete?forceStop={force}", ct);
 
         if (!stopRequest.IsSuccessStatusCode)
         {

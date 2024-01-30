@@ -54,7 +54,8 @@ internal static class LogsCommand
         var showBeforeParam = showBefore is not null ? $"&before={showBefore}" : null;
         var showAfterParam = showAfter is not null ? $"&after={showAfter}" : null;
 
-        var logsRequest = await HttpInvocation.HttpClient.GetAsync(
+        var logsRequest = await HttpInvocation.GetAsync(
+            "Getting logs",
             $"/{name}/logs?lines={lines}&noStreaming={noStreaming}{showBeforeParam}{showAfterParam}",
             HttpCompletionOption.ResponseHeadersRead,
             ct

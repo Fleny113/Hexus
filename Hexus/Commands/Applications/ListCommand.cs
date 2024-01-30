@@ -30,7 +30,7 @@ internal static class ListCommand
             return;
         }
 
-        var listRequest = await HttpInvocation.HttpClient.GetAsync("/list", ct);
+        var listRequest = await HttpInvocation.GetAsync("Getting application list", "/list", ct);
 
         if (!listRequest.IsSuccessStatusCode)
         {

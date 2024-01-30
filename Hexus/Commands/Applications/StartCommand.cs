@@ -30,7 +30,7 @@ internal static class StartCommand
             return;
         }
 
-        var startRequest = await HttpInvocation.HttpClient.PostAsync($"/{name}", null, ct);
+        var startRequest = await HttpInvocation.PostAsync("Starting application", $"/{name}", null, ct);
 
         if (!startRequest.IsSuccessStatusCode)
         {

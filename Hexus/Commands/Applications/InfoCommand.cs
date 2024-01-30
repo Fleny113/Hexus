@@ -40,7 +40,7 @@ internal static class InfoCommand
             return;
         }
 
-        var infoRequest = await HttpInvocation.HttpClient.GetAsync($"/{name}", ct);
+        var infoRequest = await HttpInvocation.GetAsync("Gathering information", $"/{name}", ct);
 
         if (!infoRequest.IsSuccessStatusCode)
         {

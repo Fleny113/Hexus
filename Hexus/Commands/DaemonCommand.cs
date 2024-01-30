@@ -51,7 +51,7 @@ internal static class DaemonCommand
             return;
         }
 
-        var req = await HttpInvocation.HttpClient.DeleteAsync("/daemon/stop", ct);
+        var req = await HttpInvocation.DeleteAsync("Stopping the running daemon", "/daemon/stop", ct);
 
         if (!req.IsSuccessStatusCode)
         {
