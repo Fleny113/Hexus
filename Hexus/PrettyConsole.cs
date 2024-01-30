@@ -16,7 +16,7 @@ public static class PrettyConsole
         ColorSystem = ColorSystemSupport.Detect,
         Out = new AnsiConsoleOutput(Console.Out),
     });
-    
+
     public static IAnsiConsole OutLimitlessWidth { get; } = AnsiConsole.Create(new AnsiConsoleSettings
     {
         Ansi = AnsiSupport.Detect,

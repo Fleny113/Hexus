@@ -9,13 +9,13 @@ internal partial class PerformanceTrackingService(ILogger<PerformanceTrackingSer
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         var interval = TimeSpan.FromSeconds(configuration.CpuRefreshIntervalSeconds);
-        
+
         if (interval.TotalMilliseconds is <= 0 or >= uint.MaxValue)
         {
             LogDisablePerformanceTracking(logger, configuration.CpuRefreshIntervalSeconds);
             return;
         }
-        
+
         var timer = new PeriodicTimer(interval);
 
         while (!ct.IsCancellationRequested && await timer.WaitForNextTickAsync(ct))
@@ -84,7 +84,7 @@ internal partial class PerformanceTrackingService(ILogger<PerformanceTrackingSer
 
         return [application.Process, ..application.Process.GetChildProcesses()];
     }
-    
+
     [LoggerMessage(LogLevel.Warning, "Disabling the CPU performance tracking. An invalid interval ({interval}s) was passed in.")]
     private static partial void LogDisablePerformanceTracking(ILogger logger, double interval);
 }

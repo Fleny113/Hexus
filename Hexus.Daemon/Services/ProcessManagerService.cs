@@ -33,7 +33,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
         processInfo.Environment.Clear();
 
-        foreach (var (key, value) in application.EnvironmentVariables) 
+        foreach (var (key, value) in application.EnvironmentVariables)
             processInfo.Environment.Add(key, value);
 
         var process = Process.Start(processInfo);
@@ -165,9 +165,9 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
     {
         if (logType != LogType.System)
             LogApplicationOutput(logger, application.Name, message);
-        
+
         var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
-        
+
         application.LogChannels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
         application.LogSemaphore.Wait();
 

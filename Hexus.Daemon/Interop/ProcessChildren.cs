@@ -49,7 +49,7 @@ internal class ProcessChildren
 
     private static int ConvertToInt(string value)
     {
-        if (int.TryParse(value, out var parsed)) 
+        if (int.TryParse(value, out var parsed))
             return parsed;
 
         return -1;

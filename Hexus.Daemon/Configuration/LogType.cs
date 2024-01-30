@@ -12,7 +12,7 @@ public sealed class LogType
     public static readonly LogType StdErr = new("STDERR");
 
     public readonly string Name;
-    
+
     private LogType(string name)
     {
         Name = name;

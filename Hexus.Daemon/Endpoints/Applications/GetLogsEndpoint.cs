@@ -101,7 +101,7 @@ internal partial class GetLogsEndpoint : IEndpoint
             stream.Position = stream.Length - 1;
 
             // If the last character is a LF we can skip it as it isn't a log line.
-            if (stream.ReadByte() == '\n') 
+            if (stream.ReadByte() == '\n')
                 stream.Position -= 2;
 
             while (lineFound < lines)

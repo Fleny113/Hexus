@@ -10,7 +10,7 @@ public class DictionaryBinder(Option<Dictionary<string, string>> option) : Binde
 
     protected override Dictionary<string, string> GetBoundValue(BindingContext bindingContext)
     {
-        if (option is not Option genericOption) 
+        if (option is not Option genericOption)
             throw new ArgumentException("Couldn't convert option to the generic variant");
 
         var tokens = bindingContext.ParseResult.GetValueForOption(genericOption);
@@ -18,7 +18,7 @@ public class DictionaryBinder(Option<Dictionary<string, string>> option) : Binde
         if (tokens is null)
             return [];
 
-        if (tokens is not List<Token> tokenList) 
+        if (tokens is not List<Token> tokenList)
             throw new Exception("Couldn't parse the options as a list of tokens");
 
         return tokenList

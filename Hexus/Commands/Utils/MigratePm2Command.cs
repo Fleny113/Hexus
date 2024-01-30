@@ -51,9 +51,9 @@ internal static class MigratePm2Command
         "kill_retry_time",
         "exit_code",
     ];
-    
+
     private static readonly Option<string> Pm2DumpFile = new("--pm2-dump", "The pm2 dump file");
-    
+
     public static readonly Command Command = new("migrate-pm2", "Migrate your current PM2 Config to Hexus.")
     {
         Pm2DumpFile,
@@ -62,7 +62,7 @@ internal static class MigratePm2Command
     static MigratePm2Command()
     {
         Pm2DumpFile.SetDefaultValue(EnvironmentHelper.NormalizePath($"{EnvironmentHelper.Home}/.pm2/dump.pm2"));
-        
+
         Command.SetHandler(Handler);
     }
 
@@ -70,9 +70,9 @@ internal static class MigratePm2Command
     {
         var pm2Dump = context.ParseResult.GetValueForOption(Pm2DumpFile);
         var ct = context.GetCancellationToken();
-        
+
         PrettyConsole.Error.MarkupLine("[yellow]WARNING[/]: This has been tested with PM2 5.3.0. It might not work with other versions.");
-        
+
         if (await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine("To edit the Hexus configuration the [indianred1]daemon needs to not be running[/]. Stop it first using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.");
@@ -104,7 +104,7 @@ internal static class MigratePm2Command
 
                 var execMode = appConfig["exec_mode"]!.GetValue<string>();
                 var name = appConfig["name"]!.GetValue<string>();
-                
+
                 if (execMode != "fork_mode")
                 {
                     PrettyConsole.Error.MarkupLineInterpolated($"[yellow]WARNING[/]: The application \"{name}\" where the exec mode is set to \"{execMode}\" has been ignored as Hexus supports fork_mode applications only");
@@ -112,7 +112,7 @@ internal static class MigratePm2Command
                 }
 
                 var hexusApplication = new HexusApplication { Name = name, Executable = null! };
-                
+
                 foreach (var (key, value) in appConfig)
                 {
                     if (!Pm2KnownConfig.Contains(key))
@@ -120,9 +120,9 @@ internal static class MigratePm2Command
                         if (value!.GetValueKind() == JsonValueKind.String)
                         {
                             hexusApplication.EnvironmentVariables.Add(key, value.GetValue<string>());
-                        }                      
+                        }
                     }
-                    
+
                     switch (key)
                     {
                         case "pm_exec_path":
@@ -133,7 +133,7 @@ internal static class MigratePm2Command
                                 hexusApplication.Arguments = $"{hexusApplication.Executable} {hexusApplication.Arguments}";
                                 hexusApplication.Executable = NewCommand.TryResolveExecutable("node");
                             }
-                            
+
                             break;
                         case "args":
                             var joinedArgs = string.Join(" ", value!.AsArray());
@@ -160,7 +160,7 @@ internal static class MigratePm2Command
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException("There was an error parsing the pm2 dump config, see inner exception for details", ex); 
+            throw new InvalidOperationException("There was an error parsing the pm2 dump config, see inner exception for details", ex);
         }
 
         foreach (var application in parsedApplications)

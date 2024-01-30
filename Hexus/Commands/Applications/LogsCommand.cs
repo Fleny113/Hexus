@@ -17,7 +17,7 @@ internal static class LogsCommand
 
     private static readonly Option<DateTime?> ShowLogsAfter = new(["-a", "--after"], "Show logs only after a specified date.");
     private static readonly Option<DateTime?> ShowLogsBefore = new(["-b", "--before"], "Show logs only before a specified date.");
-    
+
     public static readonly Command Command = new("logs", "View the logs of an application")
     {
         NameArgument,
@@ -43,17 +43,17 @@ internal static class LogsCommand
         var showAfter = context.ParseResult.GetValueForOption(ShowLogsAfter);
         var showBefore = context.ParseResult.GetValueForOption(ShowLogsBefore);
         var ct = context.GetCancellationToken();
-        
+
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
             context.ExitCode = 1;
             return;
         }
-        
+
         var showBeforeParam = showBefore is not null ? $"&before={showBefore}" : null;
         var showAfterParam = showAfter is not null ? $"&after={showAfter}" : null;
-        
+
         var logsRequest = await HttpInvocation.HttpClient.GetAsync(
             $"/{name}/logs?lines={lines}&noStreaming={noStreaming}{showBeforeParam}{showAfterParam}",
             HttpCompletionOption.ResponseHeadersRead,
@@ -74,7 +74,7 @@ internal static class LogsCommand
             await foreach (var logLine in logs)
             {
                 if (logLine is null) continue;
-             
+
                 PrintLogLine(logLine, !noDates);
             }
         }
@@ -88,13 +88,13 @@ internal static class LogsCommand
     {
         var baseLogLine = $"{log.LogType.Name} |[/] {log.Text.EscapeMarkup()}";
         var color = GetLogTypeColor(log.LogType.Name);
-        
+
         if (showDates)
         {
             PrettyConsole.OutLimitlessWidth.MarkupLine($"{log.Date.ToString(ApplicationLog.DateTimeFormat)} [{color}]| {baseLogLine}");
             return;
         }
-        
+
         PrettyConsole.OutLimitlessWidth.MarkupLine($"[{color}]{baseLogLine}");
     }
 

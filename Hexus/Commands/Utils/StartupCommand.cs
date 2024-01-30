@@ -20,7 +20,7 @@ internal static class StartupCommand
     private const string UnitSectionColor = "#afd75f";
     private const string UnitKeyColor = "#d85252";
     private const string UnitValueColor = "#d7d787";
-    
+
     static StartupCommand()
     {
         Command.SetHandler(Handler);
@@ -30,21 +30,21 @@ internal static class StartupCommand
     {
         var executable = Process.GetCurrentProcess().MainModule?.FileName;
         var username = Environment.UserName;
-        
+
         if (executable is null)
         {
             PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] in getting the filename for Hexus");
             context.ExitCode = 1;
             return;
         }
-        
+
         var startRule = new Rule()
             .Centered()
             .RuleStyle(Color.Gold1);
-            
+
         var endRule = new Rule()
             .RuleStyle(Color.Gold1);
-        
+
         if (OperatingSystem.IsWindows())
         {
             var windowsUser = WindowsIdentity.GetCurrent().Name;
@@ -67,19 +67,19 @@ internal static class StartupCommand
                 PrettyConsole.OutLimitlessWidth.MarkupLine(powershellCommand);
                 return;
             }
-            
+
             PrettyConsole.Out.Write(startRule);
             PrettyConsole.Out.WriteLine();
             PrettyConsole.OutLimitlessWidth.MarkupLine(powershellCommand);
             PrettyConsole.Out.WriteLine();
             PrettyConsole.Out.Write(endRule);
-            
+
             return;
-            
-            string Variable(string variable) => Console.IsOutputRedirected ? variable.EscapeMarkup() : $"[{PowershellVariableColor}]{variable.EscapeMarkup()}[/]"; 
-            string Cmdlet(string cmdlet) => Console.IsOutputRedirected ? cmdlet.EscapeMarkup() : $"[{PowershellCmdletColor}]{cmdlet.EscapeMarkup()}[/]"; 
-            string Operator(string @operator) => Console.IsOutputRedirected ? @operator.EscapeMarkup() : $"[{PowershellOperatorColor}]{@operator.EscapeMarkup()}[/]"; 
-            string String(string @string) => Console.IsOutputRedirected ? $"\"{@string.EscapeMarkup()}\"" : $"[{PowershellStringColor}]\"{@string.EscapeMarkup()}\"[/]"; 
+
+            string Variable(string variable) => Console.IsOutputRedirected ? variable.EscapeMarkup() : $"[{PowershellVariableColor}]{variable.EscapeMarkup()}[/]";
+            string Cmdlet(string cmdlet) => Console.IsOutputRedirected ? cmdlet.EscapeMarkup() : $"[{PowershellCmdletColor}]{cmdlet.EscapeMarkup()}[/]";
+            string Operator(string @operator) => Console.IsOutputRedirected ? @operator.EscapeMarkup() : $"[{PowershellOperatorColor}]{@operator.EscapeMarkup()}[/]";
+            string String(string @string) => Console.IsOutputRedirected ? $"\"{@string.EscapeMarkup()}\"" : $"[{PowershellStringColor}]\"{@string.EscapeMarkup()}\"[/]";
             string Comment(string comment) => Console.IsOutputRedirected ? comment.EscapeMarkup() :  $"[{PowershellCommentColor}]{comment.EscapeMarkup()}[/]";
         }
 
@@ -101,26 +101,26 @@ internal static class StartupCommand
             [[{Section("Install")}]]
             {Key("WantedBy")}={Value("multi-user.target")}
             """;
-            
+
             startRule.RuleTitle("[white]Startup systemd service[/]");
-            
+
             if (Console.IsOutputRedirected)
             {
                 PrettyConsole.OutLimitlessWidth.MarkupLine(unitFile);
                 return;
             }
-            
+
             PrettyConsole.Out.Write(startRule);
             PrettyConsole.Out.WriteLine();
             PrettyConsole.OutLimitlessWidth.MarkupLine(unitFile);
             PrettyConsole.Out.WriteLine();
             PrettyConsole.Out.Write(endRule);
-            
+
             return;
-            
+
             string Section(string section) => Console.IsOutputRedirected ? section.EscapeMarkup() : $"[{UnitSectionColor}]{section.EscapeMarkup()}[/]";
-            string Key(string key) => Console.IsOutputRedirected ? key.EscapeMarkup() : $"[{UnitKeyColor}]{key.EscapeMarkup()}[/]"; 
-            string Value(string value) => Console.IsOutputRedirected ? value.EscapeMarkup() : $"[{UnitValueColor}]{value.EscapeMarkup()}[/]"; 
+            string Key(string key) => Console.IsOutputRedirected ? key.EscapeMarkup() : $"[{UnitKeyColor}]{key.EscapeMarkup()}[/]";
+            string Value(string value) => Console.IsOutputRedirected ? value.EscapeMarkup() : $"[{UnitValueColor}]{value.EscapeMarkup()}[/]";
         }
 
         throw new NotSupportedException("The generation of the startup code is available only for Linux (systemd) and Windows");

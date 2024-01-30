@@ -11,18 +11,18 @@ namespace Hexus.Commands.Utils;
 internal static class UpdateCommand
 {
     private static readonly Option<bool> CiBuildOption = new("--ci", "Use a build from ci");
-    
+
     public static readonly Command Command = new("update", "Update hexus to the latest version")
     {
         CiBuildOption,
     };
-    
+
 #if SELF_CONTAINED
     private const string Variant = "self-contained";
 #else
     private const string Variant = "runtime";
 #endif
-    
+
     static UpdateCommand()
     {
         Command.SetHandler(Handler);
@@ -32,7 +32,7 @@ internal static class UpdateCommand
     {
         var ci = context.ParseResult.GetValueForOption(CiBuildOption);
         var ct = context.GetCancellationToken();
-        
+
         if (await HttpInvocation.CheckForRunningDaemon(ct) && OperatingSystem.IsWindows())
         {
             PrettyConsole.Error.MarkupLine("The [indianred1]daemon needs to not be running[/] to update hexus on Windows. Stop it first using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.");
@@ -40,11 +40,11 @@ internal static class UpdateCommand
         }
 
         var file = $"{RuntimeInformation.RuntimeIdentifier}-{Variant}.tar.gz";
-        
-        var link = ci 
-            ? $"https://github.com/Fleny113/Hexus/releases/download/ci/{file}" 
+
+        var link = ci
+            ? $"https://github.com/Fleny113/Hexus/releases/download/ci/{file}"
             : $"https://github.com/Fleny113/Hexus/releases/latest/download/{file}";
-        
+
         var currentPath = Environment.ProcessPath;
 
         if (currentPath is null)
@@ -52,9 +52,9 @@ internal static class UpdateCommand
             PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] fetching the current executable path.");
             return;
         }
-        
+
         PrettyConsole.Out.MarkupLineInterpolated($"Downloading the updated binary from \"{link}\".");
-        
+
         using var httpClient = new HttpClient();
         using var tar = await httpClient.GetAsync(link, ct);
 
@@ -64,20 +64,20 @@ internal static class UpdateCommand
             PrettyConsole.Error.MarkupLineInterpolated($"There [indianred1]was an error[/] fetching the updated binary. HTTP status code: {tar.StatusCode}, body: \"{body}\"");
             return;
         }
-        
+
         await using var stream = await tar.Content.ReadAsStreamAsync(ct);
 
         await using var gzipStream = new GZipStream(stream, CompressionMode.Decompress);
         await using var tarReader = new TarReader(gzipStream);
 
         var tempFileExec = Path.GetTempFileName();
-        
+
         while (await tarReader.GetNextEntryAsync(cancellationToken: ct) is { DataStream: not null } entry)
         {
             // Find the hexus (or hexus.exe) file
             if (!entry.Name.StartsWith("hexus"))
                 continue;
-            
+
             await entry.ExtractToFileAsync(tempFileExec, overwrite: true, cancellationToken: ct);
             break;
         }
@@ -86,7 +86,7 @@ internal static class UpdateCommand
         if (OperatingSystem.IsWindows())
         {
             var tempFileScript = $"{Path.GetTempFileName()}.bat";
-            
+
             // there is a timeout delay to allow for the CLI to exit
             var script = $"""
                           @echo off
@@ -95,19 +95,19 @@ internal static class UpdateCommand
                           move "{tempFileExec}" "{currentPath}"
                           del "%~f0"
                           """;
-            
+
             await File.WriteAllTextAsync(tempFileScript, script, ct);
-            
+
             PrettyConsole.Out.MarkupLine("[yellow]WARNING[/]: To update hexus a batch script will run to replace the file. Please wait about 5 seconds before restarting hexus.");
             Process.Start(new ProcessStartInfo(tempFileScript)
             {
-                UseShellExecute = false, 
+                UseShellExecute = false,
                 CreateNoWindow = true,
             });
 
             return;
         }
-        
+
         File.Move(tempFileExec, currentPath, overwrite: true);
         PrettyConsole.Out.MarkupLine("[springgreen1]Update done[/], restart the daemon to make the update have effect on it too.");
     }
