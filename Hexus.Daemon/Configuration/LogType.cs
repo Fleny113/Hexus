@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace Hexus.Daemon.Configuration;
 
-[JsonConverter(typeof(JsonConverter))]
+[JsonConverter(typeof(LogTypeJsonConverter))]
 public sealed class LogType
 {
     public static readonly LogType System = new("SYSTEM");
@@ -18,6 +18,7 @@ public sealed class LogType
         Name = name;
     }
 
+    public override string ToString() => Name;
 
     public static bool TryParse(ReadOnlySpan<char> span, [MaybeNullWhen(false)] out LogType result)
     {
@@ -32,7 +33,7 @@ public sealed class LogType
         return result is not null;
     }
 
-    internal class JsonConverter : JsonConverter<LogType>
+    internal class LogTypeJsonConverter : JsonConverter<LogType>
     {
         public override LogType? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {

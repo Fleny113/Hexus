@@ -17,6 +17,7 @@ internal static class LogsCommand
 
     private static readonly Option<DateTime?> ShowLogsAfter = new(["-a", "--after"], "Show logs only after a specified date.");
     private static readonly Option<DateTime?> ShowLogsBefore = new(["-b", "--before"], "Show logs only before a specified date.");
+    private static readonly Option<string> Timezone = new(["-t", "--timezone"], "Show the log dates in a specified timezone. The timezone should be compatible with the one provided by your system. Defaults to the local computer timezone.");
 
     public static readonly Command Command = new("logs", "View the logs of an application")
     {
@@ -26,10 +27,21 @@ internal static class LogsCommand
         DontShowDates,
         ShowLogsAfter,
         ShowLogsBefore,
+        Timezone,
     };
 
     static LogsCommand()
     {
+        Timezone.AddValidator(result =>
+        {
+            var timezone = result.GetValueForOption(Timezone);
+
+            if (timezone is null) return;
+            if (TimeZoneInfo.TryFindSystemTimeZoneById(timezone, out _)) return;
+
+            result.ErrorMessage = $"The TimeZone was not found on the local computer: {timezone}";
+        });
+
         Command.AddAlias("log");
         Command.SetHandler(Handler);
     }
@@ -42,6 +54,7 @@ internal static class LogsCommand
         var noDates = context.ParseResult.GetValueForOption(DontShowDates);
         var showAfter = context.ParseResult.GetValueForOption(ShowLogsAfter);
         var showBefore = context.ParseResult.GetValueForOption(ShowLogsBefore);
+        var timezone = TimeZoneInfo.FindSystemTimeZoneById(context.ParseResult.GetValueForOption(Timezone) ?? TimeZoneInfo.Local.Id);
         var ct = context.GetCancellationToken();
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
@@ -76,7 +89,7 @@ internal static class LogsCommand
             {
                 if (logLine is null) continue;
 
-                PrintLogLine(logLine, !noDates);
+                PrintLogLine(logLine, timezone, !noDates);
             }
         }
         catch (TaskCanceledException)
@@ -85,18 +98,15 @@ internal static class LogsCommand
         }
     }
 
-    private static void PrintLogLine(ApplicationLog log, bool showDates)
+    private static void PrintLogLine(ApplicationLog log, TimeZoneInfo timeZoneInfo, bool showDates)
     {
-        var baseLogLine = $"{log.LogType.Name} |[/] {log.Text.EscapeMarkup()}";
         var color = GetLogTypeColor(log.LogType.Name);
 
-        if (showDates)
-        {
-            PrettyConsole.OutLimitlessWidth.MarkupLine($"{log.Date.ToString(ApplicationLog.DateTimeFormat)} [{color}]| {baseLogLine}");
-            return;
-        }
+        var timezone = TimeZoneInfo.ConvertTime(log.Date, timeZoneInfo);
+        var date = showDates ? timezone.ToString(ApplicationLog.DateTimeFormat) : null;
+        var dateSeparator = showDates ? " | " : null;
 
-        PrettyConsole.OutLimitlessWidth.MarkupLine($"[{color}]{baseLogLine}");
+        PrettyConsole.OutLimitlessWidth.MarkupLine($"{date}[{color}]{dateSeparator}{log.LogType} |[/] {log.Text.EscapeMarkup()}");
     }
 
     private static Color GetLogTypeColor(ReadOnlySpan<char> logType) => logType switch
