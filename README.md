@@ -3,8 +3,7 @@
 [![.NET build status](https://github.com/Fleny113/Hexus/actions/workflows/dotnet.yml/badge.svg?branch=main&event=push)](https://github.com/Fleny113/Hexus/actions/workflows/dotnet.yml)
 ![](https://img.shields.io/badge/.NET-8.0-purple)
 
-Hexus is a process manager built using .NET 8 designed to work on Linux and Windows seamlessly
-while being nice and simple to use
+Hexus is a process manager built using .NET 8 designed to work on Linux and Windows seamlessly while being nice and simple to use
 
 ## Features
 
@@ -13,17 +12,19 @@ while being nice and simple to use
 - All the logs are in a single place ready to be read with timestamps and type of output
 - Keeps track of the complete usage of resources of an application, including child processes
 - Has a nice and simple CLI to use to manage all your applications
-- Can autogenerates the startup scripts for you to customize based on your needs for Windows (Windows Task Scheduler) and Linux (systemd)
-- Exposes both socket and HTTP port for the requests to the daemon, _under windows sockets are supported_
+- Can autogenerate the startup scripts for you to customize based on your needs for Windows (Windows Task Scheduler) and Linux (systemd)
+- Exposes both socket and (optional) HTTP port for the requests to the daemon, _under windows sockets are supported_
 
 ## Installation
 
 Download the binary from the latest CI release below or compile it using the [`.NET 8`](https://get.dot.net/8) SDK.
 
-| Architecture |                                           Windows                                           |                                       Windows self contained                                       |                                             Linux                                             |                                         Linux self contained                                         |
-| :----------: | :-----------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------: |:----------------------------------------------------------------------------------------------------:|
-|     x64      |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-x64-runtime.tar.gz)  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-x64-self-contained.tar.gz)  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-x64-runtime.tar.gz)  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-x64-self-contained.tar.gz)  |
-|    arm64     | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-arm64-runtime.tar.gz) | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-arm64-self-contained.tar.gz) | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-arm64-runtime.tar.gz) | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-arm64-self-contained.tar.gz) |
+|      OS       |                                            Self-contained                                            |                                       Runtime dependent                                       |
+|:-------------:|:----------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------:|
+| Windows amd64 |   [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-x64-self-contained.tar.gz)   |   [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-x64-runtime.tar.gz)   |
+|  Linux amd64  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-x64-self-contained.tar.gz)  |  [CI build](https://github.com/fleny113/Hexus/releases/download/ci/linux-x64-runtime.tar.gz)  |
+| Windows arm64 |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-arm64-self-contained.tar.gz)  |  [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/win-arm64-runtime.tar.gz)  |
+|  Linux arm64  | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-arm64-self-contained.tar.gz) | [CI Build](https://github.com/fleny113/Hexus/releases/download/ci/linux-arm64-runtime.tar.gz) |
 
 ### Compilation
 
@@ -44,11 +45,9 @@ Optionally you can add `--self-contained` to remove the need for the .NET Runtim
 
 #### Start the daemon
 
-Hexus requires you to start the daemon manually before you can start using it. To start the daemon run the command `hexus daemon start` and if you want to stop it without sending a CTRL + C
-or a kill signal to the process you can use the `hexus daemon stop` command.
+Hexus requires you to start the daemon manually before you can start using it. To start the daemon run the command `hexus daemon start` and if you want to stop it without sending a CTRL + C or a kill signal to the process you can use the `hexus daemon stop` command.
 
-If you want to add the Hexus daemon to the startup you can use the `hexus startup` command that will detect what platform you are on and give you a powershell script for the windows task scheduler
-when run under windows and a systemd unit service file when running under Linux to quickly setup the startup process.
+If you want to add the Hexus daemon to the startup you can use the `hexus startup` command that will detect what platform you are on and give you a powershell script for the windows task scheduler when run under windows and a systemd unit service file when running under Linux to quickly setup the startup process.
 
 > [!TIP]
 > When the command of `hexus startup` is redirected it won't output the decorations around the text to be easier to use the script/service that it creates
@@ -58,11 +57,13 @@ when run under windows and a systemd unit service file when running under Linux 
 
 #### New application
 
-Creating a new application is really easy: Just give your application a name and then type the command to run it just as normal and optionally add flags to for example add an environment variable
+Creating a new application is really easy: Just give your application a name and then type the command to run it just as normal and optionally add flags
 
 ```sh
 hexus new <name> <executable> [<arguments>] [<flags>]
 ```
+
+All the flags are available in the help for the command, you can use the `--help` or `-h` flag to see it.
 
 #### List applications
 
@@ -82,7 +83,18 @@ To read all the application logs (By default stored under `~/.local/state/hexus/
 hexus logs <application name>
 ```
 
-You can also pass the `--lines` (or `-l`) to select the number of lines to fetch from the log file or you can use the `--no-streaming` flag to disable the streaming of logs to the console while the command is active
+##### Flags
+
+- `--lines` or `-l` to select a number of lines to fetch from the log file
+- `--no-streaming` to disable the streaming of logs to the console while the command is active
+- `--no-dates` to disable the Hexus provided timestamp of the log lines
+- `--after` or `-a` to select logs that have a timestamp after the one provided (does not get affected by `--timezone`)
+- `--before` or `-b` to select logs that have a timestamp before the one provided (does not get affected by `--timezone`)
+- `--timezone` timezone of the Hexus provided timestamps, should be picked from the system-provided timezones. Defaults to the computer current timezone.
+
+All the flags are available in the help for the command, you can use the `--help` or `-h` flag to see it.
+
+##### Log file
 
 If you want to manually parse the log files the format is as follows: `[<date>,<type>] <message>` where
 
@@ -92,12 +104,13 @@ If you want to manually parse the log files the format is as follows: `[<date>,<
 
 #### Start / Stop / Restart / Delete application
 
-To start an application you can use the `hexus start <name>` command with the name right after and to stop an application you can use the `hexus stop <name>` command with the name right after,
-for the stop command you can also specify the `--force` flag what will kill as soon as possibile the application without sending a CTRl + C.
+To start an application you can use the `hexus start <name>` command with the name right after and to stop an application you can use the `hexus stop <name>` command with the name right after, for the stop command you can also specify the `--force` flag what will kill as soon as possible the application without sending a CTRl + C.
 
 Similar to the stop command you can also restart an application with the name of it using the `hexus restart <name>` command with, if wanted, the `--force` flag to force the stop of the application
 
 If you don't want to have an application you can use the `hexus delete <name>` command to remove it from the applications. This command also supports the `--force` flag to stop the application by force
+
+All the flags are available in the help for the command, you can use the `--help` or `-h` flag to see it.
 
 > [!WARNING]
 > When deleting an application the log file will also be deleted
@@ -140,22 +153,19 @@ The available options in the yaml file are:
 Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2` file. You can use the `migrate-pm2` command with, optionally, the `--pm2-dump` option in case you are not using the default `$HOME/.pm2/dump.pm2` file, just remember to run `pm2 save` before you run the command.
 
 > [!WARNING]
-> Hexus only supports migrating from pm2 `5.3.0`, using another version might give errors. Migrating apps that are configured as cluster in pm2 will fail
-> and Hexus will skip them as Hexus supports `fork_mode` only.
+> Hexus only supports migrating from pm2 `5.3.0`, using another version might give errors. Migrating apps that are configured as cluster in pm2 will fail and Hexus will skip them as Hexus supports `fork_mode` only.
 >
-> Hexus also will try to avoid name conflicts by adding the `-pm2` suffix if an application is already found in the exiting configuration.
-> If with the suffix Hexus wasn't able to save the application it will skip the application.
+> Hexus uses names to discriminate on what application the operation should be took, for this reason if there are name conflicts with exiting application Hexus will try to save the application with the same name, if that fails due to an application having the same name Hexus will add the `-pm2` suffix. If even at that point there were conflicts with exiting application, Hexus will log out on what application it failed for you to configure it manually
 
 ## Roadmap
 
 - Add log rotation support
+- Web application with a management UI, optionally exposed with the HTTP port
 
 ## Limitations
 
-- MacOS is not supported as Hexus needs to get the child processes for an application to calculate the correct RAM and CPU usages,
-  and i don't have anything to test how to get them.
-- Under Windows the update command requires a about 5 seconds to wait to allow the CLI to exit and the script to replace the file 
-  to run. This is to bypass the file locking in Windows 
+- MacOS is not supported as Hexus needs to get the child processes for an application to calculate the correct RAM and CPU usages,   and i don't have anything to test how to get them.
+- Under Windows the update command requires a about 5 seconds to wait to allow the CLI to exit and the script to replace the file to run. This is to bypass the file locking in Windows 
 
 ## License
 
@@ -163,5 +173,4 @@ Hexus is under the [MIT license](./LICENSE.md)
 
 ### Third party
 
-Hexus uses [windows-kill](https://github.com/ElyDotDev/windows-kill) to manage the send of
-CTRL + C on Windows, due to the complication it brings having to send a SIGINT in a Windows environment. The license for [windows-kill](https://github.com/ElyDotDev/windows-kill) can be found in the [LICENSE](./LICENSE.md) file under the Third party section.
+Hexus uses [windows-kill](https://github.com/ElyDotDev/windows-kill) to manage the send of CTRL + C (SIGINT) on Windows, due to the complication it brings having to send a SIGINT in a Windows environment. The license for [windows-kill](https://github.com/ElyDotDev/windows-kill) can be found in the [LICENSE](./LICENSE.md) file under the Third party section.
