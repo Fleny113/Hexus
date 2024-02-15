@@ -26,9 +26,9 @@ internal partial class PerformanceTrackingService(ILogger<PerformanceTrackingSer
                 {
                     RefreshCpuUsage(application);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // We don't care, it will just retry later.
+                    LogFailedRefresh(logger, ex, application.Name);
                 }
             }
         }
@@ -87,4 +87,7 @@ internal partial class PerformanceTrackingService(ILogger<PerformanceTrackingSer
 
     [LoggerMessage(LogLevel.Warning, "Disabling the CPU performance tracking. An invalid interval ({interval}s) was passed in.")]
     private static partial void LogDisablePerformanceTracking(ILogger logger, double interval);
+
+    [LoggerMessage(LogLevel.Error, "There was an error getting the updated CPU usage for application {Application}")]
+    private static partial void LogFailedRefresh(ILogger logger, Exception ex, string application);
 }
