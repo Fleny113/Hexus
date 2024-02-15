@@ -21,7 +21,7 @@ jobs:
       - name: Build
         run: dotnet build -c Release --no-restore
   publish:
-    name: Publish for ${{ matrix.platform }}-${{ matrix.arch }} (${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }})
+    name: Publish for platforms
     runs-on: ubuntu-latest
     needs: build
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
