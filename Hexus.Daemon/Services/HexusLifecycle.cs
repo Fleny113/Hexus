@@ -12,7 +12,7 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
     {
         var runningApplications = configManager.Configuration.Applications.Values
             .Where(application => application is { Status: HexusApplicationStatus.Running });
-        
+
         foreach (var application in runningApplications)
             processManager.StartApplication(application);
 
@@ -21,6 +21,7 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
 
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
+        DaemonStoppingTokenSource.Cancel();
         File.Delete(configManager.Configuration.UnixSocket);
 
         foreach (var application in processManager.Applications.Values)
