@@ -6,12 +6,15 @@ namespace Hexus.Commands.Applications;
 
 internal static class StopCommand
 {
-    private static readonly Argument<string> NameArgument = new("name", "The name of the application to stop");
+    private static readonly Argument<string[]> NamesArgument = new("name", "The name of the application to stop")
+    {
+        Arity = ArgumentArity.OneOrMore
+    };
     private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the stop of the application");
 
     public static readonly Command Command = new("stop", "Stop an application")
     {
-        NameArgument,
+        NamesArgument,
         ForceOption,
     };
 
@@ -22,7 +25,7 @@ internal static class StopCommand
 
     private static async Task Handler(InvocationContext context)
     {
-        var name = context.ParseResult.GetValueForArgument(NameArgument);
+        var names = context.ParseResult.GetValueForArgument(NamesArgument);
         var force = context.ParseResult.GetValueForOption(ForceOption);
         var ct = context.GetCancellationToken();
 
@@ -33,15 +36,18 @@ internal static class StopCommand
             return;
         }
 
-        var stopRequest = await HttpInvocation.DeleteAsync("Stopping application", $"/{name}?forceStop={force}", ct);
-
-        if (!stopRequest.IsSuccessStatusCode)
+        foreach (var name in names)
         {
-            await HttpInvocation.HandleFailedHttpRequestLogging(stopRequest, ct);
-            context.ExitCode = 1;
-            return;
-        }
+            var stopRequest = await HttpInvocation.DeleteAsync($"Stopping application: {name}", $"/{name}?forceStop={force}", ct);
 
-        PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [indianred1]stopped[/]!");
+            if (!stopRequest.IsSuccessStatusCode)
+            {
+                await HttpInvocation.HandleFailedHttpRequestLogging(stopRequest, ct);
+                context.ExitCode = 1;
+                continue;
+            }
+
+            PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [indianred1]stopped[/]!");
+        }
     }
 }

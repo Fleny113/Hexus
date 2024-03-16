@@ -115,35 +115,35 @@ internal static class HttpInvocation
         switch (request)
         {
             case { StatusCode: HttpStatusCode.BadRequest, Content.Headers.ContentType.MediaType: "application/problem+json" }:
-            {
-                var validationResponse = await request.Content.ReadFromJsonAsync<ProblemDetails>(JsonSerializerOptions, ct);
+                {
+                    var validationResponse = await request.Content.ReadFromJsonAsync<ProblemDetails>(JsonSerializerOptions, ct);
 
-                Debug.Assert(validationResponse is not null);
+                    Debug.Assert(validationResponse is not null);
 
-                var errorString = string.Join("\n", validationResponse.Errors.SelectMany(kvp => kvp.Value.Select(v => $"- [tan]{kvp.Key}[/]: {v}")));
+                    var errorString = string.Join("\n", validationResponse.Errors.SelectMany(kvp => kvp.Value.Select(v => $"- [tan]{kvp.Key}[/]: {v}")));
 
-                response = new ErrorResponse($"Validation errors: \n{errorString}");
-                break;
-            }
+                    response = new ErrorResponse($"Validation errors: \n{errorString}");
+                    break;
+                }
             case { StatusCode: HttpStatusCode.NotFound }:
-            {
-                response = new ErrorResponse("No application with this name has been found.");
-                break;
-            }
+                {
+                    response = new ErrorResponse("No application with this name has been found.");
+                    break;
+                }
             default:
-            {
-                try
                 {
-                    response = await request.Content.ReadFromJsonAsync<ErrorResponse>(JsonSerializerOptions, ct);
-                    response ??= new ErrorResponse("The daemon had an internal server error.");
-                    break;
+                    try
+                    {
+                        response = await request.Content.ReadFromJsonAsync<ErrorResponse>(JsonSerializerOptions, ct);
+                        response ??= new ErrorResponse("The daemon had an internal server error.");
+                        break;
+                    }
+                    catch
+                    {
+                        response = new ErrorResponse("<Unable to get the error from the daemon>");
+                        break;
+                    }
                 }
-                catch
-                {
-                    response = new ErrorResponse("<Unable to get the error from the daemon>");
-                    break;
-                }
-            }
         }
 
         PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[/] in handling the request: {response.Error}");

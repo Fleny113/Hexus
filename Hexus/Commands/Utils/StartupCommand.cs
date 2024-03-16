@@ -80,7 +80,7 @@ internal static class StartupCommand
             string Cmdlet(string cmdlet) => Console.IsOutputRedirected ? cmdlet.EscapeMarkup() : $"[{PowershellCmdletColor}]{cmdlet.EscapeMarkup()}[/]";
             string Operator(string @operator) => Console.IsOutputRedirected ? @operator.EscapeMarkup() : $"[{PowershellOperatorColor}]{@operator.EscapeMarkup()}[/]";
             string String(string @string) => Console.IsOutputRedirected ? $"\"{@string.EscapeMarkup()}\"" : $"[{PowershellStringColor}]\"{@string.EscapeMarkup()}\"[/]";
-            string Comment(string comment) => Console.IsOutputRedirected ? comment.EscapeMarkup() :  $"[{PowershellCommentColor}]{comment.EscapeMarkup()}[/]";
+            string Comment(string comment) => Console.IsOutputRedirected ? comment.EscapeMarkup() : $"[{PowershellCommentColor}]{comment.EscapeMarkup()}[/]";
         }
 
         if (OperatingSystem.IsLinux())

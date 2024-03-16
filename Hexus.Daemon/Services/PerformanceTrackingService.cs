@@ -66,7 +66,8 @@ internal partial class PerformanceTrackingService(ILogger<PerformanceTrackingSer
                 var cpuStats = application.CpuStatsMap.GetOrCreate(processId,
                     _ => new HexusApplication.CpuStats
                     {
-                        LastTotalProcessorTime = TimeSpan.Zero, LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
+                        LastTotalProcessorTime = TimeSpan.Zero,
+                        LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
                     });
 
                 return process.GetProcessCpuUsage(cpuStats);
@@ -82,7 +83,7 @@ internal partial class PerformanceTrackingService(ILogger<PerformanceTrackingSer
         if (application.Process is not { HasExited: false })
             return [];
 
-        return [application.Process, ..application.Process.GetChildProcesses()];
+        return [application.Process, .. application.Process.GetChildProcesses()];
     }
 
     [LoggerMessage(LogLevel.Warning, "Disabling the CPU performance tracking. An invalid interval ({interval}s) was passed in.")]

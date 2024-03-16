@@ -6,12 +6,15 @@ namespace Hexus.Commands.Applications;
 
 internal static class RestartCommand
 {
-    private static readonly Argument<string> NameArgument = new("name", "The name of the application to restart");
+    private static readonly Argument<string[]> NamesArgument = new("name", "The name of the application to restart")
+    {
+        Arity = ArgumentArity.OneOrMore
+    };
     private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the restart of the application");
 
     public static readonly Command Command = new("restart", "Restart an application")
     {
-        NameArgument,
+        NamesArgument,
         ForceOption,
     };
 
@@ -22,7 +25,7 @@ internal static class RestartCommand
 
     private static async Task Handler(InvocationContext context)
     {
-        var name = context.ParseResult.GetValueForArgument(NameArgument);
+        var names = context.ParseResult.GetValueForArgument(NamesArgument);
         var force = context.ParseResult.GetValueForOption(ForceOption);
         var ct = context.GetCancellationToken();
 
@@ -33,15 +36,18 @@ internal static class RestartCommand
             return;
         }
 
-        var restartRequest = await HttpInvocation.PatchAsync("Restarting application", $"/{name}/restart?forceStop={force}", null, ct);
-
-        if (!restartRequest.IsSuccessStatusCode)
+        foreach (var name in names)
         {
-            await HttpInvocation.HandleFailedHttpRequestLogging(restartRequest, ct);
-            context.ExitCode = 1;
-            return;
-        }
+            var restartRequest = await HttpInvocation.PatchAsync($"Restarting application: {name}", $"/{name}/restart?forceStop={force}", null, ct);
 
-        PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [darkolivegreen1]restarted[/]!");
+            if (!restartRequest.IsSuccessStatusCode)
+            {
+                await HttpInvocation.HandleFailedHttpRequestLogging(restartRequest, ct);
+                context.ExitCode = 1;
+                continue;
+            }
+
+            PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [darkolivegreen1]restarted[/]!");
+        }
     }
 }

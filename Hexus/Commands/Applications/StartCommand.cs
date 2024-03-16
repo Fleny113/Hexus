@@ -6,11 +6,14 @@ namespace Hexus.Commands.Applications;
 
 internal static class StartCommand
 {
-    private static readonly Argument<string> NameArgument = new("name", "The name of the application to start");
+    private static readonly Argument<string[]> NamesArgument = new("name", "The name of the application to start")
+    {
+        Arity = ArgumentArity.OneOrMore
+    };
 
     public static readonly Command Command = new("start", "Start an exiting application")
     {
-        NameArgument,
+        NamesArgument,
     };
 
     static StartCommand()
@@ -20,7 +23,7 @@ internal static class StartCommand
 
     private static async Task Handler(InvocationContext context)
     {
-        var name = context.ParseResult.GetValueForArgument(NameArgument);
+        var names = context.ParseResult.GetValueForArgument(NamesArgument);
         var ct = context.GetCancellationToken();
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
@@ -30,15 +33,18 @@ internal static class StartCommand
             return;
         }
 
-        var startRequest = await HttpInvocation.PostAsync("Starting application", $"/{name}", null, ct);
-
-        if (!startRequest.IsSuccessStatusCode)
+        foreach (var name in names)
         {
-            await HttpInvocation.HandleFailedHttpRequestLogging(startRequest, ct);
-            context.ExitCode = 1;
-            return;
-        }
+            var startRequest = await HttpInvocation.PostAsync($"Starting application: {name}", $"/{name}", null, ct);
 
-        PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [darkseagreen1_1]started[/]!");
+            if (!startRequest.IsSuccessStatusCode)
+            {
+                await HttpInvocation.HandleFailedHttpRequestLogging(startRequest, ct);
+                context.ExitCode = 1;
+                continue;
+            }
+
+            PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [darkseagreen1_1]started[/]!");
+        }
     }
 }
