@@ -17,7 +17,7 @@ internal partial class GetLogsEndpoint : IEndpoint
         [FromServices] HexusConfiguration configuration,
         [FromServices] ILogger<GetLogsEndpoint> logger,
         [FromRoute] string name,
-        [FromQuery] int lines = 10,
+        [FromQuery] int lines = 100,
         [FromQuery] bool noStreaming = false,
         [FromQuery] DateTimeOffset? before = null,
         [FromQuery] DateTimeOffset? after = null,
