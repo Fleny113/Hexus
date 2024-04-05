@@ -4,7 +4,7 @@ namespace Hexus.Daemon.Services;
 
 internal sealed class HexusLifecycle(HexusConfigurationManager configManager, ProcessManagerService processManager) : IHostedLifecycleService
 {
-    private static readonly CancellationTokenSource DaemonStoppingTokenSource = new();
+    internal static readonly CancellationTokenSource DaemonStoppingTokenSource = new();
     public static CancellationToken DaemonStoppingToken => DaemonStoppingTokenSource.Token;
     public static bool IsDaemonStopped => DaemonStoppingTokenSource.IsCancellationRequested;
 
@@ -21,11 +21,8 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
 
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
-        DaemonStoppingTokenSource.Cancel();
         File.Delete(configManager.Configuration.UnixSocket);
-
-        foreach (var application in processManager.Applications.Values)
-            processManager.StopApplication(application.Name);
+        StopApplications(processManager);
 
         return Task.CompletedTask;
     }
@@ -41,4 +38,15 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
 
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    internal static void StopApplications(ProcessManagerService processManagerService)
+    {
+        // We need to make sure where are only 1 call to this in parallel
+        // Else we might try to stop applications that exiting
+        lock (processManagerService)
+        {
+            Parallel.ForEach(processManagerService.Applications.Values,
+                application => processManagerService.StopApplication(application.Name));
+        }
+    }
 }

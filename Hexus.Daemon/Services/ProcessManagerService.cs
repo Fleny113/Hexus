@@ -79,7 +79,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         StopProcess(application.Process, forceStop);
         application.Status = HexusApplicationStatus.Exited;
 
-        // If the ASP.NET Core Hosting has stopped then we don't want to save to disk the exited application status
+        // If the daemon is shutting down we don't want to save, or else when the daemon is booted up again, all the applications will be marked as stopped
         if (!HexusLifecycle.IsDaemonStopped)
             configManager.SaveConfiguration();
 
@@ -213,12 +213,12 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void AcknowledgeProcessExit(object? sender, EventArgs e)
     {
-        if (sender is not Process process || !Applications.TryGetValue(process, out var application))
+        if (sender is not Process process || !Applications.TryRemove(process, out var application))
             return;
 
         var exitCode = process.ExitCode;
 
-        ProcessApplicationLog(application, LogType.System, "-- Application stopped --");
+        ProcessApplicationLog(application, LogType.System, $"-- Application stopped [Exit code: {exitCode}] --");
 
         application.Process?.Close();
         application.Process = null;

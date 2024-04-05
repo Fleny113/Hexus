@@ -89,7 +89,7 @@ internal static class StartupCommand
             [[{Section("Unit")}]]
             {Key("Description")}={Value($"Hexus process manager for user {username}")}
             {Key("After")}={Value("network.target")}
-            
+
             [[{Section("Service")}]]
             {Key("Type")}={Value("exec")}
             {Key("User")}={Value($"{username}")}
@@ -97,7 +97,8 @@ internal static class StartupCommand
             {Key("Restart")}={Value("on-failure")}
             {Key("ExecStart")}={Value($"{executable} daemon start")}
             {Key("ExecStop")}={Value($"{executable} daemon stop")}
-            
+            {Key("TimeoutStopSec")}={Value("1min")}
+
             [[{Section("Install")}]]
             {Key("WantedBy")}={Value("multi-user.target")}
             """;
