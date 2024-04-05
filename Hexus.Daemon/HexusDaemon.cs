@@ -28,6 +28,9 @@ internal static class HexusDaemon
                 options.ListenLocalhost(5104);
         });
 
+        // If we are running as a systemd service this will handle the Type=notify requirements
+        builder.Host.UseSystemd();
+
         builder.Services.ConfigureHttpJsonOptions(options =>
         {
             options.SerializerOptions.TypeInfoResolverChain.Clear();

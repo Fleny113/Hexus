@@ -91,7 +91,7 @@ internal static class StartupCommand
             {Key("After")}={Value("network.target")}
 
             [[{Section("Service")}]]
-            {Key("Type")}={Value("exec")}
+            {Key("Type")}={Value("notify")}
             {Key("User")}={Value($"{username}")}
             {Key("TasksMax")}={Value("infinity")}
             {Key("Restart")}={Value("on-failure")}
