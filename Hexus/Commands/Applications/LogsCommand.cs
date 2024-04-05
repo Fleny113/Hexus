@@ -49,7 +49,7 @@ internal static class LogsCommand
     private static async Task Handler(InvocationContext context)
     {
         var name = context.ParseResult.GetValueForArgument(NameArgument);
-        var lines = context.ParseResult.GetValueForOption(LinesOption) ?? 10;
+        var lines = context.ParseResult.GetValueForOption(LinesOption) ?? 100;
         var noStreaming = context.ParseResult.GetValueForOption(DontStream);
         var noDates = context.ParseResult.GetValueForOption(DontShowDates);
         var showAfter = context.ParseResult.GetValueForOption(ShowLogsAfter);
