@@ -87,20 +87,4 @@ internal class HexusConfigurationManager
             throw new Exception("Unable to parse the configuration file", exception);
         }
     }
-
-    internal static IEnumerable<KeyValuePair<string, string?>> FlatDictionary(Dictionary<object, object?>? dictionary, string prefix = "")
-    {
-        if (dictionary is null)
-            return [];
-
-        return dictionary
-            .Select(pair => new KeyValuePair<string, object?>(pair.Key.ToString() ?? "", pair.Value))
-            .SelectMany(
-                pair => pair.Value switch
-                {
-                    Dictionary<object, object?> subDictionary => FlatDictionary(subDictionary, $"{prefix}{pair.Key}:").AsEnumerable(),
-                    _ => new KeyValuePair<string, string?>[] { new($"{prefix}{pair.Key}", pair.Value?.ToString()) },
-                }
-            );
-    }
 }
