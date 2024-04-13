@@ -1,5 +1,6 @@
 ﻿using Hexus.Daemon;
 using Hexus.Daemon.Contracts;
+using Hexus.Daemon.Contracts.Responses;
 using Spectre.Console;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;

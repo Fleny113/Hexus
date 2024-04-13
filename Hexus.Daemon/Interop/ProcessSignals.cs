@@ -3,7 +3,7 @@ using System.Runtime.Versioning;
 
 namespace Hexus.Daemon.Interop;
 
-internal partial class ProcessSignals
+internal static partial class ProcessSignals
 {
     public static int NativeSendSignal(int pid, WindowsSignal windowsSignal, UnixSignal unixSignal)
     {

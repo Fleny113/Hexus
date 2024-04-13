@@ -1,6 +1,6 @@
 using Hexus.Daemon.Validators;
 
-namespace Hexus.Daemon.Contracts;
+namespace Hexus.Daemon.Contracts.Requests;
 
 public record EditApplicationRequest(
     string? Name = null,

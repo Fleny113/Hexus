@@ -1,5 +1,6 @@
 ﻿using EndpointMapper;
 using Hexus.Daemon.Contracts;
+using Hexus.Daemon.Contracts.Responses;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;

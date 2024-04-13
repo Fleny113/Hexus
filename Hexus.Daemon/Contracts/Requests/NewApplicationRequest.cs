@@ -1,7 +1,7 @@
 using Hexus.Daemon.Validators;
 using System.ComponentModel.DataAnnotations;
 
-namespace Hexus.Daemon.Contracts;
+namespace Hexus.Daemon.Contracts.Requests;
 
 public sealed record NewApplicationRequest(
     [property: Required] string Name,

@@ -1,4 +1,6 @@
-﻿namespace Hexus.Daemon.Contracts;
+﻿using Hexus.Daemon.Contracts.Responses;
+
+namespace Hexus.Daemon.Contracts;
 
 public static class ErrorResponses
 {

@@ -28,27 +28,11 @@ internal static class ProcessExtensions
 
     public static IEnumerable<Process> GetChildProcesses(this Process process)
     {
-        Func<int, Process[]> function;
-
         if (OperatingSystem.IsWindows())
-            function = ProcessChildren.GetChildProcessesWindows;
-        else if (OperatingSystem.IsLinux())
-            function = ProcessChildren.GetChildProcessesLinux;
-        else
-            throw new NotSupportedException("Getting the child processes is only supported on Windows and Linux");
+            return ProcessChildren.GetChildProcessesWindows(process.Id);
+        if (OperatingSystem.IsLinux())
+            return ProcessChildren.GetChildProcessesLinux(process.Id);
 
-        return GetChildProcesses(function, process.Id);
-    }
-
-    private static IEnumerable<Process> GetChildProcesses(Func<int, Process[]> function, int parentId)
-    {
-        var children = function(parentId);
-
-        if (children.Length is 0)
-            return children;
-
-        var childrenOfChildren = children.SelectMany(proc => GetChildProcesses(function, proc.Id));
-
-        return children.Concat(childrenOfChildren);
+        throw new NotSupportedException("Getting the child processes is only supported on Windows and Linux");
     }
 }

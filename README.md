@@ -136,8 +136,7 @@ The available options in the yaml file are:
 - unixSocket: changes where the socket is located, the CLI will read this file to connect to the daemon,
   defaults to `$XDG_STATE_HOME/daemon.sock` (or `$XDG_STATE_HOME/daemon.dev.sock` in development)
 - httpPort: (optional) The http port to listen as an addition to the required socket, useful for interfacing with software that cant use the socket
-- cpuRefreshIntervalSeconds: Hexus will refresh the CPU usage of application every tot based on this setting. The lower the value, the more CPU will be consumed.
-  Under windows you might see a `WmiPrvSE.exe` process actually using the CPU, the reason relies in how Hexus fetches the child processes under windows, that is using WMI.
+- cpuRefreshIntervalSeconds: Hexus will refresh the CPU usage of application every tot based on this setting. The more often this is the more precise will be the CPU consumption but will use more system resources.
 - applications: a list of all the application and their configs.
   - name: required, the name of the application
   - executable: required, the file to execute when spawning the child
@@ -146,7 +145,6 @@ The available options in the yaml file are:
   - status: required, needs to match the `HexusApplicationStatus` enum, indicates the status of the application. Possible values: `Crashed`, `Exited`, `Running`
   - note: optional, a note that can be seen in the info command, an usage is to indicate ports used for example.
   - environmentVariables: optional, all the environment variables for the application. The application **WILL NOT** inherit the env from the daemon
-- appSettings: the .NET `Microsoft.Extensions.Configuration` app settings to be customized. You can change the verbosity of the `ASP.NET core` logger for example
 
 #### PM2 Migration
 

@@ -6,7 +6,6 @@ namespace Hexus.Daemon.Configuration;
 internal class HexusConfigurationManager
 {
     public HexusConfiguration Configuration { get; private set; } = null!;
-    public Dictionary<object, object?>? AppSettings { get; private set; }
     private readonly string _configurationFile = EnvironmentHelper.ConfigurationFile;
     private readonly string _socketFile = EnvironmentHelper.SocketFile;
 
@@ -15,7 +14,7 @@ internal class HexusConfigurationManager
         .Build();
 
     private static readonly ISerializer YamlSerializer = new SerializerBuilder()
-        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitDefaults | DefaultValuesHandling.OmitEmptyCollections)
+        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
         .WithIndentedSequences()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
@@ -44,7 +43,6 @@ internal class HexusConfigurationManager
             CpuRefreshIntervalSeconds = configFile.CpuRefreshIntervalSeconds,
             Applications = configFile.Applications?.ToDictionary(application => application.Name) ?? [],
         };
-        AppSettings = configFile.AppSettings;
 
         SaveConfiguration();
     }
@@ -58,8 +56,7 @@ internal class HexusConfigurationManager
             UnixSocket = Configuration.UnixSocket,
             HttpPort = Configuration.HttpPort,
             CpuRefreshIntervalSeconds = Configuration.CpuRefreshIntervalSeconds,
-            Applications = Configuration.Applications.Values,
-            AppSettings = AppSettings,
+            Applications = Configuration.Applications.Values
         };
 
         var yamlString = YamlSerializer.Serialize(configFile);

@@ -1,5 +1,7 @@
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
+using Hexus.Daemon.Contracts.Requests;
+using Hexus.Daemon.Contracts.Responses;
 using System.Text.Json.Serialization;
 
 namespace Hexus.Daemon;

@@ -83,7 +83,7 @@ internal partial class PerformanceTrackingService(ILogger<PerformanceTrackingSer
         if (application.Process is not { HasExited: false })
             return [];
 
-        return [application.Process, .. application.Process.GetChildProcesses()];
+        return [application.Process, ..application.Process.GetChildProcesses()];
     }
 
     [LoggerMessage(LogLevel.Warning, "Disabling the CPU performance tracking. An invalid interval ({interval}s) was passed in.")]

@@ -1,4 +1,5 @@
 using Hexus.Daemon.Contracts;
+using Hexus.Daemon.Contracts.Responses;
 using Humanizer;
 using Humanizer.Localisation;
 using Spectre.Console;

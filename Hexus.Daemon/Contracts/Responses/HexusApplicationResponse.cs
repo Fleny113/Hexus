@@ -1,6 +1,6 @@
 using Hexus.Daemon.Configuration;
 
-namespace Hexus.Daemon.Contracts;
+namespace Hexus.Daemon.Contracts.Responses;
 
 public sealed record HexusApplicationResponse(
     string Name,

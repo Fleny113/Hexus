@@ -1,4 +1,4 @@
-namespace Hexus.Daemon.Contracts;
+namespace Hexus.Daemon.Contracts.Responses;
 
 public class ProblemDetails
 {
