@@ -1,5 +1,6 @@
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Extensions;
+using Hexus.Daemon.Interop;
 using System.Diagnostics;
 
 namespace Hexus.Daemon.Services;
@@ -20,16 +21,13 @@ internal partial class PerformanceTrackingService(ILogger<PerformanceTrackingSer
 
         while (!ct.IsCancellationRequested && await timer.WaitForNextTickAsync(ct))
         {
-            foreach (var application in configuration.Applications.Values)
+            try
             {
-                try
-                {
-                    RefreshCpuUsage(application);
-                }
-                catch (Exception ex)
-                {
-                    LogFailedRefresh(logger, ex, application.Name);
-                }
+                RefreshCpuUsage();
+            }
+            catch (Exception ex)
+            {
+                LogFailedRefresh(logger, ex);
             }
         }
     }
@@ -45,36 +43,60 @@ internal partial class PerformanceTrackingService(ILogger<PerformanceTrackingSer
             {
                 proc.Refresh();
 
-                return OperatingSystem.IsWindows()
-                    ? proc.PagedMemorySize64
-                    : proc.WorkingSet64;
+                return proc.WorkingSet64;
             })
             .Sum();
     }
 
-    private static void RefreshCpuUsage(HexusApplication application)
+    private void RefreshCpuUsage()
     {
-        var cpuUsages = GetApplicationProcesses(application)
-            .Select(process =>
-            {
-                if (process is not { HasExited: false, Id: var processId })
-                {
-                    application.CpuStatsMap.Remove(process.Id);
-                    return 0;
-                }
+        var children = ProcessChildren.GetProcessChildrenInfo(Environment.ProcessId)
+            .GroupBy(x => x.ParentProcessId)
+            .ToDictionary(x => x.Key, x => x.Select(inf => inf.ProcessId).ToArray());
 
-                var cpuStats = application.CpuStatsMap.GetOrCreate(processId,
-                    _ => new HexusApplication.CpuStats
-                    {
-                        LastTotalProcessorTime = TimeSpan.Zero,
-                        LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
-                    });
+        if (!children.TryGetValue(Environment.ProcessId, out var hexusChildren)) return;
 
-                return process.GetProcessCpuUsage(cpuStats);
-            })
-            .Sum();
+        var apps = configuration.Applications.Values
+            .Where(app => app is { Process.HasExited: false } && hexusChildren.Contains(app.Process.Id))
+            .ToDictionary(x => x.Process!.Id, x => x);
 
-        application.LastCpuUsage = Math.Clamp(Math.Round(cpuUsages, 2), 0, 100);
+        foreach (var child in hexusChildren)
+        {
+            if (!apps.TryGetValue(child, out var app)) continue;
+
+            var cpuUsage = Traverse(child, children).Select(proc => GetProcessCpuUsage(app, proc)).Sum();
+            app.LastCpuUsage = Math.Clamp(Math.Round(cpuUsage, 2), 0, 100);
+        }
+    }
+
+    private static IEnumerable<Process> Traverse(int processId, IReadOnlyDictionary<int, int[]> processIds)
+    {
+        yield return Process.GetProcessById(processId);
+
+        if (!processIds.TryGetValue(processId, out var childrenIds)) yield break;
+
+        foreach (var child in childrenIds)
+        {
+            yield return Process.GetProcessById(child);
+            foreach (var childProc in Traverse(child, processIds)) yield return childProc;
+        }
+    }
+
+    private static double GetProcessCpuUsage(HexusApplication application, Process process)
+    {
+        if (process is not { HasExited: false, Id: var processId })
+        {
+            application.CpuStatsMap.Remove(process.Id);
+            return 0;
+        }
+
+        var cpuStats = application.CpuStatsMap.GetOrCreate(processId, _ => new HexusApplication.CpuStats
+        {
+            LastTotalProcessorTime = TimeSpan.Zero,
+            LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
+        });
+
+        return process.GetProcessCpuUsage(cpuStats);
     }
 
     private static IEnumerable<Process> GetApplicationProcesses(HexusApplication application)
@@ -89,6 +111,6 @@ internal partial class PerformanceTrackingService(ILogger<PerformanceTrackingSer
     [LoggerMessage(LogLevel.Warning, "Disabling the CPU performance tracking. An invalid interval ({interval}s) was passed in.")]
     private static partial void LogDisablePerformanceTracking(ILogger logger, double interval);
 
-    [LoggerMessage(LogLevel.Error, "There was an error getting the updated CPU usage for application {Application}")]
-    private static partial void LogFailedRefresh(ILogger logger, Exception ex, string application);
+    [LoggerMessage(LogLevel.Error, "There was an error getting the updated CPU usage")]
+    private static partial void LogFailedRefresh(ILogger logger, Exception ex);
 }

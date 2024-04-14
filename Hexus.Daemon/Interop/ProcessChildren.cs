@@ -1,26 +1,33 @@
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 namespace Hexus.Daemon.Interop;
 
-internal static class ProcessChildren
+internal static partial class ProcessChildren
 {
+    public static IEnumerable<ProcessInfo> GetProcessChildrenInfo(int parentId)
+    {
+        if (OperatingSystem.IsWindows())
+            return GetChildProcessesWindows(parentId);
+        if (OperatingSystem.IsLinux())
+            return GetChildProcessesLinux(parentId);
+
+        throw new NotSupportedException("Getting the child processes is only supported on Windows and Linux");
+    }
+
     [SupportedOSPlatform("windows")]
-    public static IEnumerable<Process> GetChildProcessesWindows(int parentId)
+    private static IEnumerable<ProcessInfo> GetChildProcessesWindows(int parentId)
     {
         // While the docs says that this 0 will make the snapshot to start from the current process, since we use SnapProcess, it doesn't.
         var processSnap = Win32Bindings.CreateToolhelp32Snapshot(Win32Bindings.Th32CsSnapProcess, 0);
         if (processSnap == IntPtr.Zero) yield break;
 
+        var parents = new Stack<uint>();
         var processEntity = new Win32Bindings.ProcessEntry32
         {
             dwSize = (uint)Marshal.SizeOf<Win32Bindings.ProcessEntry32>(),
-            szExeFile = "",
         };
-
-        var parents = new Stack<uint>();
 
         try
         {
@@ -31,7 +38,7 @@ internal static class ProcessChildren
                 if (processEntity.th32ParentProcessID != parentId && !parents.Contains(processEntity.th32ParentProcessID)) continue;
 
                 parents.Push(processEntity.th32ProcessID);
-                yield return Process.GetProcessById((int)processEntity.th32ProcessID);
+                yield return new ProcessInfo { ProcessId = (int)processEntity.th32ProcessID, ParentProcessId = (int)processEntity.th32ParentProcessID};
             } while (Win32Bindings.Process32Next(processSnap, ref processEntity));
         }
         finally
@@ -41,29 +48,28 @@ internal static class ProcessChildren
     }
 
     [SupportedOSPlatform("linux")]
-    public static IEnumerable<Process> GetChildProcessesLinux(int parentId)
+    private static IEnumerable<ProcessInfo> GetChildProcessesLinux(int parentId)
     {
         foreach (var strPId in File.ReadAllText($"/proc/{parentId}/task/{parentId}/children").Split(' '))
         {
             if (!int.TryParse(strPId, out var processId)) continue;
 
-            yield return Process.GetProcessById(processId);
+            yield return new ProcessInfo { ProcessId = processId, ParentProcessId = parentId };
             foreach (var childProcessId in GetChildProcessesLinux(processId)) yield return childProcessId;
         }
     }
 
+    internal record struct ProcessInfo(int ProcessId, int ParentProcessId);
+
     [SupportedOSPlatform("windows")]
-    [SuppressMessage(category: "Interoperability",
-        checkId:
-        "SYSLIB1054:Use \'LibraryImportAttribute\' instead of \'DllImportAttribute\' to generate P/Invoke marshalling code at compile time",
-        Justification = "If it was possible to use LibraryImportAttribute with the ProcessEntry32 i would use it.")]
-    internal static class Win32Bindings
+    [SuppressMessage("Interoperability", "SYSLIB1054:Use \'LibraryImportAttribute\' instead of \'DllImportAttribute\' to generate P/Invoke marshalling code at compile time", Justification = "LibraryImport with ProcessEntry32 does not work without a lot of work to make it happy and both CompileTime and RunTime")]
+    internal static partial class Win32Bindings
     {
         private const int MaxSize = 260;
         public const int Th32CsSnapProcess = 0x00000002;
 
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessId);
+        [LibraryImport("kernel32.dll", SetLastError = true)]
+        public static partial IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -73,9 +79,9 @@ internal static class ProcessChildren
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool Process32Next(IntPtr snapshot, ref ProcessEntry32 processEntry);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [LibraryImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool CloseHandle(IntPtr snapshot);
+        public static partial bool CloseHandle(IntPtr snapshot);
 
         // https://learn.microsoft.com/en-us/windows/win32/api/tlhelp32/ns-tlhelp32-processentry32#requirements
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
@@ -100,3 +106,4 @@ internal static class ProcessChildren
         }
     }
 }
+

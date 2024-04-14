@@ -28,11 +28,7 @@ internal static class ProcessExtensions
 
     public static IEnumerable<Process> GetChildProcesses(this Process process)
     {
-        if (OperatingSystem.IsWindows())
-            return ProcessChildren.GetChildProcessesWindows(process.Id);
-        if (OperatingSystem.IsLinux())
-            return ProcessChildren.GetChildProcessesLinux(process.Id);
-
-        throw new NotSupportedException("Getting the child processes is only supported on Windows and Linux");
+        return ProcessChildren.GetProcessChildrenInfo(process.Id)
+            .Select(processInfo => Process.GetProcessById(processInfo.ProcessId));
     }
 }
