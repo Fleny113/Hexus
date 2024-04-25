@@ -8,8 +8,6 @@
         <ServerGarbageCollection>false</ServerGarbageCollection>
         <InvariantGlobalization>true</InvariantGlobalization>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-
-        <PublishSingleFile>true</PublishSingleFile>
     </PropertyGroup>
 
     <ItemGroup>
