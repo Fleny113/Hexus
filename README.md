@@ -168,7 +168,3 @@ Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2
 ## License
 
 Hexus is under the [MIT license](./LICENSE.md)
-
-### Third party
-
-Hexus uses [windows-kill](https://github.com/ElyDotDev/windows-kill) to manage the send of CTRL + C (SIGINT) on Windows, due to the complication it brings having to send a SIGINT in a Windows environment. The license for [windows-kill](https://github.com/ElyDotDev/windows-kill) can be found in the [LICENSE](./LICENSE.md) file under the Third party section.

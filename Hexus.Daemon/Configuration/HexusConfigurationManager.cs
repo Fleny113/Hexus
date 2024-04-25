@@ -56,7 +56,7 @@ internal class HexusConfigurationManager
             UnixSocket = Configuration.UnixSocket,
             HttpPort = Configuration.HttpPort,
             CpuRefreshIntervalSeconds = Configuration.CpuRefreshIntervalSeconds,
-            Applications = Configuration.Applications.Values
+            Applications = Configuration.Applications.Values,
         };
 
         var yamlString = YamlSerializer.Serialize(configFile);
