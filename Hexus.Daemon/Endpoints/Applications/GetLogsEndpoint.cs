@@ -26,13 +26,13 @@ internal partial class GetLogsEndpoint : IEndpoint
         if (!configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
 
-        // When the aspnet or hexus CTS get cancelled it cancels this as well
-        var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, HexusLifecycle.DaemonStoppingToken);
+        // When the aspnet or the hexus cancellation token get cancelled it cancels this as well
+        var combinedCtSource = CancellationTokenSource.CreateLinkedTokenSource(ct, HexusLifecycle.DaemonStoppingToken);
 
         // If the before is in the past we can disable steaming
         if (before is not null && before < DateTimeOffset.UtcNow) noStreaming = true;
 
-        return TypedResults.Ok(GetLogs(application, logger, lines, noStreaming, before, after, combinedCts.Token));
+        return TypedResults.Ok(GetLogs(application, logger, lines, noStreaming, before, after, combinedCtSource.Token));
     }
 
     private static async IAsyncEnumerable<ApplicationLog> GetLogs(
@@ -133,8 +133,8 @@ internal partial class GetLogsEndpoint : IEndpoint
                     continue;
                 }
 
-                var logDateString = line[1..21];
-                if (TryLogTimeFormat(logDateString, out var logDate))
+                var logDateString = line[1..34];
+                if (!TryLogTimeFormat(logDateString, out var logDate))
                 {
                     LogFailedDateTimeParsing(logger, application.Name, logDateString);
 
@@ -160,8 +160,8 @@ internal partial class GetLogsEndpoint : IEndpoint
 
                 lineFound++;
 
-                var logTypeString = line[22..28];
-                var logText = line[30..];
+                var logTypeString = line[35..41];
+                var logText = line[42..];
 
                 if (!LogType.TryParse(logTypeString, out var logType))
                 {
@@ -195,7 +195,7 @@ internal partial class GetLogsEndpoint : IEndpoint
 
     private static bool TryLogTimeFormat(ReadOnlySpan<char> logDate, out DateTimeOffset dateTimeOffset)
     {
-        return !DateTimeOffset.TryParseExact(logDate, ApplicationLog.DateTimeFormat, null, DateTimeStyles.AssumeUniversal, out dateTimeOffset);
+        return DateTimeOffset.TryParseExact(logDate, "O", null, DateTimeStyles.AssumeUniversal, out dateTimeOffset);
     }
 
     private static bool IsLogDateInRange(DateTimeOffset time, DateTimeOffset? before = null, DateTimeOffset? after = null)

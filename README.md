@@ -98,7 +98,7 @@ All the flags are available in the help for the command, you can use the `--help
 
 If you want to manually parse the log files the format is as follows: `[<date>,<type>] <message>` where
 
-- `date` is a date in UTC time using the following format: `MMM dd yyyy HH:mm:ss`
+- `date` is a date in UTC time using the ISO8601 format
 - `type` is one of `STDOUT`, `STDERR` or `SYSTEM`, with `SYSTEM` being used for Hexus messages like the application start or stop while `STDOUT` and `STDERR`for the actual logs of the application
 - `message` is the actual message the application logged to the console
 
@@ -127,7 +127,7 @@ Keep in mind Hexus will send the message to the direct child so in a situation w
 
 ## Configuration
 
-By default the config file will be located in `~/.config/hexus.yaml` (If in development it will be used `~/.config/hexus.dev.yaml` instead) but you can
+By default, the config file will be located in `~/.config/hexus.yaml` (If in development it will be used `~/.config/hexus.dev.yaml` instead) but you can
 change where the location for the Hexus file is by using the `XDG_CONFIG_HOME` environment to change the `~/.config` directory and the
 `XDG_STATE_HOME` environment to change the directory used (by default) for the socket and logs (defaults to `~/.local/state`)
 
@@ -143,7 +143,7 @@ The available options in the yaml file are:
   - arguments: optional, the arguments to give the executable in a string
   - workingDirectory: required, the directory where the application will operate
   - status: required, needs to match the `HexusApplicationStatus` enum, indicates the status of the application. Possible values: `Crashed`, `Exited`, `Running`
-  - note: optional, a note that can be seen in the info command, an usage is to indicate ports used for example.
+  - note: optional, a note that can be seen in the info command, a usage is to indicate ports used for example.
   - environmentVariables: optional, all the environment variables for the application. The application **WILL NOT** inherit the env from the daemon
 
 #### PM2 Migration
@@ -163,7 +163,7 @@ Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2
 ## Limitations
 
 - MacOS is not supported as Hexus needs to get the child processes for an application to calculate the correct RAM and CPU usages,   and i don't have anything to test how to get them.
-- Under Windows the update command requires a about 5 seconds to wait to allow the CLI to exit and the script to replace the file to run. This is to bypass the file locking in Windows 
+- Under Windows the update command requires about 5 seconds to wait to allow the CLI to exit and the script to replace the file to run. This is to bypass the file locking in Windows 
 
 ## License
 

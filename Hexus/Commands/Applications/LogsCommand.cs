@@ -103,10 +103,10 @@ internal static class LogsCommand
         var color = GetLogTypeColor(log.LogType.Name);
 
         var timezone = TimeZoneInfo.ConvertTime(log.Date, timeZoneInfo);
-        var date = showDates ? timezone.ToString(ApplicationLog.DateTimeFormat) : null;
-        var dateSeparator = showDates ? " | " : null;
+        var date = showDates ? $"{timezone:yyyy-MM-dd HH:mm:ss} [{color}]| " : $"[{color}]";
+        var text = log.Text.EscapeMarkup();
 
-        PrettyConsole.OutLimitlessWidth.MarkupLine($"{date}[{color}]{dateSeparator}{log.LogType} |[/] {log.Text.EscapeMarkup()}");
+        PrettyConsole.OutLimitlessWidth.MarkupLine($"{date}{log.LogType} |[/] {text}");
     }
 
     private static Color GetLogTypeColor(ReadOnlySpan<char> logType) => logType switch

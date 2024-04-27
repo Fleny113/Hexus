@@ -176,7 +176,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         {
             File.AppendAllText(
                 $"{EnvironmentHelper.LogsDirectory}/{application.Name}.log",
-                $"[{applicationLog.Date.ToString(ApplicationLog.DateTimeFormat)},{applicationLog.LogType.Name}] {applicationLog.Text}{Environment.NewLine}"
+                $"[{applicationLog.Date:O},{applicationLog.LogType.Name}] {applicationLog.Text}{Environment.NewLine}"
             );
         }
         finally
