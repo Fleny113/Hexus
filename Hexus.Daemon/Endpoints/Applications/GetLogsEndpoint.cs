@@ -161,7 +161,7 @@ internal partial class GetLogsEndpoint : IEndpoint
                 lineFound++;
 
                 var logTypeString = line[35..41];
-                var logText = line[42..];
+                var logText = line[43..];
 
                 if (!LogType.TryParse(logTypeString, out var logType))
                 {
