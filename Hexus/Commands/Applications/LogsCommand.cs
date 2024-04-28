@@ -1,4 +1,4 @@
-using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;

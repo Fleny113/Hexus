@@ -13,9 +13,9 @@ internal static class MapperExtensions
             Name = request.Name,
             Executable = EnvironmentHelper.NormalizePath(request.Executable),
             Arguments = request.Arguments,
-            WorkingDirectory = EnvironmentHelper.NormalizePath(request.WorkingDirectory),
+            WorkingDirectory = EnvironmentHelper.NormalizePath(request.WorkingDirectory ?? EnvironmentHelper.Home),
             Note = request.Note,
-            EnvironmentVariables = request.EnvironmentVariables,
+            EnvironmentVariables = request.EnvironmentVariables ?? [],
         };
 
     public static HexusApplicationResponse MapToResponse(this HexusApplication application) =>

@@ -12,8 +12,7 @@ internal sealed class GetApplicationEndpoint : IEndpoint
     [HttpMap(HttpMapMethod.Get, "/{name}")]
     public static Results<Ok<HexusApplicationResponse>, NotFound> Handle(
         [FromRoute] string name,
-        [FromServices] HexusConfiguration configuration
-    )
+        [FromServices] HexusConfiguration configuration)
     {
         if (!configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();

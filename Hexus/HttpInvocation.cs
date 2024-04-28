@@ -1,5 +1,5 @@
 ﻿using Hexus.Daemon;
-using Hexus.Daemon.Contracts.Responses;
+using Microsoft.AspNetCore.Http;
 using Spectre.Console;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -110,43 +110,38 @@ internal static class HttpInvocation
 
     public static async Task HandleFailedHttpRequestLogging(HttpResponseMessage request, CancellationToken ct)
     {
-        ErrorResponse? response;
+        string response;
 
         switch (request)
         {
             case { StatusCode: HttpStatusCode.BadRequest, Content.Headers.ContentType.MediaType: "application/problem+json" }:
                 {
-                    var validationResponse = await request.Content.ReadFromJsonAsync<ProblemDetails>(JsonSerializerOptions, ct);
+                    var problemDetails = await request.Content.ReadFromJsonAsync<HttpValidationProblemDetails>(JsonSerializerOptions, ct);
 
-                    Debug.Assert(validationResponse is not null);
+                    Debug.Assert(problemDetails is not null);
 
-                    var errorString = string.Join("\n", validationResponse.Errors.SelectMany(kvp => kvp.Value.Select(v => $"- [tan]{kvp.Key}[/]: {v}")));
-
-                    response = new ErrorResponse($"Validation errors: \n{errorString}");
+                    var problems = problemDetails.Errors.SelectMany(kvp => kvp.Value.Select(v => $"- [tan]{kvp.Key}[/]: {v}"));
+                    response = $"Validation errors: \n{string.Join("\n", problems)}";
                     break;
                 }
             case { StatusCode: HttpStatusCode.NotFound }:
                 {
-                    response = new ErrorResponse("No application with this name has been found.");
+                    response = "No application with this name has been found.";
+                    break;
+                }
+            case { StatusCode: > HttpStatusCode.InternalServerError }:
+                {
+                    response = "The daemon had an internal server error.";
                     break;
                 }
             default:
                 {
-                    try
-                    {
-                        response = await request.Content.ReadFromJsonAsync<ErrorResponse>(JsonSerializerOptions, ct);
-                        response ??= new ErrorResponse("The daemon had an internal server error.");
-                        break;
-                    }
-                    catch
-                    {
-                        response = new ErrorResponse("<Unable to get the error from the daemon>");
-                        break;
-                    }
+                    response = "<Unable to get the error from the daemon>";
+                    break;
                 }
         }
 
-        PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[/] in handling the request: {response.Error}");
+        PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[/] in handling the request: {response}");
     }
 
     private static async Task<bool> CheckForRunningDaemonCore(CancellationToken ct)

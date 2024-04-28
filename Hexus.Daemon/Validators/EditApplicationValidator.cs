@@ -1,0 +1,20 @@
+using FluentValidation;
+using Hexus.Daemon.Contracts.Requests;
+using Hexus.Daemon.Extensions;
+
+namespace Hexus.Daemon.Validators;
+
+public class EditApplicationValidator : AbstractValidator<EditApplicationRequest>
+{
+    public EditApplicationValidator()
+    {
+        RuleFor(r => r.Name).NotEmpty();
+        RuleFor(r => r.Executable).NotEmpty().IsAbsolutePath();
+        RuleFor(r => r.Arguments).NotNull();
+        RuleFor(r => r.WorkingDirectory).NotEmpty().IsAbsolutePath();
+        RuleFor(r => r.Note).NotNull();
+        RuleFor(r => r.NewEnvironmentVariables).NotNull();
+        RuleFor(r => r.RemoveEnvironmentVariables).NotNull();
+        RuleFor(r => r.IsReloadingEnvironmentVariables).NotNull();
+    }
+}

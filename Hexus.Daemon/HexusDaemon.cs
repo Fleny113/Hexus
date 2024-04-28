@@ -1,6 +1,9 @@
 using EndpointMapper;
+using FluentValidation;
 using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Services;
+using Hexus.Daemon.Validators;
 
 namespace Hexus.Daemon;
 
@@ -39,9 +42,16 @@ internal static class HexusDaemon
 
         builder.Services.AddProblemDetails();
 
+        // Validators
+        builder.Services.AddScoped<IValidator<EditApplicationRequest>, EditApplicationValidator>();
+        builder.Services.AddScoped<IValidator<NewApplicationRequest>, NewApplicationValidator>();
+        builder.Services.AddScoped<IValidator<SendInputRequest>, SendInputValidator>();
+
+        // Configuration
         builder.Services.AddSingleton(configurationManager);
         builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
 
+        // Services & HostedServices
         builder.Services.AddHostedService<HexusLifecycle>();
         builder.Services.AddHostedService<PerformanceTrackingService>();
         builder.Services.AddSingleton<ProcessManagerService>();
@@ -65,8 +75,7 @@ internal static class HexusDaemon
         File.Delete(configuration.UnixSocket);
     }
 
-    private static void AddAppSettings(
-        ConfigurationManager configManager, bool isDevelopment = false)
+    private static void AddAppSettings(ConfigurationManager configManager, bool isDevelopment = false)
     {
         configManager.GetSection("Logging:LogLevel:Default").Value = LogLevel.Information.ToString();
         configManager.GetSection("Logging:LogLevel:Microsoft.AspNetCore").Value = LogLevel.Warning.ToString();

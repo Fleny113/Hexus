@@ -158,7 +158,6 @@ Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2
 ## Roadmap
 
 - Add log rotation support
-- Web application with a management UI, optionally exposed with the HTTP port
 
 ## Limitations
 

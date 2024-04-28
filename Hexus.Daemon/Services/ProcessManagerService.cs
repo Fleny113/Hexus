@@ -1,4 +1,5 @@
 ﻿using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Interop;
 using System.Collections.Concurrent;
 using System.Diagnostics;

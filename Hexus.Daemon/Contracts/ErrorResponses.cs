@@ -1,11 +1,24 @@
-﻿using Hexus.Daemon.Contracts.Responses;
-
-namespace Hexus.Daemon.Contracts;
+﻿namespace Hexus.Daemon.Contracts;
 
 public static class ErrorResponses
 {
-    public static readonly ErrorResponse ApplicationIsNotRunningMessage = new("The application is not running.");
-    public static readonly ErrorResponse ApplicationIsRunningMessage = new("The application is already running.");
-    public static readonly ErrorResponse ApplicationWithTheSameNameAlreadyExiting = new("There is already an application with the same name.");
-    public static readonly ErrorResponse CantEditRunningApplication = new("To edit an application, the application must not be running.");
+    public static readonly Dictionary<string, string[]> ApplicationNotRunning = new()
+    {
+        {"Name", ["The name refers to an application that is not running."]},
+    };
+
+    public static readonly Dictionary<string, string[]> ApplicationAlreadyRunning = new()
+    {
+        {"Name", ["The name refers to an application that is already running."]},
+    };
+
+    public static readonly Dictionary<string, string[]> ApplicationAlreadyExists = new()
+    {
+        {"Name", ["The name is being used by another application."]},
+    };
+
+    public static readonly Dictionary<string, string[]> ApplicationRunningWhileEditing = new()
+    {
+            {"Name", ["The name refers to an application that is running, so it can't be edited."]},
+    };
 }

@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Hexus.Daemon.Configuration;
+namespace Hexus.Daemon.Contracts;
 
 [JsonConverter(typeof(LogTypeJsonConverter))]
 public sealed class LogType

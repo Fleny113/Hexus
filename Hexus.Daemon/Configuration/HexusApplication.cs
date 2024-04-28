@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using Hexus.Daemon.Contracts;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading.Channels;
 using YamlDotNet.Serialization;

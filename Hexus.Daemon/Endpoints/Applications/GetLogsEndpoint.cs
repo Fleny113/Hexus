@@ -1,5 +1,6 @@
 using EndpointMapper;
 using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -163,7 +164,7 @@ internal partial class GetLogsEndpoint : IEndpoint
                 var logTypeString = line[35..41];
                 var logText = line[43..];
 
-                if (!LogType.TryParse(logTypeString, out var logType))
+                if (!LogType.TryParse(logTypeString.AsSpan(), out var logType))
                 {
                     LogFailedTypeParsing(logger, application.Name, logTypeString);
 

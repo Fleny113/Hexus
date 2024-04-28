@@ -1,12 +1,11 @@
-using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Contracts.Responses;
 using System.Text.Json.Serialization;
 
 namespace Hexus.Daemon;
 
-[JsonSerializable(typeof(ErrorResponse))]
-[JsonSerializable(typeof(ProblemDetails))]
+[JsonSerializable(typeof(HttpValidationProblemDetails))]
 [JsonSerializable(typeof(HexusApplicationResponse))]
 [JsonSerializable(typeof(IEnumerable<HexusApplicationResponse>))]
 [JsonSerializable(typeof(IAsyncEnumerable<ApplicationLog>))]
