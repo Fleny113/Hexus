@@ -75,10 +75,13 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return false;
 
         // Remove the restart event handler, or else it will restart the process as soon as it stops
-        application.Process.Exited -= HandleProcessRestart;
+        var process = application.Process;
+        process.Exited -= HandleProcessRestart;
 
-        StopProcess(application.Process, forceStop);
+        StopProcess(process, forceStop);
+
         application.Status = HexusApplicationStatus.Exited;
+        Applications.TryRemove(process, out _);
 
         // If the daemon is shutting down we don't want to save, or else when the daemon is booted up again, all the applications will be marked as stopped
         if (!HexusLifecycle.IsDaemonStopped)
@@ -214,7 +217,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void AcknowledgeProcessExit(object? sender, EventArgs e)
     {
-        if (sender is not Process process || !Applications.TryRemove(process, out var application))
+        if (sender is not Process process || !Applications.TryGetValue(process, out var application))
             return;
 
         var exitCode = process.ExitCode;
@@ -253,6 +256,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             application.Status = HexusApplicationStatus.Crashed;
             configManager.SaveConfiguration();
 
+            Applications.TryRemove(process, out _);
             return;
         }
 
