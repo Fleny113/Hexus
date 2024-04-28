@@ -19,6 +19,6 @@ public static class ErrorResponses
 
     public static readonly Dictionary<string, string[]> ApplicationRunningWhileEditing = new()
     {
-            {"Name", ["The name refers to an application that is running, so it can't be edited."]},
+        {"Name", ["The name refers to an application that is running, so it can't be edited."]},
     };
 }

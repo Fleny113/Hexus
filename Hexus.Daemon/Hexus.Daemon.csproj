@@ -8,7 +8,6 @@
         <ServerGarbageCollection>false</ServerGarbageCollection>
         <InvariantGlobalization>true</InvariantGlobalization>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <IsAotCompatible>true</IsAotCompatible>
     </PropertyGroup>
 
     <ItemGroup>
@@ -20,5 +19,13 @@
 
         <InternalsVisibleTo Include="Hexus"/>
         <InternalsVisibleTo Include="Hexus.Daemon.Runner"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Features\Applications\StartApplicationEndpoint.cs" />
+      <Compile Remove="Features\Applications\SendInput\SendInputValidator.cs" />
+      <Compile Remove="Features\Applications\RestartApplicationEndpoint.cs" />
+      <Compile Remove="Features\Applications\New\NewApplicationValidator.cs" />
+      <Compile Remove="Features\Applications\Edit\EditApplicationValidator.cs" />
     </ItemGroup>
 </Project>
