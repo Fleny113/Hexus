@@ -3,5 +3,6 @@
     <PropertyGroup>
         <UseArtifactsOutput>true</UseArtifactsOutput>
         <NuGetAudit>true</NuGetAudit>
+        <VersionPrefix>0.1.0</VersionPrefix>
     </PropertyGroup>
 </Project>

@@ -129,7 +129,7 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             return;
         }
 
-        // NativeSendSignal can send -1 if the UNIX kill call returns an error
+        // NativeSendSignal can send -1 if the UNIX kill call returns an error or if the windows interop errors out at any point
         var code = ProcessSignals.NativeSendSignal(process.Id, WindowsCtrlType.CtrlC, UnixSignal.SigInt);
 
         try
