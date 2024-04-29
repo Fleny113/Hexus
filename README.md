@@ -47,7 +47,7 @@ Optionally you can add `--self-contained` to remove the need for the .NET Runtim
 
 Hexus requires you to start the daemon manually before you can start using it. To start the daemon run the command `hexus daemon start` and if you want to stop it without sending a CTRL + C or a kill signal to the process you can use the `hexus daemon stop` command.
 
-If you want to add the Hexus daemon to the startup you can use the `hexus startup` command that will detect what platform you are on and give you a powershell script for the windows task scheduler when run under windows and a systemd unit service file when running under Linux to quickly setup the startup process.
+If you want to add the Hexus daemon to the startup you can use the `hexus startup` command that will detect what platform you are on and give you a powershell script for the windows task scheduler when run under windows and a systemd unit service file when running under Linux to quickly set up the startup process.
 
 > [!TIP]
 > When the command of `hexus startup` is redirected it won't output the decorations around the text to be easier to use the script/service that it creates
@@ -73,7 +73,7 @@ To list all the application currently running you can use the list command
 hexus list
 ```
 
-The list command will provide some basic information on the application but you can use the `hexus info` command with the name of the application to get some more info on it
+The list command will provide some basic information on the application, but you can use the `hexus info` command with the name of the application to get some more info on it
 
 #### Get applications logs
 
@@ -117,7 +117,7 @@ All the flags are available in the help for the command, you can use the `--help
 
 #### Edit application
 
-To edit an application you will first need to stop it using the `hexus stop` command and then you can change add the different options for it, check the `--help` for all the flags.
+To edit an application you will first need to stop it using the `hexus stop` command, and then you can change add the different options for it, check the `--help` for all the flags.
 
 #### Send input to the application
 
@@ -153,7 +153,7 @@ Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2
 > [!WARNING]
 > Hexus only supports migrating from pm2 `5.3.0`, using another version might give errors. Migrating apps that are configured as cluster in pm2 will fail and Hexus will skip them as Hexus supports `fork_mode` only.
 >
-> Hexus uses names to discriminate on what application the operation should be took, for this reason if there are name conflicts with exiting application Hexus will try to save the application with the same name, if that fails due to an application having the same name Hexus will add the `-pm2` suffix. If even at that point there were conflicts with exiting application, Hexus will log out on what application it failed for you to configure it manually
+> Hexus uses names to discriminate on what application the operation should be taken, for this reason if there are name conflicts with exiting application Hexus will try to save the application with the same name, if that fails due to an application having the same name Hexus will add the `-pm2` suffix. If even at that point there were conflicts with exiting application, Hexus will log out on what application it failed for you to configure it manually
 
 ## Roadmap
 
@@ -161,7 +161,7 @@ Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2
 
 ## Limitations
 
-- MacOS is not supported as Hexus needs to get the child processes for an application to calculate the correct RAM and CPU usages,   and i don't have anything to test how to get them.
+- MacOS is not supported as Hexus needs to get the child processes for an application to calculate the correct RAM and CPU usages, and I don't have anything to test how to get them.
 - Under Windows the update command requires about 5 seconds to wait to allow the CLI to exit and the script to replace the file to run. This is to bypass the file locking in Windows 
 
 ## License
