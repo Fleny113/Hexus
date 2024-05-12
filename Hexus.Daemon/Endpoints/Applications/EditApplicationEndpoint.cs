@@ -18,12 +18,13 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         [FromRoute] string name,
         [FromBody] EditApplicationRequest request,
         [FromServices] IValidator<EditApplicationRequest> validator,
+        [FromServices] ProcessManagerService processManagerService,
         [FromServices] HexusConfigurationManager configurationManager)
     {
         if (!configurationManager.Configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
 
-        if (ProcessManagerService.IsApplicationRunning(application))
+        if (processManagerService.IsApplicationRunning(application, out _))
             return TypedResults.ValidationProblem(ErrorResponses.ApplicationRunningWhileEditing);
 
         if (request.Name is not null && configurationManager.Configuration.Applications.TryGetValue(request.Name, out _))

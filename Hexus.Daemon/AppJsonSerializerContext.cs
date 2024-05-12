@@ -6,8 +6,8 @@ using System.Text.Json.Serialization;
 namespace Hexus.Daemon;
 
 [JsonSerializable(typeof(HttpValidationProblemDetails))]
-[JsonSerializable(typeof(HexusApplicationResponse))]
-[JsonSerializable(typeof(IEnumerable<HexusApplicationResponse>))]
+[JsonSerializable(typeof(ApplicationResponse))]
+[JsonSerializable(typeof(IEnumerable<ApplicationResponse>))]
 [JsonSerializable(typeof(IAsyncEnumerable<ApplicationLog>))]
 [JsonSerializable(typeof(NewApplicationRequest))]
 [JsonSerializable(typeof(EditApplicationRequest))]

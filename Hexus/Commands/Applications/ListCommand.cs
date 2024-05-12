@@ -39,7 +39,7 @@ internal static class ListCommand
             return;
         }
 
-        var applications = await listRequest.Content.ReadFromJsonAsync<IEnumerable<HexusApplicationResponse>>(HttpInvocation.JsonSerializerOptions, ct);
+        var applications = await listRequest.Content.ReadFromJsonAsync<IEnumerable<ApplicationResponse>>(HttpInvocation.JsonSerializerOptions, ct);
         Debug.Assert(applications is not null);
 
         var table = new Table();

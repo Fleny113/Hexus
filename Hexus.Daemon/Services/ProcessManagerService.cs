@@ -8,13 +8,14 @@ using System.Text;
 
 namespace Hexus.Daemon.Services;
 
-internal partial class ProcessManagerService(ILogger<ProcessManagerService> logger, HexusConfigurationManager configManager)
+internal partial class ProcessManagerService(
+    ILogger<ProcessManagerService> logger,
+    HexusConfigurationManager configManager,
+    LogService logService)
 {
-    internal ConcurrentDictionary<Process, HexusApplication> Applications { get; } = new();
+    private readonly ConcurrentDictionary<Process, HexusApplication> _processToApplicationMap = new();
+    private readonly ConcurrentDictionary<HexusApplication, Process> _applicationToProcessMap = new();
 
-    /// <summary> Start an instance of the application</summary>
-    /// <param name="application">The application to start</param>
-    /// <returns>Whatever if the application was started or not</returns>
     public bool StartApplication(HexusApplication application)
     {
         var processInfo = new ProcessStartInfo
@@ -42,10 +43,10 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         if (process is null or { HasExited: true })
             return false;
 
-        application.Process = process;
-        Applications[process] = application;
+        _processToApplicationMap[process] = application;
+        _applicationToProcessMap[application] = process;
 
-        ProcessApplicationLog(application, LogType.System, "-- Application started --");
+        logService.ProcessApplicationLog(application, LogType.System, "-- Application started --");
 
         // Enable the emitting of events and the reading of the STDOUT and STDERR
         process.EnableRaisingEvents = true;
@@ -65,23 +66,20 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         return true;
     }
 
-    /// <summary>Stop the instance of an application</summary>
-    /// <param name="name">The name of the application to stop</param>
-    /// <param name="forceStop">Force the stopping of the application via a force kill</param>
-    /// <returns>If the application was running</returns>
-    public bool StopApplication(string name, bool forceStop = false)
+    public bool StopApplication(HexusApplication application, bool forceStop = false)
     {
-        if (!IsApplicationRunning(name, out var application) || application.Process is null)
+        if (!IsApplicationRunning(application, out var process))
             return false;
 
         // Remove the restart event handler, or else it will restart the process as soon as it stops
-        var process = application.Process;
         process.Exited -= HandleProcessRestart;
 
         StopProcess(process, forceStop);
 
         application.Status = HexusApplicationStatus.Exited;
-        Applications.TryRemove(process, out _);
+
+        _processToApplicationMap.TryRemove(process, out _);
+        _applicationToProcessMap.TryRemove(application, out _);
 
         // If the daemon is shutting down we don't want to save, or else when the daemon is booted up again, all the applications will be marked as stopped
         if (!HexusLifecycle.IsDaemonStopped)
@@ -90,36 +88,35 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         return true;
     }
 
-    /// <summary>Given a name of an application check if it exists, is running and has an attached process running</summary>
-    /// <param name="name">The name of the application</param>
-    /// <param name="application">The application returned with the same <paramref name="name"/> string</param>
-    /// <returns>If the application is running</returns>
-    public bool IsApplicationRunning(string name, [NotNullWhen(true)] out HexusApplication? application) =>
-        configManager.Configuration.Applications.TryGetValue(name, out application) && IsApplicationRunning(application);
-
-    /// <summary>Check if an application exists, is running and has an attached process running</summary>
-    /// <param name="application">The nullable instance of an <see cref="HexusApplication" /></param>
-    /// <returns>If the application is running</returns>
-    public static bool IsApplicationRunning([NotNullWhen(true)] HexusApplication? application)
-        => application is { Status: HexusApplicationStatus.Running, Process.HasExited: false };
-
-    /// <summary>Send a message into the Standard Input (STDIN) of an application</summary>
-    /// <param name="name">The name of the application</param>
-    /// <param name="text">The text to send into the STDIN</param>
-    /// <param name="newLine">Whatever or not to append an \n to the text</param>
-    /// <returns>Whatever or not if the operation was successful or not</returns>
-    public bool SendToApplication(string name, ReadOnlySpan<char> text, bool newLine = true)
+    public void StopApplications()
     {
-        if (!IsApplicationRunning(name, out var application) || application.Process is null)
+        Parallel.ForEach(_processToApplicationMap, tuple => StopApplication(tuple.Value));
+    }
+
+    public bool IsApplicationRunning(HexusApplication application, [NotNullWhen(true)] out Process? process)
+    {
+        if (!_applicationToProcessMap.TryGetValue(application, out process))
+        {
+            return false;
+        }
+
+        return application is { Status: HexusApplicationStatus.Running } && process is { HasExited: false };
+    }
+
+    public bool SendToApplication(HexusApplication application, ReadOnlySpan<char> text, bool newLine = true)
+    {
+        if (!IsApplicationRunning(application, out var process))
             return false;
 
         if (newLine)
-            application.Process.StandardInput.WriteLine(text);
+            process.StandardInput.WriteLine(text);
         else
-            application.Process.StandardInput.Write(text);
+            process.StandardInput.Write(text);
 
         return true;
     }
+
+    #region Stop Process Internals
 
     private void StopProcess(Process process, bool forceStop)
     {
@@ -164,45 +161,24 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
         _ = process.HasExited;
     }
 
+    #endregion
+
     #region Log process events handlers
-
-    private void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
-    {
-        if (logType != LogType.System)
-            LogApplicationOutput(logger, application.Name, message);
-
-        var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
-
-        application.LogChannels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
-        application.LogSemaphore.Wait();
-
-        try
-        {
-            File.AppendAllText(
-                $"{EnvironmentHelper.LogsDirectory}/{application.Name}.log",
-                $"[{applicationLog.Date:O},{applicationLog.LogType.Name}] {applicationLog.Text}{Environment.NewLine}"
-            );
-        }
-        finally
-        {
-            application.LogSemaphore.Release();
-        }
-    }
 
     private void HandleStdOutLogs(object? sender, DataReceivedEventArgs e)
     {
-        if (sender is not Process process || e.Data is null || !Applications.TryGetValue(process, out var application))
+        if (sender is not Process process || e.Data is null || !_processToApplicationMap.TryGetValue(process, out var application))
             return;
 
-        ProcessApplicationLog(application, LogType.StdOut, e.Data);
+        logService.ProcessApplicationLog(application, LogType.StdOut, e.Data);
     }
 
     private void HandleStdErrLogs(object? sender, DataReceivedEventArgs e)
     {
-        if (sender is not Process process || e.Data is null || !Applications.TryGetValue(process, out var application))
+        if (sender is not Process process || e.Data is null || !_processToApplicationMap.TryGetValue(process, out var application))
             return;
 
-        ProcessApplicationLog(application, LogType.StdErr, e.Data);
+        logService.ProcessApplicationLog(application, LogType.StdErr, e.Data);
     }
 
     #endregion
@@ -217,25 +193,21 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     private void AcknowledgeProcessExit(object? sender, EventArgs e)
     {
-        if (sender is not Process process || !Applications.TryGetValue(process, out var application))
+        if (sender is not Process process || !_processToApplicationMap.TryGetValue(process, out var application))
             return;
 
         var exitCode = process.ExitCode;
 
-        ProcessApplicationLog(application, LogType.System, $"-- Application stopped [Exit code: {exitCode}] --");
+        logService.ProcessApplicationLog(application, LogType.System, $"-- Application stopped [Exit code: {exitCode}] --");
 
-        application.Process?.Close();
-        application.Process = null;
-
-        application.CpuStatsMap.Clear();
-        application.LastCpuUsage = 0;
+        process.Close();
 
         LogAcknowledgeProcessExit(logger, application.Name, exitCode);
     }
 
     private void HandleProcessRestart(object? sender, EventArgs e)
     {
-        if (sender is not Process process || !Applications.TryGetValue(process, out var application))
+        if (sender is not Process process || !_processToApplicationMap.TryGetValue(process, out var application))
             return;
 
         var status = _consequentialRestarts.GetValueOrDefault(application.Name, (0, null));
@@ -256,7 +228,9 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
             application.Status = HexusApplicationStatus.Crashed;
             configManager.SaveConfiguration();
 
-            Applications.TryRemove(process, out _);
+            _processToApplicationMap.TryRemove(process, out _);
+            _applicationToProcessMap.TryRemove(application, out _);
+
             return;
         }
 
@@ -308,7 +282,4 @@ internal partial class ProcessManagerService(ILogger<ProcessManagerService> logg
 
     [LoggerMessage(LogLevel.Debug, "Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting")]
     private static partial void LogRestartAttemptDelay(ILogger logger, string name, double seconds);
-
-    [LoggerMessage(LogLevel.Trace, "Application \"{Name}\" says: '{OutputData}'")]
-    private static partial void LogApplicationOutput(ILogger logger, string name, string outputData);
 }

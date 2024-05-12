@@ -15,11 +15,12 @@ namespace Hexus.Daemon.Endpoints.Applications;
 internal sealed class NewApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/new")]
-    public static Results<Ok<HexusApplicationResponse>, ValidationProblem, StatusCodeHttpResult> Handle(
+    public static Results<Ok<ApplicationResponse>, ValidationProblem, StatusCodeHttpResult> Handle(
         [FromBody] NewApplicationRequest request,
         [FromServices] IValidator<NewApplicationRequest> validator,
         [FromServices] HexusConfigurationManager configManager,
-        [FromServices] ProcessManagerService processManager)
+        [FromServices] ProcessManagerService processManager,
+        [FromServices] ProcessStatisticsService processStatisticsService)
     {
         // Fill some defaults that are not compile time constants, so they require to be filled in here.
         request = request with
@@ -36,12 +37,19 @@ internal sealed class NewApplicationEndpoint : IEndpoint
         if (configManager.Configuration.Applications.TryGetValue(application.Name, out _))
             return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyExists);
 
+        processStatisticsService.TrackApplicationUsages(application);
+
         if (!processManager.StartApplication(application))
+        {
+            processStatisticsService.StopTrackingApplicationUsage(application);
             return TypedResults.StatusCode((int)HttpStatusCode.InternalServerError);
+        }
 
         configManager.Configuration.Applications.Add(application.Name, application);
         configManager.SaveConfiguration();
 
-        return TypedResults.Ok(application.MapToResponse());
+        var stats = processStatisticsService.GetApplicationStats(application);
+
+        return TypedResults.Ok(application.MapToResponse(stats));
     }
 }

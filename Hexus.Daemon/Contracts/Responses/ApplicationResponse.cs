@@ -2,7 +2,7 @@ using Hexus.Daemon.Configuration;
 
 namespace Hexus.Daemon.Contracts.Responses;
 
-public sealed record HexusApplicationResponse(
+public sealed record ApplicationResponse(
     string Name,
     string Executable,
     string Arguments,

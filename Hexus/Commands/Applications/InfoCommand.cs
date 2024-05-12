@@ -49,7 +49,7 @@ internal static class InfoCommand
             return;
         }
 
-        var application = await infoRequest.Content.ReadFromJsonAsync<HexusApplicationResponse>(HttpInvocation.JsonSerializerOptions, ct);
+        var application = await infoRequest.Content.ReadFromJsonAsync<ApplicationResponse>(HttpInvocation.JsonSerializerOptions, ct);
 
         Debug.Assert(application is not null);
 

@@ -18,22 +18,24 @@ internal static class MapperExtensions
             EnvironmentVariables = request.EnvironmentVariables ?? [],
         };
 
-    public static HexusApplicationResponse MapToResponse(this HexusApplication application) =>
+    public static ApplicationResponse MapToResponse(this HexusApplication application, ApplicationStatistics applicationStatisticsResponse) =>
         new(
-            application.Name,
-            EnvironmentHelper.NormalizePath(application.Executable),
-            application.Arguments,
-            Note: application.Note,
+            Name: application.Name,
+            Executable: EnvironmentHelper.NormalizePath(application.Executable),
+            Arguments: application.Arguments,
             WorkingDirectory: EnvironmentHelper.NormalizePath(application.WorkingDirectory),
+            Note: application.Note,
             EnvironmentVariables: application.EnvironmentVariables,
             Status: application.Status,
-            ProcessUptime: application.Process is { HasExited: false } ? DateTime.Now - application.Process.StartTime : TimeSpan.Zero,
-            ProcessId: application.Process is { HasExited: false } ? application.Process.Id : 0,
-            CpuUsage: application.LastCpuUsage,
-            MemoryUsage: PerformanceTrackingService.GetMemoryUsage(application)
+            ProcessUptime: applicationStatisticsResponse.ProcessUptime,
+            ProcessId: applicationStatisticsResponse.ProcessId,
+            CpuUsage: applicationStatisticsResponse.CpuUsage,
+            MemoryUsage: applicationStatisticsResponse.MemoryUsage
         );
 
-    public static IEnumerable<HexusApplicationResponse> MapToResponse(this Dictionary<string, HexusApplication> applications) =>
-        applications
-            .Select(pair => pair.Value.MapToResponse());
+    public static IEnumerable<ApplicationResponse> MapToResponse(this IEnumerable<HexusApplication> applications,
+        Func<HexusApplication, ApplicationStatistics> getApplicationStats)
+    {
+        return applications.Select(app => app.MapToResponse(getApplicationStats(app)));
+    }
 }

@@ -12,16 +12,17 @@ internal sealed class DeleteApplicationEndpoint : IEndpoint
     public static Results<NoContent, NotFound> Handle(
         [FromServices] HexusConfigurationManager configManager,
         [FromServices] ProcessManagerService processManager,
+        [FromServices] LogService logService,
         [FromRoute] string name,
         [FromQuery] bool forceStop = false)
     {
-        if (!configManager.Configuration.Applications.ContainsKey(name))
+        if (!configManager.Configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
 
-        processManager.StopApplication(name, forceStop);
+        processManager.StopApplication(application, forceStop);
+        logService.DeleteApplication(application);
 
-        File.Delete($"{EnvironmentHelper.LogsDirectory}/{name}.log");
-        configManager.Configuration.Applications.Remove(name);
+        configManager.Configuration.Applications.Remove(name, out _);
         configManager.SaveConfiguration();
 
         return TypedResults.NoContent();

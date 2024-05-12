@@ -2,7 +2,11 @@
 
 namespace Hexus.Daemon.Services;
 
-internal sealed class HexusLifecycle(HexusConfigurationManager configManager, ProcessManagerService processManager) : IHostedLifecycleService
+internal sealed class HexusLifecycle(
+    HexusConfigurationManager configManager,
+    ProcessManagerService processManager,
+    LogService logService,
+    ProcessStatisticsService processStatisticsService) : IHostedLifecycleService
 {
     internal static readonly CancellationTokenSource DaemonStoppingTokenSource = new();
     public static CancellationToken DaemonStoppingToken => DaemonStoppingTokenSource.Token;
@@ -10,11 +14,15 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
 
     public Task StartedAsync(CancellationToken cancellationToken)
     {
-        var runningApplications = configManager.Configuration.Applications.Values
-            .Where(application => application is { Status: HexusApplicationStatus.Running });
+        foreach (var application in configManager.Configuration.Applications.Values)
+        {
+            logService.PrepareApplication(application);
 
-        foreach (var application in runningApplications)
+            if (application.Status is not HexusApplicationStatus.Running) continue;
+
+            processStatisticsService.TrackApplicationUsages(application);
             processManager.StartApplication(application);
+        }
 
         return Task.CompletedTask;
     }
@@ -22,7 +30,12 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
         File.Delete(configManager.Configuration.UnixSocket);
+
         StopApplications(processManager);
+        foreach (var application in configManager.Configuration.Applications.Values)
+        {
+            processStatisticsService.StopTrackingApplicationUsage(application);
+        }
 
         return Task.CompletedTask;
     }
@@ -45,8 +58,7 @@ internal sealed class HexusLifecycle(HexusConfigurationManager configManager, Pr
         // Else we might try to stop applications that exiting
         lock (processManagerService)
         {
-            Parallel.ForEach(processManagerService.Applications.Values,
-                application => processManagerService.StopApplication(application.Name));
+            processManagerService.StopApplications();
         }
     }
 }
