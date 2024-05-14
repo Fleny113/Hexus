@@ -20,7 +20,8 @@ internal sealed class NewApplicationEndpoint : IEndpoint
         [FromServices] IValidator<NewApplicationRequest> validator,
         [FromServices] HexusConfigurationManager configManager,
         [FromServices] ProcessManagerService processManager,
-        [FromServices] ProcessStatisticsService processStatisticsService)
+        [FromServices] ProcessStatisticsService processStatisticsService,
+        [FromServices] ProcessLogsService processLogsService)
     {
         // Fill some defaults that are not compile time constants, so they require to be filled in here.
         request = request with
@@ -38,10 +39,13 @@ internal sealed class NewApplicationEndpoint : IEndpoint
             return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyExists);
 
         processStatisticsService.TrackApplicationUsages(application);
+        processLogsService.RegisterApplication(application);
 
         if (!processManager.StartApplication(application))
         {
             processStatisticsService.StopTrackingApplicationUsage(application);
+            processLogsService.UnregisterApplication(application);
+
             return TypedResults.StatusCode((int)HttpStatusCode.InternalServerError);
         }
 

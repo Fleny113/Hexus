@@ -8,7 +8,7 @@ using System.Threading.Channels;
 
 namespace Hexus.Daemon.Services;
 
-public partial class LogService(ILogger<LogService> logger)
+internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 {
     private readonly ConcurrentDictionary<HexusApplication, LogController> _logControllers = new();
 
@@ -89,14 +89,19 @@ public partial class LogService(ILogger<LogService> logger)
         }
     }
 
-    public void PrepareApplication(HexusApplication application)
+    public void RegisterApplication(HexusApplication application)
     {
         _logControllers[application] = new LogController();
     }
 
+    public bool UnregisterApplication(HexusApplication application)
+    {
+        return _logControllers.TryRemove(application, out _);
+    }
+
     public void DeleteApplication(HexusApplication application)
     {
-        _logControllers.TryRemove(application, out _);
+        UnregisterApplication(application);
         File.Delete($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log");
     }
 

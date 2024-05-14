@@ -12,7 +12,8 @@ internal sealed class DeleteApplicationEndpoint : IEndpoint
     public static Results<NoContent, NotFound> Handle(
         [FromServices] HexusConfigurationManager configManager,
         [FromServices] ProcessManagerService processManager,
-        [FromServices] LogService logService,
+        [FromServices] ProcessStatisticsService processStatisticsService,
+        [FromServices] ProcessLogsService processLogsService,
         [FromRoute] string name,
         [FromQuery] bool forceStop = false)
     {
@@ -20,7 +21,8 @@ internal sealed class DeleteApplicationEndpoint : IEndpoint
             return TypedResults.NotFound();
 
         processManager.StopApplication(application, forceStop);
-        logService.DeleteApplication(application);
+        processStatisticsService.StopTrackingApplicationUsage(application);
+        processLogsService.DeleteApplication(application);
 
         configManager.Configuration.Applications.Remove(name, out _);
         configManager.SaveConfiguration();

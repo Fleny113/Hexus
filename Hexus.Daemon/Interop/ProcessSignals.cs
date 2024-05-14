@@ -37,8 +37,8 @@ internal static partial class ProcessSignals
 
         Win32Bindings.CloseHandle(process);
         Win32Bindings.CloseHandle(remoteThread);
-        return -1;
 
+        return -1;
     }
 
     [UnsupportedOSPlatform("windows")]

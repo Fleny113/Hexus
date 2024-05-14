@@ -55,7 +55,7 @@ internal static class HexusDaemon
         builder.Services.AddHostedService<HexusLifecycle>();
         builder.Services.AddHostedService<PerformanceTrackingService>();
         builder.Services.AddSingleton<ProcessStatisticsService>();
-        builder.Services.AddSingleton<LogService>();
+        builder.Services.AddSingleton<ProcessLogsService>();
         builder.Services.AddSingleton<ProcessManagerService>();
 
         var app = builder.Build();

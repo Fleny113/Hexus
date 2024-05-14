@@ -11,7 +11,7 @@ namespace Hexus.Daemon.Services;
 internal partial class ProcessManagerService(
     ILogger<ProcessManagerService> logger,
     HexusConfigurationManager configManager,
-    LogService logService)
+    ProcessLogsService processLogsService)
 {
     private readonly ConcurrentDictionary<Process, HexusApplication> _processToApplicationMap = new();
     private readonly ConcurrentDictionary<HexusApplication, Process> _applicationToProcessMap = new();
@@ -46,7 +46,7 @@ internal partial class ProcessManagerService(
         _processToApplicationMap[process] = application;
         _applicationToProcessMap[application] = process;
 
-        logService.ProcessApplicationLog(application, LogType.System, "-- Application started --");
+        processLogsService.ProcessApplicationLog(application, LogType.System, "-- Application started --");
 
         // Enable the emitting of events and the reading of the STDOUT and STDERR
         process.EnableRaisingEvents = true;
@@ -100,7 +100,18 @@ internal partial class ProcessManagerService(
             return false;
         }
 
-        return application is { Status: HexusApplicationStatus.Running } && process is { HasExited: false };
+        try
+        {
+            return application is { Status: HexusApplicationStatus.Running } && process is { HasExited: false };
+        }
+        catch (InvalidOperationException exception) when (exception.Message == "No process is associated with this object.")
+        {
+            // The process does not exist. so it isn't running
+            _applicationToProcessMap.TryRemove(application, out _);
+            _processToApplicationMap.TryRemove(process, out _);
+
+            return false;
+        }
     }
 
     public bool SendToApplication(HexusApplication application, ReadOnlySpan<char> text, bool newLine = true)
@@ -170,7 +181,7 @@ internal partial class ProcessManagerService(
         if (sender is not Process process || e.Data is null || !_processToApplicationMap.TryGetValue(process, out var application))
             return;
 
-        logService.ProcessApplicationLog(application, LogType.StdOut, e.Data);
+        processLogsService.ProcessApplicationLog(application, LogType.StdOut, e.Data);
     }
 
     private void HandleStdErrLogs(object? sender, DataReceivedEventArgs e)
@@ -178,7 +189,7 @@ internal partial class ProcessManagerService(
         if (sender is not Process process || e.Data is null || !_processToApplicationMap.TryGetValue(process, out var application))
             return;
 
-        logService.ProcessApplicationLog(application, LogType.StdErr, e.Data);
+        processLogsService.ProcessApplicationLog(application, LogType.StdErr, e.Data);
     }
 
     #endregion
@@ -198,7 +209,7 @@ internal partial class ProcessManagerService(
 
         var exitCode = process.ExitCode;
 
-        logService.ProcessApplicationLog(application, LogType.System, $"-- Application stopped [Exit code: {exitCode}] --");
+        processLogsService.ProcessApplicationLog(application, LogType.System, $"-- Application stopped [Exit code: {exitCode}] --");
 
         process.Close();
 

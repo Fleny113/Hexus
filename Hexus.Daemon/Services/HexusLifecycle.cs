@@ -5,7 +5,7 @@ namespace Hexus.Daemon.Services;
 internal sealed class HexusLifecycle(
     HexusConfigurationManager configManager,
     ProcessManagerService processManager,
-    LogService logService,
+    ProcessLogsService processLogsService,
     ProcessStatisticsService processStatisticsService) : IHostedLifecycleService
 {
     internal static readonly CancellationTokenSource DaemonStoppingTokenSource = new();
@@ -16,7 +16,7 @@ internal sealed class HexusLifecycle(
     {
         foreach (var application in configManager.Configuration.Applications.Values)
         {
-            logService.PrepareApplication(application);
+            processLogsService.RegisterApplication(application);
 
             if (application.Status is not HexusApplicationStatus.Running) continue;
 
