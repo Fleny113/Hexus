@@ -11,10 +11,8 @@ internal static class LogsCommand
     private static readonly Argument<string> NameArgument = new("name", "The name of the application");
     private static readonly Option<int?> LinesOption = new(["-l", "--lines"], "The number of lines to show from the log file");
     private static readonly Option<bool> DontStream = new("--no-streaming", "Disable the streaming of new logs. It Will only fetch from the log file");
-
-    private static readonly Option<bool> DontShowDates = new("--no-dates",
-        "Disable the dates of the log lines. Useful if you already have those in your log file");
-
+    private static readonly Option<bool> DontShowDates = new("--no-dates", "Disable the dates of the log lines. Useful if you already have those in your log file");
+    private static readonly Option<bool> CurrentExecution = new(["-c", "--current"], "Show logs only from the current or last execution");
     private static readonly Option<DateTime?> ShowLogsAfter = new(["-a", "--after"], "Show logs only after a specified date.");
     private static readonly Option<DateTime?> ShowLogsBefore = new(["-b", "--before"], "Show logs only before a specified date.");
     private static readonly Option<string> Timezone = new(["-t", "--timezone"], "Show the log dates in a specified timezone. The timezone should be compatible with the one provided by your system. Defaults to the local computer timezone.");
@@ -25,6 +23,7 @@ internal static class LogsCommand
         LinesOption,
         DontStream,
         DontShowDates,
+        CurrentExecution,
         ShowLogsAfter,
         ShowLogsBefore,
         Timezone,
@@ -52,6 +51,7 @@ internal static class LogsCommand
         var lines = context.ParseResult.GetValueForOption(LinesOption) ?? 100;
         var noStreaming = context.ParseResult.GetValueForOption(DontStream);
         var noDates = context.ParseResult.GetValueForOption(DontShowDates);
+        var currentExecution = context.ParseResult.GetValueForOption(CurrentExecution);
         var showAfter = context.ParseResult.GetValueForOption(ShowLogsAfter);
         var showBefore = context.ParseResult.GetValueForOption(ShowLogsBefore);
         var timezone = TimeZoneInfo.FindSystemTimeZoneById(context.ParseResult.GetValueForOption(Timezone) ?? TimeZoneInfo.Local.Id);
@@ -69,7 +69,7 @@ internal static class LogsCommand
 
         var logsRequest = await HttpInvocation.GetAsync(
             "Getting logs",
-            $"/{name}/logs?lines={lines}&noStreaming={noStreaming}{showBeforeParam}{showAfterParam}",
+            $"/{name}/logs?lines={lines}&noStreaming={noStreaming}&currentExecution={currentExecution}{showBeforeParam}{showAfterParam}",
             HttpCompletionOption.ResponseHeadersRead,
             ct
         );

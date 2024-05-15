@@ -10,6 +10,9 @@ namespace Hexus.Daemon.Services;
 
 internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 {
+    public const string ApplicationStartedLog = "-- Application started --";
+    public static readonly CompositeFormat ApplicationStoppedLog = CompositeFormat.Parse("-- Application stopped [Exit code: {0}] --");
+
     private readonly ConcurrentDictionary<HexusApplication, LogController> _logControllers = new();
 
     public void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
@@ -42,7 +45,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     }
 
     public async IAsyncEnumerable<ApplicationLog> GetLogs(HexusApplication application, int lines, bool streaming,
-        DateTimeOffset? before, DateTimeOffset? after, [EnumeratorCancellation] CancellationToken ct)
+        bool currentExecution, DateTimeOffset? before, DateTimeOffset? after, [EnumeratorCancellation] CancellationToken ct)
     {
         if (!_logControllers.TryGetValue(application, out var logController))
         {
@@ -60,7 +63,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
         try
         {
-            var logs = GetLogsFromFile(application, logController, lines, before, after);
+            var logs = GetLogsFromFile(application, logController, lines, currentExecution, before, after);
 
             foreach (var log in logs.Reverse())
             {
@@ -108,7 +111,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     #region Log From File Parser
 
     private IEnumerable<ApplicationLog> GetLogsFromFile(HexusApplication application, LogController logController,
-        int lines, DateTimeOffset? before, DateTimeOffset? after)
+        int lines, bool currentExecution, DateTimeOffset? before, DateTimeOffset? after)
     {
         logController.Semaphore.Wait();
 
@@ -202,6 +205,12 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
                 }
 
                 yield return new ApplicationLog(logDate, logType, logText);
+
+                // We only wanted the current execution and we found an application started notice. We should now stop.
+                if (currentExecution && logType == LogType.System && logText == ApplicationStartedLog)
+                {
+                    yield break;
+                }
 
                 if (stream.Position >= 2)
                 {

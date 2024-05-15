@@ -46,12 +46,9 @@ internal partial class ProcessManagerService(
         _processToApplicationMap[process] = application;
         _applicationToProcessMap[application] = process;
 
-        processLogsService.ProcessApplicationLog(application, LogType.System, "-- Application started --");
+        processLogsService.ProcessApplicationLog(application, LogType.System, ProcessLogsService.ApplicationStartedLog);
 
-        // Enable the emitting of events and the reading of the STDOUT and STDERR
         process.EnableRaisingEvents = true;
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
 
         // Register callbacks
         process.OutputDataReceived += HandleStdOutLogs;
@@ -59,6 +56,10 @@ internal partial class ProcessManagerService(
 
         process.Exited += AcknowledgeProcessExit;
         process.Exited += HandleProcessRestart;
+
+        // Enable the emitting of events and the reading of the STDOUT and STDERR
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
 
         application.Status = HexusApplicationStatus.Running;
         configManager.SaveConfiguration();
@@ -209,7 +210,7 @@ internal partial class ProcessManagerService(
 
         var exitCode = process.ExitCode;
 
-        processLogsService.ProcessApplicationLog(application, LogType.System, $"-- Application stopped [Exit code: {exitCode}] --");
+        processLogsService.ProcessApplicationLog(application, LogType.System, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
 
         process.Close();
 

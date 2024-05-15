@@ -16,6 +16,7 @@ internal sealed class GetLogsEndpoint : IEndpoint
         [FromRoute] string name,
         [FromQuery] int lines = 100,
         [FromQuery] bool noStreaming = false,
+        [FromQuery] bool currentExecution = false,
         [FromQuery] DateTimeOffset? before = null,
         [FromQuery] DateTimeOffset? after = null,
         CancellationToken ct = default)
@@ -29,7 +30,7 @@ internal sealed class GetLogsEndpoint : IEndpoint
         // If the before is in the past we can disable steaming
         if (before is not null && before < DateTimeOffset.UtcNow) noStreaming = true;
 
-        var logs = processLogsService.GetLogs(application, lines, !noStreaming, before, after, combinedCtSource.Token);
+        var logs = processLogsService.GetLogs(application, lines, !noStreaming, currentExecution, before, after, combinedCtSource.Token);
 
         return TypedResults.Ok(logs);
     }
