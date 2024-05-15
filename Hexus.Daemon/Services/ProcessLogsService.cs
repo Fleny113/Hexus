@@ -1,6 +1,5 @@
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -13,11 +12,11 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     public const string ApplicationStartedLog = "-- Application started --";
     public static readonly CompositeFormat ApplicationStoppedLog = CompositeFormat.Parse("-- Application stopped [Exit code: {0}] --");
 
-    private readonly ConcurrentDictionary<HexusApplication, LogController> _logControllers = new();
+    private readonly Dictionary<string, LogController> _logControllers = [];
 
     public void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
     {
-        if (!_logControllers.TryGetValue(application, out var logController))
+        if (!_logControllers.TryGetValue(application.Name, out var logController))
         {
             LogUnableToGetLogController(logger, application.Name);
             return;
@@ -47,7 +46,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     public async IAsyncEnumerable<ApplicationLog> GetLogs(HexusApplication application, int lines, bool streaming,
         bool currentExecution, DateTimeOffset? before, DateTimeOffset? after, [EnumeratorCancellation] CancellationToken ct)
     {
-        if (!_logControllers.TryGetValue(application, out var logController))
+        if (!_logControllers.TryGetValue(application.Name, out var logController))
         {
             LogUnableToGetLogController(logger, application.Name);
             yield break;
@@ -94,12 +93,14 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     public void RegisterApplication(HexusApplication application)
     {
-        _logControllers[application] = new LogController();
+        LogRegisteringApplication(logger, application.Name);
+        _logControllers[application.Name] = new LogController();
     }
 
     public bool UnregisterApplication(HexusApplication application)
     {
-        return _logControllers.TryRemove(application, out _);
+        LogUnRegisteringApplication(logger, application.Name);
+        return _logControllers.Remove(application.Name, out _);
     }
 
     public void DeleteApplication(HexusApplication application)
@@ -253,6 +254,12 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     [LoggerMessage(LogLevel.Warning, "Unable to get log controller for application \"{Name}\"")]
     private static partial void LogUnableToGetLogController(ILogger logger, string name);
+
+    [LoggerMessage(LogLevel.Debug, "Application \"{Name}\" is being registered in the process logs service ")]
+    private static partial void LogRegisteringApplication(ILogger logger, string name);
+
+    [LoggerMessage(LogLevel.Debug, "Application \"{Name}\" is being unregistered in the process logs service ")]
+    private static partial void LogUnRegisteringApplication(ILogger logger, string name);
 
     [LoggerMessage(LogLevel.Trace, "Application \"{Name}\" says: '{OutputData}'")]
     private static partial void LogApplicationOutput(ILogger logger, string name, string outputData);

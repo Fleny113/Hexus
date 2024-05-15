@@ -14,6 +14,7 @@ internal sealed class StartApplicationEndpoint : IEndpoint
     public static Results<NoContent, NotFound, ValidationProblem, StatusCodeHttpResult> Handle(
         [FromRoute] string name,
         [FromServices] ProcessManagerService processManager,
+        [FromServices] ProcessStatisticsService processStatisticsService,
         [FromServices] HexusConfiguration configuration)
     {
         if (!configuration.Applications.TryGetValue(name, out var application))
@@ -22,8 +23,13 @@ internal sealed class StartApplicationEndpoint : IEndpoint
         if (processManager.IsApplicationRunning(application, out _))
             return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyRunning);
 
+        processStatisticsService.TrackApplicationUsages(application);
+
         if (!processManager.StartApplication(application))
+        {
+            processStatisticsService.StopTrackingApplicationUsage(application);
             return TypedResults.StatusCode((int)HttpStatusCode.InternalServerError);
+        }
 
         return TypedResults.NoContent();
     }

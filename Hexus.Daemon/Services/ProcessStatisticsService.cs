@@ -1,19 +1,18 @@
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Interop;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 
 namespace Hexus.Daemon.Services;
 
-internal sealed class ProcessStatisticsService(ProcessManagerService processManagerService)
+internal sealed class ProcessStatisticsService(ProcessManagerService processManagerService, HexusConfigurationManager configurationManager)
 {
-    private readonly ConcurrentDictionary<HexusApplication, ApplicationCpuStatistics> _cpuStatisticsMap = new();
+    private readonly Dictionary<string, ApplicationCpuStatistics> _cpuStatisticsMap = [];
 
     public ApplicationStatistics GetApplicationStats(HexusApplication application)
     {
         if (!processManagerService.IsApplicationRunning(application, out var process) ||
-            !_cpuStatisticsMap.TryGetValue(application, out var cpuStatistics))
+            !_cpuStatisticsMap.TryGetValue(application.Name, out var cpuStatistics))
         {
             return new ApplicationStatistics(TimeSpan.Zero, 0, 0, 0);
         }
@@ -28,12 +27,12 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
     public void TrackApplicationUsages(HexusApplication application)
     {
-        _cpuStatisticsMap[application] = new ApplicationCpuStatistics();
+        _cpuStatisticsMap[application.Name] = new ApplicationCpuStatistics();
     }
 
     public bool StopTrackingApplicationUsage(HexusApplication application)
     {
-        return _cpuStatisticsMap.TryRemove(application, out _);
+        return _cpuStatisticsMap.Remove(application.Name, out _);
     }
 
     internal void RefreshCpuUsage()
@@ -45,7 +44,9 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         if (!children.TryGetValue(Environment.ProcessId, out var hexusChildren)) return;
 
         var liveApplications = _cpuStatisticsMap.Keys
-            .Select(app => (IsRunning: processManagerService.IsApplicationRunning(app, out var process), Application: app, Process: process))
+            .Select(name => configurationManager.Configuration.Applications.TryGetValue(name, out var app) ? app : null)
+            .Where(x => x is not null)
+            .Select(app => (IsRunning: processManagerService.IsApplicationRunning(app!, out var process), Application: app!, Process: process))
             .Where(tuple => tuple.IsRunning && hexusChildren.Contains(tuple.Process!.Id))
             .ToDictionary(tuple => tuple.Process!.Id, t => t);
 
@@ -53,7 +54,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         {
             if (!liveApplications.TryGetValue(child, out var tuple)) continue;
 
-            if (!_cpuStatisticsMap.TryGetValue(tuple.Application, out var statistics)) continue;
+            if (!_cpuStatisticsMap.TryGetValue(tuple.Application.Name, out var statistics)) continue;
 
             var processes = Traverse(child, children).ToArray();
             var cpuUsage = GetApplicationCpuUsage(statistics, processes).Sum();

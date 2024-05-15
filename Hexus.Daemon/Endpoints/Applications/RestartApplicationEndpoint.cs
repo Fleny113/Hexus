@@ -12,6 +12,7 @@ internal sealed class RestartApplicationEndpoint : IEndpoint
     [HttpMap(HttpMapMethod.Patch, "/{name}/restart")]
     public static Results<NoContent, NotFound, StatusCodeHttpResult> Handle(
         [FromServices] ProcessManagerService processManager,
+        [FromServices] ProcessStatisticsService processStatisticsService,
         [FromServices] HexusConfiguration configuration,
         [FromRoute] string name,
         [FromQuery] bool forceStop = false)
@@ -19,10 +20,20 @@ internal sealed class RestartApplicationEndpoint : IEndpoint
         if (!configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
 
-        processManager.StopApplication(application, forceStop);
+        processStatisticsService.StopTrackingApplicationUsage(application);
+
+        if (!processManager.StopApplication(application, forceStop))
+        {
+            return TypedResults.StatusCode((int)HttpStatusCode.InternalServerError);
+        }
+
+        processStatisticsService.TrackApplicationUsages(application);
 
         if (!processManager.StartApplication(application))
+        {
+            processStatisticsService.StopTrackingApplicationUsage(application);
             return TypedResults.StatusCode((int)HttpStatusCode.InternalServerError);
+        }
 
         return TypedResults.NoContent();
     }

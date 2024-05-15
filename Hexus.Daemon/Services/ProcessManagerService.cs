@@ -1,7 +1,6 @@
 ﻿using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Interop;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
@@ -13,8 +12,8 @@ internal partial class ProcessManagerService(
     HexusConfigurationManager configManager,
     ProcessLogsService processLogsService)
 {
-    private readonly ConcurrentDictionary<Process, HexusApplication> _processToApplicationMap = new();
-    private readonly ConcurrentDictionary<HexusApplication, Process> _applicationToProcessMap = new();
+    private readonly Dictionary<Process, HexusApplication> _processToApplicationMap = [];
+    private readonly Dictionary<string, Process> _applicationToProcessMap = [];
 
     public bool StartApplication(HexusApplication application)
     {
@@ -44,11 +43,14 @@ internal partial class ProcessManagerService(
             return false;
 
         _processToApplicationMap[process] = application;
-        _applicationToProcessMap[application] = process;
+        _applicationToProcessMap[application.Name] = process;
+
+        // Enable the emitting of events and the reading of the STDOUT and STDERR
+        process.EnableRaisingEvents = true;
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
 
         processLogsService.ProcessApplicationLog(application, LogType.System, ProcessLogsService.ApplicationStartedLog);
-
-        process.EnableRaisingEvents = true;
 
         // Register callbacks
         process.OutputDataReceived += HandleStdOutLogs;
@@ -56,10 +58,6 @@ internal partial class ProcessManagerService(
 
         process.Exited += AcknowledgeProcessExit;
         process.Exited += HandleProcessRestart;
-
-        // Enable the emitting of events and the reading of the STDOUT and STDERR
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
 
         application.Status = HexusApplicationStatus.Running;
         configManager.SaveConfiguration();
@@ -74,13 +72,14 @@ internal partial class ProcessManagerService(
 
         // Remove the restart event handler, or else it will restart the process as soon as it stops
         process.Exited -= HandleProcessRestart;
+        process.Exited += ClearApplicationStateOnExit;
 
         StopProcess(process, forceStop);
 
         application.Status = HexusApplicationStatus.Exited;
 
-        _processToApplicationMap.TryRemove(process, out _);
-        _applicationToProcessMap.TryRemove(application, out _);
+        _processToApplicationMap.Remove(process, out _);
+        _applicationToProcessMap.Remove(application.Name, out _);
 
         // If the daemon is shutting down we don't want to save, or else when the daemon is booted up again, all the applications will be marked as stopped
         if (!HexusLifecycle.IsDaemonStopped)
@@ -96,7 +95,7 @@ internal partial class ProcessManagerService(
 
     public bool IsApplicationRunning(HexusApplication application, [NotNullWhen(true)] out Process? process)
     {
-        if (!_applicationToProcessMap.TryGetValue(application, out process))
+        if (!_applicationToProcessMap.TryGetValue(application.Name, out process))
         {
             return false;
         }
@@ -108,8 +107,8 @@ internal partial class ProcessManagerService(
         catch (InvalidOperationException exception) when (exception.Message == "No process is associated with this object.")
         {
             // The process does not exist. so it isn't running
-            _applicationToProcessMap.TryRemove(application, out _);
-            _processToApplicationMap.TryRemove(process, out _);
+            _applicationToProcessMap.Remove(application.Name, out _);
+            _processToApplicationMap.Remove(process, out _);
 
             return false;
         }
@@ -201,7 +200,7 @@ internal partial class ProcessManagerService(
     private static readonly TimeSpan ResetTimeWindow = TimeSpan.FromSeconds(30);
     private const int MaxRestarts = 10;
 
-    private readonly ConcurrentDictionary<string, (int Restarts, CancellationTokenSource? CancellationTokenSource)> _consequentialRestarts = new();
+    private readonly Dictionary<string, (int Restarts, CancellationTokenSource? CancellationTokenSource)> _consequentialRestarts = [];
 
     private void AcknowledgeProcessExit(object? sender, EventArgs e)
     {
@@ -217,6 +216,15 @@ internal partial class ProcessManagerService(
         LogAcknowledgeProcessExit(logger, application.Name, exitCode);
     }
 
+    private void ClearApplicationStateOnExit(object? sender, EventArgs e)
+    {
+        if (sender is not Process process || !_processToApplicationMap.TryGetValue(process, out var application))
+            return;
+
+        _processToApplicationMap.Remove(process, out _);
+        _applicationToProcessMap.Remove(application.Name, out _);
+    }
+
     private void HandleProcessRestart(object? sender, EventArgs e)
     {
         if (sender is not Process process || !_processToApplicationMap.TryGetValue(process, out var application))
@@ -229,19 +237,18 @@ internal partial class ProcessManagerService(
         status.CancellationTokenSource = new CancellationTokenSource(ResetTimeWindow);
 
         _consequentialRestarts[application.Name] = status;
+        _processToApplicationMap.Remove(process, out _);
+        _applicationToProcessMap.Remove(application.Name, out _);
 
         if (status.Restarts > MaxRestarts)
         {
             LogCrashedApplication(logger, application.Name, status.Restarts, ResetTimeWindow.TotalSeconds);
 
             status.CancellationTokenSource.Dispose();
-            _consequentialRestarts.TryRemove(application.Name, out _);
+            _consequentialRestarts.Remove(application.Name, out _);
 
             application.Status = HexusApplicationStatus.Crashed;
             configManager.SaveConfiguration();
-
-            _processToApplicationMap.TryRemove(process, out _);
-            _applicationToProcessMap.TryRemove(application, out _);
 
             return;
         }
@@ -263,7 +270,7 @@ internal partial class ProcessManagerService(
         if (state is not string name)
             return;
 
-        _consequentialRestarts.TryRemove(name, out var status);
+        _consequentialRestarts.Remove(name, out var status);
         status.CancellationTokenSource?.Dispose();
 
         LogConsequentialRestartsStop(logger, status.Restarts, name);
