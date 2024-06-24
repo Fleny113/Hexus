@@ -9,8 +9,8 @@ namespace Hexus.Daemon.Services;
 
 internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 {
-    public const string ApplicationStartedLog = "-- Application started --";
-    public static readonly CompositeFormat ApplicationStoppedLog = CompositeFormat.Parse("-- Application stopped [Exit code: {0}] --");
+    internal const string ApplicationStartedLog = "-- Application started --";
+    internal static readonly CompositeFormat ApplicationStoppedLog = CompositeFormat.Parse("-- Application stopped [Exit code: {0}] --");
 
     private readonly Dictionary<string, LogController> _logControllers = [];
 
