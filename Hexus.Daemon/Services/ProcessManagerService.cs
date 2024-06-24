@@ -15,6 +15,9 @@ internal partial class ProcessManagerService(
     private readonly Dictionary<Process, HexusApplication> _processToApplicationMap = [];
     private readonly Dictionary<string, Process> _applicationToProcessMap = [];
 
+    // We need to disable the UTF8 identifier or else applications will have a `EF BB BF` character in their stdin
+    private static readonly UTF8Encoding _processEncoding = new(encoderShouldEmitUTF8Identifier: false);
+
     public bool StartApplication(HexusApplication application)
     {
         var processInfo = new ProcessStartInfo
@@ -26,10 +29,9 @@ internal partial class ProcessManagerService(
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-            // NOTE: If set to UTF8 it may give issues when using the STDIN, ASCII seems to solve the issue
-            StandardInputEncoding = Encoding.ASCII,
+            StandardOutputEncoding = _processEncoding,
+            StandardErrorEncoding = _processEncoding,
+            StandardInputEncoding = _processEncoding,
         };
 
         processInfo.Environment.Clear();
