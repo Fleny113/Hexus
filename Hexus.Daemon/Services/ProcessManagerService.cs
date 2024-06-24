@@ -1,9 +1,11 @@
 ﻿using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Interop;
+using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Hexus.Daemon.Services;
 
@@ -47,17 +49,16 @@ internal partial class ProcessManagerService(
         _processToApplicationMap[process] = application;
         _applicationToProcessMap[application.Name] = process;
 
-        // Enable the emitting of events and the reading of the STDOUT and STDERR
+        // Enable the emitting of events (like Exited)
         process.EnableRaisingEvents = true;
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
 
         processLogsService.ProcessApplicationLog(application, LogType.System, ProcessLogsService.ApplicationStartedLog);
 
-        // Register callbacks
-        process.OutputDataReceived += HandleStdOutLogs;
-        process.ErrorDataReceived += HandleStdErrLogs;
+        // Setup log handling 
+        _ = HandleLogs(application, process, process.StandardOutput, LogType.StdOut);
+        _ = HandleLogs(application, process, process.StandardError, LogType.StdErr);
 
+        // Register callbacks
         process.Exited += AcknowledgeProcessExit;
         process.Exited += HandleProcessRestart;
 
@@ -178,20 +179,18 @@ internal partial class ProcessManagerService(
 
     #region Log process events handlers
 
-    private void HandleStdOutLogs(object? sender, DataReceivedEventArgs e)
+    private async Task HandleLogs(HexusApplication application, Process process, StreamReader reader, LogType logType)
     {
-        if (sender is not Process process || e.Data is null || !_processToApplicationMap.TryGetValue(process, out var application))
-            return;
+        using var memoryOwner = MemoryPool<char>.Shared.Rent(minBufferSize: 1024);
 
-        processLogsService.ProcessApplicationLog(application, LogType.StdOut, e.Data);
-    }
+        while (process.HasExited)
+        {
+            var bytesRead = await reader.ReadAsync(memoryOwner.Memory);
 
-    private void HandleStdErrLogs(object? sender, DataReceivedEventArgs e)
-    {
-        if (sender is not Process process || e.Data is null || !_processToApplicationMap.TryGetValue(process, out var application))
-            return;
+            if (bytesRead == 0) continue;
 
-        processLogsService.ProcessApplicationLog(application, LogType.StdErr, e.Data);
+            processLogsService.ProcessApplicationLog(application, logType, memoryOwner.Memory.Span[..bytesRead]);
+        }
     }
 
     #endregion

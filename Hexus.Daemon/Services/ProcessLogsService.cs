@@ -14,7 +14,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     private readonly Dictionary<string, LogController> _logControllers = [];
 
-    public void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
+    public void ProcessApplicationLog(HexusApplication application, LogType logType, ReadOnlySpan<char> message)
     {
         if (!_logControllers.TryGetValue(application.Name, out var logController))
         {
@@ -22,10 +22,14 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
             return;
         }
 
-        if (logType != LogType.System)
-            LogApplicationOutput(logger, application.Name, message);
+        // FIXME: currently we convert to a string the entire Span<char>, however the called gives no guarantee that the span is a single line or multiple lines
+        // neither it does guarantee that the line will be complete and may require appending to the same line at a later 
+        var messageStr = message.ToString();
 
-        var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
+        if (logType != LogType.System)
+            LogApplicationOutput(logger, application.Name, messageStr);
+
+        var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, messageStr);
 
         logController.Channels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
         logController.Semaphore.Wait();
