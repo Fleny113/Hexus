@@ -5,7 +5,6 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Hexus.Daemon.Services;
 
