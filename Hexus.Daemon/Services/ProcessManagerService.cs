@@ -54,8 +54,8 @@ internal partial class ProcessManagerService(
         processLogsService.ProcessApplicationLog(application, LogType.System, ProcessLogsService.ApplicationStartedLog);
 
         // Setup log handling 
-        _ = HandleLogs(application, process, process.StandardOutput, LogType.StdOut);
-        _ = HandleLogs(application, process, process.StandardError, LogType.StdErr);
+        _ = HandleLogs(application, process, LogType.StdOut);
+        _ = HandleLogs(application, process, LogType.StdErr);
 
         // Register callbacks
         process.Exited += AcknowledgeProcessExit;
@@ -178,17 +178,23 @@ internal partial class ProcessManagerService(
 
     #region Log process events handlers
 
-    private async Task HandleLogs(HexusApplication application, Process process, StreamReader reader, LogType logType)
+    private async Task HandleLogs(HexusApplication application, Process process, LogType logType)
     {
+        var streamReader = logType switch
+        {
+            { Name: "STDOUT" } => process.StandardOutput,
+            { Name: "STDERR" } => process.StandardError,
+            _ => throw new ArgumentException("An invalid LogType was passed in", nameof(logType)),
+        };
         using var memoryOwner = MemoryPool<char>.Shared.Rent(minBufferSize: 1024);
 
-        while (process.HasExited)
+        while (!process.HasExited)
         {
-            var bytesRead = await reader.ReadAsync(memoryOwner.Memory);
+            var bytesRead = await streamReader.ReadAsync(memoryOwner.Memory);
 
             if (bytesRead == 0) continue;
 
-            processLogsService.ProcessApplicationLog(application, logType, memoryOwner.Memory.Span[..bytesRead]);
+            processLogsService.ProcessApplicationLog(application, logType, memoryOwner.Memory[..bytesRead]);
         }
     }
 

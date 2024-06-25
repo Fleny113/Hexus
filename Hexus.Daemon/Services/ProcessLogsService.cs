@@ -1,5 +1,6 @@
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
+using System;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -14,7 +15,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     private readonly Dictionary<string, LogController> _logControllers = [];
 
-    public void ProcessApplicationLog(HexusApplication application, LogType logType, ReadOnlySpan<char> message)
+    public void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
     {
         if (!_logControllers.TryGetValue(application.Name, out var logController))
         {
@@ -22,14 +23,10 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
             return;
         }
 
-        // FIXME: currently we convert to a string the entire Span<char>, however the called gives no guarantee that the span is a single line or multiple lines
-        // neither it does guarantee that the line will be complete and may require appending to the same line at a later 
-        var messageStr = message.ToString();
-
         if (logType != LogType.System)
-            LogApplicationOutput(logger, application.Name, messageStr);
+            LogApplicationOutput(logger, application.Name, message);
 
-        var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, messageStr);
+        var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
 
         logController.Channels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
         logController.Semaphore.Wait();
@@ -44,6 +41,15 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         finally
         {
             logController.Semaphore.Release();
+        }
+    }
+
+    // TODO: The ProcessApplicationLog should handle the situation where a partial line was passed in and now we need to complete it
+    internal void ProcessApplicationLog(HexusApplication application, LogType logType, Memory<char> message)
+    {
+        foreach (var line in SplitLines(message))
+        {
+            ProcessApplicationLog(application, logType, line);
         }
     }
 
@@ -139,7 +145,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
             while (lineFound < lines)
             {
-                // We are in a line, so we go back until we find the start of this line.
+                // We are in a line, so we go back until we find the lastNewline of this line.
                 if (stream.Position != 0 && stream.ReadByte() != '\n')
                 {
                     if (stream.Position >= 2)
@@ -249,6 +255,36 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     }
 
     #endregion
+
+    private static IEnumerable<string> SplitLines(Memory<char> memory)
+    {
+        int lastNewline = 0;
+        int length = memory.Span.Length;
+
+        for (int i = 0; i < length; i++)
+        {
+            if (memory.Span[i] is not '\n' or '\r') continue;
+
+            if (i > lastNewline)
+            {
+                yield return memory.Span[lastNewline..i].ToString();
+            }
+
+            // Check for \r\n sequences, making sure to avoid those
+            if (i < length - 1 && memory.Span[i] == '\r' && memory.Span[i + 1] == '\n')
+            {
+                i++;
+            }
+
+            lastNewline = i + 1;
+        }
+
+        // If there is still done data left
+        if (lastNewline < length)
+        {
+            yield return memory.Span[lastNewline..].ToString();
+        }
+    }
 
     [LoggerMessage(LogLevel.Warning, "There was an error parsing the log file for application {Name}: Couldn't parse \"{LogDate}\" as a DateTime. Skipping log line.")]
     private static partial void LogFailedDateTimeParsing(ILogger logger, string name, string logDate);
