@@ -194,7 +194,7 @@ internal partial class ProcessManagerService(
 
             if (bytesRead == 0) continue;
 
-            processLogsService.ProcessApplicationLog(application, logType, memoryOwner.Memory[..bytesRead]);
+            await processLogsService.ProcessApplicationLog(application, logType, memoryOwner.Memory[..bytesRead]);
         }
     }
 

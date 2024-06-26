@@ -1,6 +1,5 @@
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
-using System;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -15,7 +14,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     private readonly Dictionary<string, LogController> _logControllers = [];
 
-    public void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
+    internal void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
     {
         if (!_logControllers.TryGetValue(application.Name, out var logController))
         {
@@ -24,9 +23,12 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         }
 
         if (logType != LogType.System)
+        {
             LogApplicationOutput(logger, application.Name, message);
+        }
 
         var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
+        var lastKnownPosition = logType == LogType.StdOut ? logController.LastStdOutPosition : logController.LastStdErrPosition;
 
         logController.Channels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
         logController.Semaphore.Wait();
@@ -35,7 +37,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         {
             File.AppendAllText(
                 $"{EnvironmentHelper.LogsDirectory}/{application.Name}.log",
-                $"[{applicationLog.Date:O},{applicationLog.LogType.Name}] {applicationLog.Text}{Environment.NewLine}"
+                $"{(lastKnownPosition != -1 ? "\n" : "")}[{applicationLog.Date:O},{applicationLog.LogType.Name}] {applicationLog.Text}\n"
             );
         }
         finally
@@ -44,12 +46,55 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         }
     }
 
-    // TODO: The ProcessApplicationLog should handle the situation where a partial line was passed in and now we need to complete it
-    internal void ProcessApplicationLog(HexusApplication application, LogType logType, Memory<char> message)
+    internal async Task ProcessApplicationLog(HexusApplication application, LogType logType, Memory<char> message)
     {
-        foreach (var line in SplitLines(message))
+        if (!_logControllers.TryGetValue(application.Name, out var logController))
         {
-            ProcessApplicationLog(application, logType, line);
+            LogUnableToGetLogController(logger, application.Name);
+            return;
+        }
+
+        await logController.Semaphore.WaitAsync();
+
+        try
+        {
+            using var file = File.Open($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log", FileMode.OpenOrCreate, FileAccess.Write);
+
+            foreach (var (line, isComplete) in SplitLines(message))
+            {
+                if (logType != LogType.System)
+                {
+                    LogApplicationOutput(logger, application.Name, line.TrimEnd('\r'));
+                }
+
+                // TODO: deal with the changes needed here and in the CLI to support these changes
+
+                var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, line);
+
+                var lastKnownPosition = logType == LogType.StdOut ? logController.LastStdOutPosition : logController.LastStdErrPosition;
+                var otherLastKnownPosition = logType == LogType.StdOut ? logController.LastStdErrPosition : logController.LastStdOutPosition;
+
+                var text = lastKnownPosition == -1 ? $"{(otherLastKnownPosition != -1 ? "\n" : "")}[{applicationLog.Date:O},{applicationLog.LogType.Name}] {applicationLog.Text}" : applicationLog.Text;
+
+                (logType == LogType.StdOut ? ref logController.LastStdErrPosition : ref logController.LastStdOutPosition) = -1;
+
+                file.Position = lastKnownPosition == -1 ? file.Length : lastKnownPosition;
+                await file.WriteAsync(Encoding.UTF8.GetBytes(text));
+
+                if (isComplete)
+                {
+                    file.WriteByte((byte)'\n');
+                }
+
+                (logType == LogType.StdOut ? ref logController.LastStdOutPosition : ref logController.LastStdErrPosition) = isComplete ? -1 : file.Position;
+
+            }
+
+            file.Close();
+        }
+        finally
+        {
+            logController.Semaphore.Release();
         }
     }
 
@@ -256,7 +301,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     #endregion
 
-    private static IEnumerable<string> SplitLines(Memory<char> memory)
+    private static IEnumerable<(string Line, bool IsComplete)> SplitLines(Memory<char> memory)
     {
         int lastNewline = 0;
         int length = memory.Span.Length;
@@ -267,7 +312,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
             if (i > lastNewline)
             {
-                yield return memory.Span[lastNewline..i].ToString();
+                yield return (memory.Span[lastNewline..i].ToString(), true);
             }
 
             // Check for \r\n sequences, making sure to avoid those
@@ -282,7 +327,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         // If there is still done data left
         if (lastNewline < length)
         {
-            yield return memory.Span[lastNewline..].ToString();
+            yield return (memory.Span[lastNewline..].ToString(), false);
         }
     }
 
@@ -308,5 +353,8 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     {
         public SemaphoreSlim Semaphore { get; } = new(initialCount: 1, maxCount: 1);
         public List<Channel<ApplicationLog>> Channels { get; } = [];
+
+        public long LastStdOutPosition = -1;
+        public long LastStdErrPosition = -1;
     }
 }
