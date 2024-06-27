@@ -176,8 +176,6 @@ internal partial class ProcessManagerService(
 
     #endregion
 
-    #region Log process events handlers
-
     private async Task HandleLogs(HexusApplication application, Process process, LogType logType)
     {
         var streamReader = logType switch
@@ -195,8 +193,6 @@ internal partial class ProcessManagerService(
             processLogsService.ProcessApplicationLog(application, logType, str);
         }
     }
-
-    #endregion
 
     #region Exit process event handlers
 
