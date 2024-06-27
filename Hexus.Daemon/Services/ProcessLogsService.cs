@@ -22,13 +22,12 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
             return;
         }
 
-        if (logType != LogType.System)
+        if (logType != LogType.SYSTEM)
         {
             LogApplicationOutput(logger, application.Name, message);
         }
 
         var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
-        var lastKnownPosition = logType == LogType.StdOut ? logController.LastStdOutPosition : logController.LastStdErrPosition;
 
         logController.Channels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
         logController.Semaphore.Wait();
@@ -37,7 +36,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         {
             File.AppendAllText(
                 $"{EnvironmentHelper.LogsDirectory}/{application.Name}.log",
-                $"{(lastKnownPosition != -1 ? "\n" : "")}[{applicationLog.Date:O},{applicationLog.LogType.Name}] {applicationLog.Text}\n"
+                $"[{applicationLog.Date:O},{applicationLog.LogType}] {applicationLog.Text}\n"
             );
         }
         finally
@@ -45,59 +44,6 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
             logController.Semaphore.Release();
         }
     }
-
-    internal async Task ProcessApplicationLog(HexusApplication application, LogType logType, Memory<char> message)
-    {
-        if (!_logControllers.TryGetValue(application.Name, out var logController))
-        {
-            LogUnableToGetLogController(logger, application.Name);
-            return;
-        }
-
-        await logController.Semaphore.WaitAsync();
-
-        try
-        {
-            using var file = File.Open($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log", FileMode.OpenOrCreate, FileAccess.Write);
-
-            foreach (var (line, isComplete) in SplitLines(message))
-            {
-                if (logType != LogType.System)
-                {
-                    LogApplicationOutput(logger, application.Name, line.TrimEnd('\r'));
-                }
-
-                // TODO: deal with the changes needed here and in the CLI to support these changes
-
-                var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, line);
-
-                var lastKnownPosition = logType == LogType.StdOut ? logController.LastStdOutPosition : logController.LastStdErrPosition;
-                var otherLastKnownPosition = logType == LogType.StdOut ? logController.LastStdErrPosition : logController.LastStdOutPosition;
-
-                var text = lastKnownPosition == -1 ? $"{(otherLastKnownPosition != -1 ? "\n" : "")}[{applicationLog.Date:O},{applicationLog.LogType.Name}] {applicationLog.Text}" : applicationLog.Text;
-
-                (logType == LogType.StdOut ? ref logController.LastStdErrPosition : ref logController.LastStdOutPosition) = -1;
-
-                file.Position = lastKnownPosition == -1 ? file.Length : lastKnownPosition;
-                await file.WriteAsync(Encoding.UTF8.GetBytes(text));
-
-                if (isComplete)
-                {
-                    file.WriteByte((byte)'\n');
-                }
-
-                (logType == LogType.StdOut ? ref logController.LastStdOutPosition : ref logController.LastStdErrPosition) = isComplete ? -1 : file.Position;
-
-            }
-
-            file.Close();
-        }
-        finally
-        {
-            logController.Semaphore.Release();
-        }
-    }
-
     public async IAsyncEnumerable<ApplicationLog> GetLogs(HexusApplication application, int lines, bool streaming,
         bool currentExecution, DateTimeOffset? before, DateTimeOffset? after, [EnumeratorCancellation] CancellationToken ct)
     {
@@ -247,7 +193,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
                 var logTypeString = line[35..41];
                 var logText = line[43..];
 
-                if (!LogType.TryParse(logTypeString.AsSpan(), out var logType))
+                if (!Enum.TryParse<LogType>(logTypeString.AsSpan(), out var logType))
                 {
                     LogFailedTypeParsing(logger, application.Name, logTypeString);
 
@@ -263,7 +209,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
                 yield return new ApplicationLog(logDate, logType, logText);
 
                 // We only wanted the current execution and we found an application started notice. We should now stop.
-                if (currentExecution && logType == LogType.System && logText == ApplicationStartedLog)
+                if (currentExecution && logType == LogType.SYSTEM && logText == ApplicationStartedLog)
                 {
                     yield break;
                 }
@@ -301,36 +247,6 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     #endregion
 
-    private static IEnumerable<(string Line, bool IsComplete)> SplitLines(Memory<char> memory)
-    {
-        int lastNewline = 0;
-        int length = memory.Span.Length;
-
-        for (int i = 0; i < length; i++)
-        {
-            if (memory.Span[i] is not '\n' or '\r') continue;
-
-            if (i > lastNewline)
-            {
-                yield return (memory.Span[lastNewline..i].ToString(), true);
-            }
-
-            // Check for \r\n sequences, making sure to avoid those
-            if (i < length - 1 && memory.Span[i] == '\r' && memory.Span[i + 1] == '\n')
-            {
-                i++;
-            }
-
-            lastNewline = i + 1;
-        }
-
-        // If there is still done data left
-        if (lastNewline < length)
-        {
-            yield return (memory.Span[lastNewline..].ToString(), false);
-        }
-    }
-
     [LoggerMessage(LogLevel.Warning, "There was an error parsing the log file for application {Name}: Couldn't parse \"{LogDate}\" as a DateTime. Skipping log line.")]
     private static partial void LogFailedDateTimeParsing(ILogger logger, string name, string logDate);
 
@@ -353,8 +269,5 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     {
         public SemaphoreSlim Semaphore { get; } = new(initialCount: 1, maxCount: 1);
         public List<Channel<ApplicationLog>> Channels { get; } = [];
-
-        public long LastStdOutPosition = -1;
-        public long LastStdErrPosition = -1;
     }
 }

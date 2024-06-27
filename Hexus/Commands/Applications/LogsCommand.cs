@@ -100,7 +100,7 @@ internal static class LogsCommand
 
     private static void PrintLogLine(ApplicationLog log, TimeZoneInfo timeZoneInfo, bool showDates)
     {
-        var color = GetLogTypeColor(log.LogType.Name);
+        var color = GetLogTypeColor(log.LogType);
 
         var timezone = TimeZoneInfo.ConvertTime(log.Date, timeZoneInfo);
         var date = showDates ? $"{timezone:yyyy-MM-dd HH:mm:ss} [{color}]| " : $"[{color}]";
@@ -109,11 +109,11 @@ internal static class LogsCommand
         PrettyConsole.OutLimitlessWidth.MarkupLine($"{date}{log.LogType} |[/] {text}");
     }
 
-    private static Color GetLogTypeColor(ReadOnlySpan<char> logType) => logType switch
+    private static Color GetLogTypeColor(LogType logType) => logType switch
     {
-        "STDOUT" => Color.SpringGreen3,
-        "STDERR" => Color.Red3_1,
-        "SYSTEM" => Color.MediumPurple2,
+        LogType.STDOUT => Color.SpringGreen3,
+        LogType.STDERR => Color.Red3_1,
+        LogType.SYSTEM => Color.MediumPurple2,
         _ => throw new ArgumentOutOfRangeException(nameof(logType), "The requested log type is not mapped to a color"),
     };
 }

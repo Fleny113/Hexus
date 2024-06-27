@@ -51,11 +51,11 @@ internal partial class ProcessManagerService(
         // Enable the emitting of events (like Exited)
         process.EnableRaisingEvents = true;
 
-        processLogsService.ProcessApplicationLog(application, LogType.System, ProcessLogsService.ApplicationStartedLog);
+        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, ProcessLogsService.ApplicationStartedLog);
 
         // Setup log handling 
-        _ = HandleLogs(application, process, LogType.StdOut);
-        _ = HandleLogs(application, process, LogType.StdErr);
+        _ = HandleLogs(application, process, LogType.STDOUT);
+        _ = HandleLogs(application, process, LogType.STDERR);
 
         // Register callbacks
         process.Exited += AcknowledgeProcessExit;
@@ -182,19 +182,17 @@ internal partial class ProcessManagerService(
     {
         var streamReader = logType switch
         {
-            { Name: "STDOUT" } => process.StandardOutput,
-            { Name: "STDERR" } => process.StandardError,
+            LogType.STDOUT => process.StandardOutput,
+            LogType.STDERR => process.StandardError,
             _ => throw new ArgumentException("An invalid LogType was passed in", nameof(logType)),
         };
-        using var memoryOwner = MemoryPool<char>.Shared.Rent(minBufferSize: 1024);
 
         while (!process.HasExited)
         {
-            var bytesRead = await streamReader.ReadAsync(memoryOwner.Memory);
+            var str = await streamReader.ReadLineAsync();
+            if (str is null) continue;
 
-            if (bytesRead == 0) continue;
-
-            await processLogsService.ProcessApplicationLog(application, logType, memoryOwner.Memory[..bytesRead]);
+            processLogsService.ProcessApplicationLog(application, logType, str);
         }
     }
 
@@ -215,7 +213,7 @@ internal partial class ProcessManagerService(
 
         var exitCode = process.ExitCode;
 
-        processLogsService.ProcessApplicationLog(application, LogType.System, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
+        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
 
         process.Close();
 
