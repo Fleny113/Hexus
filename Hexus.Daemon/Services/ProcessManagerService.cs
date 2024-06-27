@@ -1,6 +1,7 @@
 ﻿using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Interop;
+using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
@@ -47,17 +48,16 @@ internal partial class ProcessManagerService(
         _processToApplicationMap[process] = application;
         _applicationToProcessMap[application.Name] = process;
 
-        // Enable the emitting of events and the reading of the STDOUT and STDERR
+        // Enable the emitting of events (like Exited)
         process.EnableRaisingEvents = true;
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
 
-        processLogsService.ProcessApplicationLog(application, LogType.System, ProcessLogsService.ApplicationStartedLog);
+        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, ProcessLogsService.ApplicationStartedLog);
+
+        // Setup log handling 
+        _ = HandleLogs(application, process, LogType.STDOUT);
+        _ = HandleLogs(application, process, LogType.STDERR);
 
         // Register callbacks
-        process.OutputDataReceived += HandleStdOutLogs;
-        process.ErrorDataReceived += HandleStdErrLogs;
-
         process.Exited += AcknowledgeProcessExit;
         process.Exited += HandleProcessRestart;
 
@@ -176,25 +176,23 @@ internal partial class ProcessManagerService(
 
     #endregion
 
-    #region Log process events handlers
-
-    private void HandleStdOutLogs(object? sender, DataReceivedEventArgs e)
+    private async Task HandleLogs(HexusApplication application, Process process, LogType logType)
     {
-        if (sender is not Process process || e.Data is null || !_processToApplicationMap.TryGetValue(process, out var application))
-            return;
+        var streamReader = logType switch
+        {
+            LogType.STDOUT => process.StandardOutput,
+            LogType.STDERR => process.StandardError,
+            _ => throw new ArgumentException("An invalid LogType was passed in", nameof(logType)),
+        };
 
-        processLogsService.ProcessApplicationLog(application, LogType.StdOut, e.Data);
+        while (!process.HasExited)
+        {
+            var str = await streamReader.ReadLineAsync();
+            if (str is null) continue;
+
+            processLogsService.ProcessApplicationLog(application, logType, str);
+        }
     }
-
-    private void HandleStdErrLogs(object? sender, DataReceivedEventArgs e)
-    {
-        if (sender is not Process process || e.Data is null || !_processToApplicationMap.TryGetValue(process, out var application))
-            return;
-
-        processLogsService.ProcessApplicationLog(application, LogType.StdErr, e.Data);
-    }
-
-    #endregion
 
     #region Exit process event handlers
 
@@ -211,7 +209,7 @@ internal partial class ProcessManagerService(
 
         var exitCode = process.ExitCode;
 
-        processLogsService.ProcessApplicationLog(application, LogType.System, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
+        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
 
         process.Close();
 

@@ -14,7 +14,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     private readonly Dictionary<string, LogController> _logControllers = [];
 
-    public void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
+    internal void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
     {
         if (!_logControllers.TryGetValue(application.Name, out var logController))
         {
@@ -22,8 +22,10 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
             return;
         }
 
-        if (logType != LogType.System)
+        if (logType != LogType.SYSTEM)
+        {
             LogApplicationOutput(logger, application.Name, message);
+        }
 
         var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
 
@@ -34,7 +36,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         {
             File.AppendAllText(
                 $"{EnvironmentHelper.LogsDirectory}/{application.Name}.log",
-                $"[{applicationLog.Date:O},{applicationLog.LogType.Name}] {applicationLog.Text}{Environment.NewLine}"
+                $"[{applicationLog.Date:O},{applicationLog.LogType}] {applicationLog.Text}\n"
             );
         }
         finally
@@ -42,7 +44,6 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
             logController.Semaphore.Release();
         }
     }
-
     public async IAsyncEnumerable<ApplicationLog> GetLogs(HexusApplication application, int lines, bool streaming,
         bool currentExecution, DateTimeOffset? before, DateTimeOffset? after, [EnumeratorCancellation] CancellationToken ct)
     {
@@ -135,7 +136,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
             while (lineFound < lines)
             {
-                // We are in a line, so we go back until we find the start of this line.
+                // We are in a line, so we go back until we find the lastNewline of this line.
                 if (stream.Position != 0 && stream.ReadByte() != '\n')
                 {
                     if (stream.Position >= 2)
@@ -192,7 +193,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
                 var logTypeString = line[35..41];
                 var logText = line[43..];
 
-                if (!LogType.TryParse(logTypeString.AsSpan(), out var logType))
+                if (!Enum.TryParse<LogType>(logTypeString.AsSpan(), out var logType))
                 {
                     LogFailedTypeParsing(logger, application.Name, logTypeString);
 
@@ -208,7 +209,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
                 yield return new ApplicationLog(logDate, logType, logText);
 
                 // We only wanted the current execution and we found an application started notice. We should now stop.
-                if (currentExecution && logType == LogType.System && logText == ApplicationStartedLog)
+                if (currentExecution && logType == LogType.SYSTEM && logText == ApplicationStartedLog)
                 {
                     yield break;
                 }
