@@ -38,7 +38,7 @@ internal static class DaemonCommand
             return;
         }
 
-        HexusDaemon.StartDaemon(args);
+        HexusDaemon.Main(args);
     }
 
     private static async Task StopSubCommandHandler(InvocationContext context)

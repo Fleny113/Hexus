@@ -6,7 +6,7 @@ namespace Hexus.Commands.Applications;
 
 internal static class StartCommand
 {
-    private static readonly Argument<string[]> NamesArgument = new("name", "The name of the application to start")
+    private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to start")
     {
         Arity = ArgumentArity.OneOrMore
     };

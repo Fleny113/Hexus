@@ -11,7 +11,7 @@ namespace Hexus.Commands.Applications;
 
 internal static class InfoCommand
 {
-    private static readonly Argument<string> NameArgument = new("name", "The name of the application");
+    private static readonly Argument<string> NameArgument = new("name", "The name(s) of the application(s) to get the info for");
 
     private static readonly Option<bool> ShowEnvironmentVariables =
         new(["-e", "--show-environment"], "Show the environment variables the application has set");

@@ -6,7 +6,7 @@ namespace Hexus.Commands.Applications;
 
 internal static class RestartCommand
 {
-    private static readonly Argument<string[]> NamesArgument = new("name", "The name of the application to restart")
+    private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to restart")
     {
         Arity = ArgumentArity.OneOrMore
     };

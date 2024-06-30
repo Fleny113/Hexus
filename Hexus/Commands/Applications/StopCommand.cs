@@ -6,7 +6,7 @@ namespace Hexus.Commands.Applications;
 
 internal static class StopCommand
 {
-    private static readonly Argument<string[]> NamesArgument = new("name", "The name of the application to stop")
+    private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to stop")
     {
         Arity = ArgumentArity.OneOrMore
     };

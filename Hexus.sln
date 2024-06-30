@@ -1,13 +1,10 @@
-﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hexus.Daemon", "Hexus.Daemon\Hexus.Daemon.csproj", "{63D027C4-C143-473D-8C9F-FA908C9E49A8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexus.Daemon", "Hexus.Daemon\Hexus.Daemon.csproj", "{63D027C4-C143-473D-8C9F-FA908C9E49A8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hexus", "Hexus\Hexus.csproj", "{20DDAE66-734A-49FE-9746-F03EBE85241B}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hexus.Daemon.Runner", "Hexus.Daemon.Runner\Hexus.Daemon.Runner.csproj", "{419FFBDB-2264-4CC8-9CBE-57CC42FE5F3D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexus", "Hexus\Hexus.csproj", "{20DDAE66-734A-49FE-9746-F03EBE85241B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -25,6 +22,10 @@ Global
 		{20DDAE66-734A-49FE-9746-F03EBE85241B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{20DDAE66-734A-49FE-9746-F03EBE85241B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{20DDAE66-734A-49FE-9746-F03EBE85241B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{20DDAE66-734A-49FE-9746-F03EBE85241B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
+-49FE-9746-F03EBE85241B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{20DDAE66-734A-49FE-9746-F03EBE85241B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{419FFBDB-2264-4CC8-9CBE-57CC42FE5F3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{419FFBDB-2264-4CC8-9CBE-57CC42FE5F3D}.Debug|Any CPU.Build.0 = Debug|Any CPU

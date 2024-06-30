@@ -6,7 +6,7 @@ namespace Hexus.Commands.Applications;
 
 internal static class DeleteCommand
 {
-    private static readonly Argument<string[]> NamesArgument = new("name", "The name of the application to delete")
+    private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to delete")
     {
         Arity = ArgumentArity.OneOrMore
     };

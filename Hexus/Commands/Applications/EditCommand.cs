@@ -10,7 +10,7 @@ namespace Hexus.Commands.Applications;
 
 internal static class EditCommand
 {
-    private static readonly Argument<string> NameArgument = new("name", "The name of the application to edit");
+    private static readonly Argument<string> NameArgument = new("name", "The name(s) of the application(s) to edit");
     private static readonly Option<string> NameOption = new(["-n", "--name"], "The new name for the application");
     private static readonly Option<string> ExecutableOptions = new(["-x", "--executable"], "The new executable for the application");
 

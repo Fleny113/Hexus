@@ -9,7 +9,7 @@ namespace Hexus.Daemon;
 
 internal static class HexusDaemon
 {
-    public static void StartDaemon(string[] args)
+    public static void Main(string[] args)
     {
         var builder = WebApplication.CreateSlimBuilder(args);
 
