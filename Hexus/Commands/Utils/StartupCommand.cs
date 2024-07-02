@@ -9,7 +9,12 @@ namespace Hexus.Commands.Utils;
 
 internal static class StartupCommand
 {
-    public static readonly Command Command = new("startup", "Setup the hexus daemon to run on startup");
+    private static readonly Option<bool> UseSystemdSystem = new("--system", "Only for Linux Systemd. Generate a System Unit instead of a User Unit");
+
+    public static readonly Command Command = new("startup", "Setup the hexus daemon to run on startup")
+    {
+        UseSystemdSystem,
+    };
 
     private const string PowershellVariableColor = "#16c60c";
     private const string PowershellCmdletColor = "#f9f1a5";
@@ -28,6 +33,7 @@ internal static class StartupCommand
 
     private static void Handler(InvocationContext context)
     {
+        var systemdSystem = context.ParseResult.GetValueForOption(UseSystemdSystem);
         var executable = Process.GetCurrentProcess().MainModule?.FileName;
         var username = Environment.UserName;
 
@@ -55,7 +61,7 @@ internal static class StartupCommand
             {Variable("$action")} {Operator("=")} {Cmdlet("New-ScheduledTaskAction")} {Operator("-Execute")} {String(executable)} {Operator("-Argument")} {String("daemon start")} {Operator("-WorkingDirectory")} {String(EnvironmentHelper.Home)}
             {Variable("$trigger")} {Operator("=")} {Cmdlet("New-ScheduledTaskTrigger")} {Operator("-AtLogon")}
             {Variable("$principal")} {Operator("=")} {Cmdlet("New-ScheduledTaskPrincipal")} {Operator("-UserId")} {String(windowsUser)} {Operator("-LogonType")} S4U {Operator("-RunLevel")} Limited
-            {Variable("$settings")} {Operator("=")} {Cmdlet("New-ScheduledTaskSettingsSet")} {Operator("-Compatibility")} Win8 {Operator("-MultipleInstances")} IgnoreNew  {Operator("-Hidden")}
+            {Variable("$settings")} {Operator("=")} {Cmdlet("New-ScheduledTaskSettingsSet")} {Operator("-Compatibility")} Win8 {Operator("-MultipleInstances")} IgnoreNew {Operator("-Hidden")}
             {Variable("$task")} {Operator("=")} {Cmdlet("New-ScheduledTask")} {Operator("-Action")} {Variable("$action")} {Operator("-Principal")} {Variable("$principal")} {Operator("-Trigger")} {Variable("$trigger")} {Operator("-Settings")} {Variable("$settings")} {Operator("-Description")} {String(description)}
             {Cmdlet("Register-ScheduledTask")} {Operator("-TaskName")} {String($"hexus-{username.ToLower()}")} {Operator("-TaskPath")} {String("\\")} {Operator("-InputObject")} {Variable("$task")}
             """;
@@ -85,14 +91,15 @@ internal static class StartupCommand
 
         if (OperatingSystem.IsLinux())
         {
+            // The User field on the Serive section needs to be conditional based on if we are generating a System Unit or User unit
+            // Setting the User field when using a User unit will make the unit error when starting
             var unitFile = $"""
             [[{Section("Unit")}]]
-            {Key("Description")}={Value($"Hexus process manager for user {username}")}
+            {Key("Description")}={Value(systemdSystem ? $"Hexus process manager for user {username}" : "Hexus process manager")}
             {Key("After")}={Value("network.target")}
 
             [[{Section("Service")}]]
-            {Key("Type")}={Value("notify")}
-            {Key("User")}={Value($"{username}")}
+            {Key("Type")}={Value("notify")}{(systemdSystem ? $"\n{Key("User")}={Value($"{username}")}" : "")}
             {Key("TasksMax")}={Value("infinity")}
             {Key("Restart")}={Value("on-failure")}
             {Key("ExecStart")}={Value($"{executable} daemon start")}
@@ -100,10 +107,10 @@ internal static class StartupCommand
             {Key("TimeoutStopSec")}={Value("1min")}
 
             [[{Section("Install")}]]
-            {Key("WantedBy")}={Value("multi-user.target")}
+            {Key("WantedBy")}={Value(systemdSystem ? "multi-user.target" : "default.target")}
             """;
 
-            startRule.RuleTitle("[white]Startup systemd service[/]");
+            startRule.RuleTitle($"[white]Startup {(systemdSystem ? "system" : "user")} systemd service[/]");
 
             if (Console.IsOutputRedirected)
             {
@@ -116,6 +123,26 @@ internal static class StartupCommand
             PrettyConsole.OutLimitlessWidth.MarkupLine(unitFile);
             PrettyConsole.Out.WriteLine();
             PrettyConsole.Out.Write(endRule);
+
+            if (!systemdSystem)
+            {
+                PrettyConsole.Out.MarkupLine("""
+                [yellow1]Warning[/]: The generated unit file above is intended to be used as a User Unit, using it as a System unit will result in Hexus running as root and/or erroring.
+                To manage user units, please use the '--user' flag in systemctl commands without sudo (the '--user' flag refers to the executing user).
+                
+                To run Hexus at boot without requiring an active, please enable lingering for your user (via 'loginctl enable-linger') and enable the unit.
+
+                If you prefer to use a system unit pass the '--system' option to this command
+                """);
+            }
+            else
+            {
+                PrettyConsole.Out.MarkupLine("""
+                 [yellow1]Warning[/]: The generated unit file above is intended to be used as a System Unit, using it as a User unit will result in an error
+
+                 If you prefer to use a user unit do not pass the '--system' option to this command.
+                 """);
+            }
 
             return;
 
