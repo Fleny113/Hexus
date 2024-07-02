@@ -4,6 +4,7 @@ using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Services;
 using Hexus.Daemon.Validators;
+using NReco.Logging.File;
 
 namespace Hexus.Daemon;
 
@@ -12,13 +13,17 @@ internal static class HexusDaemon
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateSlimBuilder(args);
+        var configurationManager = new HexusConfigurationManager();
 
-        var isDevelopment = builder.Environment.IsDevelopment();
+        AddAppSettings(builder.Configuration, builder.Environment.IsDevelopment());
 
-        var configurationManager = new HexusConfigurationManager(isDevelopment);
-
-        AddAppSettings(builder.Configuration, isDevelopment);
-        CleanSocketFile(configurationManager.Configuration);
+        // The socket might not get removed, so it might be still there, but Kestrel will throw an exception if the file already exists
+        // We need to check that the directory where the socket is exists before deleting it or File.Delete will throw an exception
+        var dirname = Path.GetDirectoryName(configurationManager.Configuration.UnixSocket);
+        if (Directory.Exists(dirname))
+        {
+            File.Delete(configurationManager.Configuration.UnixSocket);
+        }
 
         builder.WebHost.UseKestrel((context, options) =>
         {
@@ -29,6 +34,12 @@ internal static class HexusDaemon
 
             if (context.HostingEnvironment.IsDevelopment())
                 options.ListenLocalhost(5104);
+        });
+
+        builder.Logging.AddFile(EnvironmentHelper.LogFile, x =>
+        {
+            x.Append = true;
+            x.UseUtcTimestamp = true;
         });
 
         // If we are running as a systemd service this will handle the Type=notify requirements
@@ -60,21 +71,19 @@ internal static class HexusDaemon
 
         var app = builder.Build();
 
+        // We only want to print this message if:
+        //  - We are not on Windows, it is standard that XDG_RUNTIME_DIR does not exist on Windows
+        //  - XDG_RUNTIME_DIR is not set
+        //  - The user hasn't specified another location for the socket (so we are still using the default location)
+        if (!OperatingSystem.IsWindows() && EnvironmentHelper.XdgRuntime is null && configurationManager.Configuration.UnixSocket == EnvironmentHelper.ConfigurationFile)
+        {
+            app.Logger.LogWarning("The XDG_RUNTIME_DIR environment is missing. Defaulting to {socket}", configurationManager.Configuration.UnixSocket);
+        }
+
         app.UseExceptionHandler();
         app.MapEndpointMapperEndpoints();
 
         app.Run();
-    }
-
-    private static void CleanSocketFile(HexusConfiguration configuration)
-    {
-        var name = Path.GetDirectoryName(configuration.UnixSocket)
-                   ?? throw new InvalidOperationException("Cannot get the directory name for the unix socket");
-
-        Directory.CreateDirectory(name);
-
-        // On Windows .NET doesn't remove the socket, so it might be still there
-        File.Delete(configuration.UnixSocket);
     }
 
     private static void AddAppSettings(ConfigurationManager configManager, bool isDevelopment = false)

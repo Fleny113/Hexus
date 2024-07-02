@@ -128,24 +128,32 @@ Keep in mind Hexus will send the message to the direct child so in a situation w
 
 ## Configuration
 
-By default, the config file will be located in `~/.config/hexus.yaml` (If in development it will be used `~/.config/hexus.dev.yaml` instead) but you can
-change where the location for the Hexus file is by using the `XDG_CONFIG_HOME` environment to change the `~/.config` directory and the
-`XDG_STATE_HOME` environment to change the directory used (by default) for the socket and logs (defaults to `~/.local/state`)
+Hexus will store the configuration in `$XDG_CONFIG_HOME/hexus.yaml`,
+the daemon socket on `$XDG_RUNTIME_DIR/hexus.sock` for Linux and `$XDG_STATE_HOME/hexus/hexus.sock` for Windows,
+the logs for the daemon in `$XDG_STATE_HOME/hexus/daemon.log` and the logs for the applications in `$XDG_STATE_HOME/hexus/applications/<app name>.log`
 
-The available options in the yaml file are:
+These locations can be customized with the `XDG_CONFIG_HOME` (defaults to `~/.config`), `XDG_RUNTIME_DIR`[^XDG_RUNTIME_DIR] and `XDG_STATE_HOME` (defaults to `.local/state`) environment variables.
+On Windows setting the `XDG_RUNTIME_DIR` will not be ignored and that path will be used instead of using the `$XDG_STATE_HOME/hexus` folder.
 
-- unixSocket: changes where the socket is located, the CLI will read this file to connect to the daemon,
-  defaults to `$XDG_STATE_HOME/daemon.sock` (or `$XDG_STATE_HOME/daemon.dev.sock` in development)
-- httpPort: (optional) The http port to listen as an addition to the required socket, useful for interfacing with software that cant use the socket
-- cpuRefreshIntervalSeconds: Hexus will refresh the CPU usage of application every tot based on this setting. The more often this is the more precise will be the CPU consumption but will use more system resources.
-- applications: a list of all the application and their configs.
-  - name: required, the name of the application
-  - executable: required, the file to execute when spawning the child
-  - arguments: optional, the arguments to give the executable in a string
-  - workingDirectory: required, the directory where the application will operate
-  - status: required, needs to match the `HexusApplicationStatus` enum, indicates the status of the application. Possible values: `Crashed`, `Exited`, `Running`
-  - note: optional, a note that can be seen in the info command, a usage is to indicate ports used for example.
-  - environmentVariables: optional, all the environment variables for the application. The application **WILL NOT** inherit the env from the daemon
+[^XDG_RUNTIME_DIR]: `XDG_RUNTIME_DIR` does not provide a clear default, however if running on Windows the value "defaults" to `$XDG_STATE_HOME/hexus`, on Unix systems a `hexus-runtime` directory will be created in the temp with the permissions `700` and the current user as the owner according to the XDG basedir specification
+
+The config file is a `.yaml` file with the following options:
+
+- `unixSocket`: Changes where the socket is located. Used for connecting to the daemon.
+- `httpPort`: The HTTP port to listen as an addition way to access the daemon to the required socket, useful for interfacing with software that cant use the socket. \[OPTIONAL\]
+- `cpuRefreshIntervalSeconds`: The interval for the refresh of CPU usage of applications. The lower the value, the more CPU Hexus will use but the more precise it will the the CPU usage of applications. Default 2.5 seconds.
+- `applications`: List of all the applications.
+  - `name`: The name of the application. Needs to be unique.
+  - `executable`: The file to execute when spawning the application.
+  - `arguments`: The arguments to give the executable, as a string. \[OPTIONAL\]
+  - `workingDirectory`: The directory where the application should start.
+  - `status`: Status of the application. Possible values: `Crashed`, `Exited`, `Running` (Matches the `HexusApplicationStatus` enum)
+  - `note`: A note that can be seen in the `info` command. \[OPTIONAL\]
+  - `environmentVariables`: All the environment variables for the application. Application **WILL NOT** inherit the environment variables from the daemon \[OPTIONAL\]
+
+> [!NOTE]
+> The configuration file, the socket and the daemon log will have a `.dev` suffix before the extension to the name when running in development.
+> The resulting config file, socket file and log file are respectively `hexus.dev.yaml`, `hexus.dev.sock` and `daemon.dev.log`
 
 #### PM2 Migration
 

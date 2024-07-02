@@ -57,8 +57,8 @@ internal sealed class EditApplicationEndpoint : IEndpoint
 
         // Rename the log file
         File.Move(
-            sourceFileName: $"{EnvironmentHelper.LogsDirectory}/{application.Name}.log",
-            destFileName: $"{EnvironmentHelper.LogsDirectory}/{request.Name}.log",
+            sourceFileName: $"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log",
+            destFileName: $"{EnvironmentHelper.ApplicationLogsDirectory}/{request.Name}.log",
             overwrite: true
         );
 

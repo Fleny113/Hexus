@@ -2,30 +2,55 @@
 
 public static class EnvironmentHelper
 {
-    public static readonly string Home = NormalizePath(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-
-    private static readonly string XdgConfig = NormalizePath(Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? $"{Home}/.config");
-    private static readonly string XdgState = NormalizePath(Environment.GetEnvironmentVariable("XDG_STATE_HOME") ?? $"{Home}/.local/state");
-
-    private static readonly string HexusStateDirectory = NormalizePath($"{XdgState}/hexus");
-
-    public static readonly string LogsDirectory = NormalizePath($"{HexusStateDirectory}/logs");
-
-    public static readonly string ConfigurationFile = NormalizePath($"{XdgConfig}/hexus.yaml");
-    public static readonly string DevelopmentConfigurationFile = NormalizePath($"{XdgConfig}/hexus.dev.yaml");
-    public static readonly string SocketFile = NormalizePath($"{HexusStateDirectory}/daemon.sock");
-    public static readonly string DevelopmentSocketFile = NormalizePath($"{HexusStateDirectory}/daemon.dev.sock");
-
-    // Used by the CLI to detect when to use the Development configuration
     public static readonly bool IsDevelopment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development";
+    public static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+    // XDG directories based on the XDG basedir spec, we use there folder on Windows too.
+    //
+    // XDG_RUNTIME_DIR does not have a default we can point to due to the requirement this folder has (being owned by the user and being the only with Read Write Execute so 0o700)
+    // This mean that we need to default to a directory in the temp, on Windows we instead use the XDG_STATE_HOME
+    // as using the TEMP in Windows is unreliable as the socket file does not get locked so it is easly deleatable
+    private static readonly string XdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? $"{Home}/.config";
+    private static readonly string XdgState = Environment.GetEnvironmentVariable("XDG_STATE_HOME") ?? $"{Home}/.local/state";
+    internal static readonly string? XdgRuntime = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
+
+    private static readonly string HexusStateDirectory = $"{XdgState}/hexus";
+    private static readonly string HexusRuntimeDirectory = XdgRuntime ?? CreateRuntimeDirectory();
+
+    public static readonly string LogFile = NormalizePath(IsDevelopment ? $"{HexusStateDirectory}/daemon.dev.log" : $"{HexusStateDirectory}/daemon.log");
+    public static readonly string ApplicationLogsDirectory = NormalizePath($"{HexusStateDirectory}/applications");
+
+    public static readonly string ConfigurationFile = NormalizePath(IsDevelopment ? $"{XdgConfig}/hexus.dev.yaml" : $"{XdgConfig}/hexus.yaml");
+    public static readonly string SocketFile = NormalizePath(IsDevelopment ? $"{HexusRuntimeDirectory}/hexus.dev.sock" : $"{HexusRuntimeDirectory}/hexus.sock");
 
     public static void EnsureDirectoriesExistence()
     {
-        Directory.CreateDirectory(HexusStateDirectory);
-        Directory.CreateDirectory(XdgConfig);
+        // We don't want to create the runtime directory if it doesn't exist
+        // The check is performed on the env itself to prevent erroring if we are falling back to something else (the XDG_STATE_HOME on Windows and /tmp/hexus-runtime on Linux)
+        if (XdgRuntime is not null && !Directory.Exists(XdgRuntime))
+        {
+            throw new InvalidOperationException("The directory XDG_RUNTIME_DIR does not exist.");
+        }
 
-        Directory.CreateDirectory(LogsDirectory);
+        Directory.CreateDirectory(XdgConfig);
+        Directory.CreateDirectory(HexusStateDirectory);
+        Directory.CreateDirectory(HexusRuntimeDirectory);
+        Directory.CreateDirectory(ApplicationLogsDirectory);
     }
 
+    // Used to convert to the correct slashes ("/" and "\") based on the platform
     public static string NormalizePath(string path) => Path.GetFullPath(path);
+
+    private static string CreateRuntimeDirectory()
+    {
+        // For Windows we just put the runtime files in the XDG_STATE_HOME directory as we don't have many other solutions available
+        if (OperatingSystem.IsWindows())
+        {
+            return HexusStateDirectory;
+        }
+
+        var dir = Directory.CreateDirectory($"{Path.GetTempPath()}/hexus-runtime", UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        return dir.FullName;
+    }
 }

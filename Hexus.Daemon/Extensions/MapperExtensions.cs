@@ -7,8 +7,9 @@ namespace Hexus.Daemon.Extensions;
 
 internal static class MapperExtensions
 {
-    public static HexusApplication MapToApplication(this NewApplicationRequest request) =>
-        new()
+    public static HexusApplication MapToApplication(this NewApplicationRequest request)
+    {
+        return new()
         {
             Name = request.Name,
             Executable = EnvironmentHelper.NormalizePath(request.Executable),
@@ -17,9 +18,11 @@ internal static class MapperExtensions
             Note = request.Note,
             EnvironmentVariables = request.EnvironmentVariables ?? [],
         };
+    }
 
-    public static ApplicationResponse MapToResponse(this HexusApplication application, ApplicationStatistics applicationStatisticsResponse) =>
-        new(
+    public static ApplicationResponse MapToResponse(this HexusApplication application, ApplicationStatistics applicationStatisticsResponse)
+    {
+        return new(
             Name: application.Name,
             Executable: EnvironmentHelper.NormalizePath(application.Executable),
             Arguments: application.Arguments,
@@ -32,10 +35,37 @@ internal static class MapperExtensions
             CpuUsage: applicationStatisticsResponse.CpuUsage,
             MemoryUsage: applicationStatisticsResponse.MemoryUsage
         );
+    }
+        
 
-    public static IEnumerable<ApplicationResponse> MapToResponse(this IEnumerable<HexusApplication> applications,
+    public static IEnumerable<ApplicationResponse> MapToResponse(this IEnumerable<HexusApplication> applications, 
         Func<HexusApplication, ApplicationStatistics> getApplicationStats)
     {
         return applications.Select(app => app.MapToResponse(getApplicationStats(app)));
+    }
+
+    public static HexusConfiguration MapToConfig(this HexusConfigurationFile configurationFile)
+    {
+        return new()
+        {
+            UnixSocket = configurationFile.UnixSocket ?? EnvironmentHelper.SocketFile,
+            HttpPort = configurationFile.HttpPort,
+            CpuRefreshIntervalSeconds = configurationFile.CpuRefreshIntervalSeconds ?? 2.5,
+            Applications = configurationFile.Applications?.ToDictionary(application => application.Name) ?? [],
+        };
+    }
+    public static HexusConfigurationFile MapToConfigFile(this HexusConfiguration configuration)
+    {
+        // If we are using default values, we can omit writing them to the file
+        var socket = configuration.UnixSocket != EnvironmentHelper.SocketFile ? configuration.UnixSocket : null;
+        var cpuRefresh = configuration.CpuRefreshIntervalSeconds != 2.5 ? configuration.CpuRefreshIntervalSeconds : (double?)null;
+
+        return new()
+        {
+            UnixSocket = socket,
+            HttpPort = configuration.HttpPort,
+            CpuRefreshIntervalSeconds = cpuRefresh,
+            Applications = configuration.Applications.Values,
+        };
     }
 }

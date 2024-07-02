@@ -10,12 +10,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="EndpointMapper" Version="2.0.0"/>
+        <PackageReference Include="EndpointMapper" Version="2.0.0" />
         <PackageReference Include="FluentValidation" Version="11.9.2" />
         <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="8.0.0" />
-        <PackageReference Include="System.Linq.Async" Version="6.0.1"/>
-        <PackageReference Include="YamlDotNet" Version="15.3.0"/>
+        <PackageReference Include="NReco.Logging.File" Version="1.2.1" />
+        <PackageReference Include="System.Linq.Async" Version="6.0.1" />
+        <PackageReference Include="YamlDotNet" Version="15.3.0" />
 
-        <InternalsVisibleTo Include="Hexus"/>
+        <InternalsVisibleTo Include="Hexus" />
     </ItemGroup>
 </Project>

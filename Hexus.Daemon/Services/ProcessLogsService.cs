@@ -35,7 +35,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         try
         {
             File.AppendAllText(
-                $"{EnvironmentHelper.LogsDirectory}/{application.Name}.log",
+                $"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log",
                 $"[{applicationLog.Date:O},{applicationLog.LogType}] {applicationLog.Text}\n"
             );
         }
@@ -107,7 +107,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     public void DeleteApplication(HexusApplication application)
     {
         UnregisterApplication(application);
-        File.Delete($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log");
+        File.Delete($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log");
     }
 
     #region Log From File Parser
@@ -119,7 +119,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
         try
         {
-            using var stream = File.OpenRead($"{EnvironmentHelper.LogsDirectory}/{application.Name}.log");
+            using var stream = File.OpenRead($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log");
             using var reader = new StreamReader(stream, Encoding.UTF8);
 
             if (stream.Length <= 2)
