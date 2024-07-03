@@ -1,7 +1,9 @@
+using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Contracts.Responses;
 using System.Text.Json.Serialization;
+using YamlDotNet.Serialization;
 
 namespace Hexus.Daemon;
 
@@ -14,3 +16,8 @@ namespace Hexus.Daemon;
 [JsonSerializable(typeof(SendInputRequest))]
 [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
 internal partial class AppJsonSerializerContext : JsonSerializerContext;
+
+[YamlSerializable(typeof(HexusConfigurationFile))]
+[YamlSerializable(typeof(HexusApplication))]
+[YamlStaticContext]
+public partial class AppYamlSerializerContext : StaticContext;

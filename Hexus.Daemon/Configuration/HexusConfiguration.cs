@@ -1,10 +1,5 @@
-﻿using System.ComponentModel;
+﻿namespace Hexus.Daemon.Configuration;
 
-namespace Hexus.Daemon.Configuration;
-
-/// <summary>
-/// Object used to consume the config file
-/// </summary>
 public sealed record HexusConfiguration
 {
     public required string UnixSocket { get; init; }
@@ -13,13 +8,11 @@ public sealed record HexusConfiguration
     public Dictionary<string, HexusApplication> Applications { get; init; } = [];
 }
 
-/// <summary>
-/// Object used to write to the config file
-/// </summary>
-public sealed record HexusConfigurationFile
+// Used for the YAML File serialization
+internal sealed record HexusConfigurationFile
 {
-    public string? UnixSocket { get; init; }
-    public int? HttpPort { get; init; }
-    public double? CpuRefreshIntervalSeconds { get; init; }
-    public IEnumerable<HexusApplication>? Applications { get; init; }
+    public string? UnixSocket { get; set; }
+    public int? HttpPort { get; set; }
+    public double? CpuRefreshIntervalSeconds { get; set; }
+    public Dictionary<string, HexusApplication>? Applications { get; set; }
 }

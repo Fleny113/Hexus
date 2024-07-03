@@ -1,16 +1,17 @@
-﻿using System.ComponentModel;
+﻿using YamlDotNet.Serialization;
 
 namespace Hexus.Daemon.Configuration;
 
 public sealed record HexusApplication
 {
-    public required string Name { get; set; }
-    public required string Executable { get; set; }
+    [YamlIgnore]
+    public string Name { get; set; } = null!;
+    public string Executable { get; set; } = null!;
 
-    [DefaultValue("")] public string Arguments { get; set; } = "";
-    public string WorkingDirectory { get; set; } = "";
+    public string? Arguments { get; set; }
+    public string WorkingDirectory { get; set; } = null!;
     public HexusApplicationStatus Status { get; set; } = HexusApplicationStatus.Exited;
-    [DefaultValue("")] public string Note { get; set; } = "";
+    public string? Note { get; set; }
 
     public Dictionary<string, string> EnvironmentVariables { get; set; } = [];
 }

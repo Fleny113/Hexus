@@ -5,9 +5,9 @@ namespace Hexus.Daemon.Contracts.Responses;
 public sealed record ApplicationResponse(
     string Name,
     string Executable,
-    string Arguments,
+    string? Arguments,
     string WorkingDirectory,
-    string Note,
+    string? Note,
     Dictionary<string, string> EnvironmentVariables,
     HexusApplicationStatus Status,
     TimeSpan ProcessUptime,

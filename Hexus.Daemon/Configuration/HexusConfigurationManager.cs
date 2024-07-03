@@ -8,14 +8,14 @@ internal class HexusConfigurationManager
 {
     public HexusConfiguration Configuration { get; private set; } = null!;
 
-    private static readonly IDeserializer YamlDeserializer = new DeserializerBuilder()
+    private static readonly AppYamlSerializerContext _yamlStaticContext = new();
+    private static readonly IDeserializer _yamlDeserializer = new StaticDeserializerBuilder(_yamlStaticContext)
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
-
-    private static readonly ISerializer YamlSerializer = new SerializerBuilder()
-        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitDefaults)
-        .WithIndentedSequences()
+    private static readonly ISerializer _yamlSerializer = new StaticSerializerBuilder(_yamlStaticContext)
+        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitDefaults | DefaultValuesHandling.OmitEmptyCollections)
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .WithIndentedSequences()
         .Build();
 
     private void LoadConfiguration()
@@ -31,7 +31,7 @@ internal class HexusConfigurationManager
         }
 
         var configurationFile = File.ReadAllText(EnvironmentHelper.ConfigurationFile);
-        var configFile = YamlDeserializer.Deserialize<HexusConfigurationFile?>(configurationFile) ?? new HexusConfigurationFile();
+        var configFile = _yamlDeserializer.Deserialize<HexusConfigurationFile?>(configurationFile) ?? new HexusConfigurationFile();
 
         Configuration = configFile.MapToConfig();
 
@@ -42,7 +42,7 @@ internal class HexusConfigurationManager
     {
         EnvironmentHelper.EnsureDirectoriesExistence();
 
-        var yamlString = YamlSerializer.Serialize(Configuration.MapToConfigFile());
+        var yamlString = _yamlSerializer.Serialize(Configuration.MapToConfigFile());
 
         lock (this)
         {

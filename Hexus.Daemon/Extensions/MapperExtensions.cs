@@ -2,6 +2,7 @@
 using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Contracts.Responses;
 using Hexus.Daemon.Services;
+using Microsoft.Extensions.Configuration;
 
 namespace Hexus.Daemon.Extensions;
 
@@ -46,12 +47,23 @@ internal static class MapperExtensions
 
     public static HexusConfiguration MapToConfig(this HexusConfigurationFile configurationFile)
     {
+        var applications = configurationFile.Applications?.Select(x => new KeyValuePair<string, HexusApplication>(x.Key, new()
+        {
+            Name = x.Key,
+            Executable = x.Value.Executable,
+            Arguments = x.Value.Arguments,
+            WorkingDirectory = x.Value.WorkingDirectory,
+            Status = x.Value.Status,
+            Note = x.Value.Note,
+            EnvironmentVariables = x.Value.EnvironmentVariables
+        }));
+
         return new()
         {
             UnixSocket = configurationFile.UnixSocket ?? EnvironmentHelper.SocketFile,
             HttpPort = configurationFile.HttpPort,
             CpuRefreshIntervalSeconds = configurationFile.CpuRefreshIntervalSeconds ?? 2.5,
-            Applications = configurationFile.Applications?.ToDictionary(application => application.Name) ?? [],
+            Applications = applications?.ToDictionary() ?? [],
         };
     }
     public static HexusConfigurationFile MapToConfigFile(this HexusConfiguration configuration)
@@ -60,12 +72,24 @@ internal static class MapperExtensions
         var socket = configuration.UnixSocket != EnvironmentHelper.SocketFile ? configuration.UnixSocket : null;
         var cpuRefresh = configuration.CpuRefreshIntervalSeconds != 2.5 ? configuration.CpuRefreshIntervalSeconds : (double?)null;
 
+        var applications = configuration.Applications.Select(x => new KeyValuePair<string, HexusApplication>(x.Key, new()
+        {
+            // We don't want to serialize the name in the config file
+            Name = null!,
+            Executable = x.Value.Executable,
+            Arguments = x.Value.Arguments,
+            WorkingDirectory = x.Value.WorkingDirectory,
+            Status = x.Value.Status,
+            Note = x.Value.Note,
+            EnvironmentVariables = x.Value.EnvironmentVariables
+        }));
+
         return new()
         {
             UnixSocket = socket,
             HttpPort = configuration.HttpPort,
             CpuRefreshIntervalSeconds = cpuRefresh,
-            Applications = configuration.Applications.Values,
+            Applications = applications.ToDictionary(),
         };
     }
 }
