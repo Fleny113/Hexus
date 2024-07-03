@@ -140,6 +140,9 @@ internal static class StartupCommand
                 PrettyConsole.Out.MarkupLine("""
                  [yellow1]Warning[/]: The generated unit file above is intended to be used as a System Unit, using it as a User unit will result in an error
 
+                 You may have issues connecting to the daemon if you don't specify manually the unix socket location in the config file.
+                 This is due to the XDG_RUNTIME_DIR envrionment variable not being available in a System Unit.
+
                  If you prefer to use a user unit do not pass the '--system' option to this command.
                  """);
             }
