@@ -90,7 +90,7 @@ internal static class EditCommand
         if (newExecutable is not null)
             newExecutable = Path.IsPathFullyQualified(newExecutable)
                 ? EnvironmentHelper.NormalizePath(newExecutable)
-                : NewCommand.TryResolveExecutable(newExecutable);
+                : PathHelper.ResolveExecutable(newExecutable);
 
         if (reloadEnv)
         {

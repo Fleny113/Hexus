@@ -36,7 +36,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         {
             File.AppendAllText(
                 $"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log",
-                $"[{applicationLog.Date:O},{applicationLog.LogType}] {applicationLog.Text}\n"
+                $"[{applicationLog.Date.DateTime:O},{applicationLog.LogType}] {applicationLog.Text}\n"
             );
         }
         finally
@@ -163,7 +163,12 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
                     continue;
                 }
 
-                var logDateString = line[1..34];
+                var startMetadata = line.IndexOf('[') + 1;
+                var endDate = line.IndexOf(',', startMetadata);
+                var endMetadata = line.IndexOf(']', endDate);
+                var startMessage = line.IndexOf(' ', endMetadata) + 1;
+
+                var logDateString = line[startMetadata..endDate];
                 if (!TryLogTimeFormat(logDateString, out var logDate))
                 {
                     LogFailedDateTimeParsing(logger, application.Name, logDateString);
@@ -190,8 +195,8 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
                 lineFound++;
 
-                var logTypeString = line[35..41];
-                var logText = line[43..];
+                var logTypeString = line[(endDate + 1)..endMetadata];
+                var logText = line[startMessage..];
 
                 if (!Enum.TryParse<LogType>(logTypeString.AsSpan(), out var logType))
                 {
@@ -265,7 +270,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     [LoggerMessage(LogLevel.Trace, "Application \"{Name}\" says: '{OutputData}'")]
     private static partial void LogApplicationOutput(ILogger logger, string name, string outputData);
 
-    internal record LogController
+    private record LogController
     {
         public SemaphoreSlim Semaphore { get; } = new(initialCount: 1, maxCount: 1);
         public List<Channel<ApplicationLog>> Channels { get; } = [];

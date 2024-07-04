@@ -4,7 +4,7 @@ using Hexus.Daemon.Extensions;
 
 namespace Hexus.Daemon.Validators;
 
-public class NewApplicationValidator : AbstractValidator<NewApplicationRequest>
+internal class NewApplicationValidator : AbstractValidator<NewApplicationRequest>
 {
     public NewApplicationValidator()
     {

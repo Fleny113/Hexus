@@ -2,7 +2,6 @@
 using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Contracts.Responses;
 using Hexus.Daemon.Services;
-using Microsoft.Extensions.Configuration;
 
 namespace Hexus.Daemon.Extensions;
 

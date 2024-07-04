@@ -3,7 +3,7 @@ using Hexus.Daemon.Contracts.Requests;
 
 namespace Hexus.Daemon.Validators;
 
-public class SendInputValidator : AbstractValidator<SendInputRequest>
+internal class SendInputValidator : AbstractValidator<SendInputRequest>
 {
     public SendInputValidator()
     {

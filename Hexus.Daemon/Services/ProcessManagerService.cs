@@ -211,6 +211,7 @@ internal partial class ProcessManagerService(
         processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
 
         process.Close();
+        process.Dispose();
 
         LogAcknowledgeProcessExit(logger, application.Name, exitCode);
     }

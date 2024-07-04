@@ -94,7 +94,7 @@ internal static class NewCommand
 
         executable = Path.IsPathFullyQualified(executable)
             ? EnvironmentHelper.NormalizePath(executable)
-            : TryResolveExecutable(executable);
+            : PathHelper.ResolveExecutable(executable);
 
         var newRequest = await HttpInvocation.PostAsJsonAsync(
             "Creating new application",
@@ -119,38 +119,5 @@ internal static class NewCommand
         }
 
         PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [palegreen3]created[/]!");
-    }
-
-    internal static string TryResolveExecutable(string executable)
-    {
-        // relative folders resolver (./.../exe)
-        var absolutePath = EnvironmentHelper.NormalizePath(executable);
-
-        if (File.Exists(absolutePath))
-            return absolutePath;
-
-        // PATH env resolver
-        if (executable.Contains('/') || executable.Contains('\\'))
-            throw new Exception("Executable cannot have slashes");
-
-        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? throw new Exception("Cannot get PATH environment variable");
-
-        // Linux and Windows use different split char for the path
-        var paths = pathEnv.Split(OperatingSystem.IsWindows() ? ';' : ':');
-
-        if (OperatingSystem.IsWindows() && !executable.EndsWith(".exe"))
-            executable = $"{executable}.exe";
-
-        var resolvedExecutable = paths
-            .Select(path => Path.Combine(path, executable))
-            .Where(File.Exists)
-            .Select(EnvironmentHelper.NormalizePath)
-            .FirstOrDefault();
-
-        if (resolvedExecutable is not null)
-            return resolvedExecutable;
-
-        // No executable found
-        throw new FileNotFoundException("Cannot find the executable");
     }
 }
