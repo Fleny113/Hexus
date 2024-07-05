@@ -142,8 +142,7 @@ The config file is a `.yaml` file with the following options:
 - `unixSocket`: Changes where the socket is located. Used for connecting to the daemon.
 - `httpPort`: The HTTP port to listen as an addition way to access the daemon to the required socket, useful for interfacing with software that cant use the socket. \[OPTIONAL\]
 - `cpuRefreshIntervalSeconds`: The interval for the refresh of CPU usage of applications. The lower the value, the more CPU Hexus will use but the more precise it will the the CPU usage of applications. Default 2.5 seconds.
-- `applications`: List of all the applications.
-  - `name`: The name of the application. Needs to be unique.
+- `applications`: Object with the application name as the key as as the value the following proprieties.
   - `executable`: The file to execute when spawning the application.
   - `arguments`: The arguments to give the executable, as a string. \[OPTIONAL\]
   - `workingDirectory`: The directory where the application should start.
