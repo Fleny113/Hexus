@@ -33,4 +33,6 @@ var builder = new CommandLineBuilder(rootCommand);
 builder.UseDefaults();
 builder.UseExceptionHandler((exception, _) => PrettyConsole.Error.WriteException(exception), 1);
 
-return await builder.Build().InvokeAsync(args);
+var app = builder.Build();
+
+return await app.InvokeAsync(args);

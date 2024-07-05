@@ -1,8 +1,13 @@
 <Project>
     <!-- See https://aka.ms/dotnet/msbuild/customize for more details on customizing your build -->
     <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        
         <UseArtifactsOutput>true</UseArtifactsOutput>
         <NuGetAudit>true</NuGetAudit>
-        <VersionPrefix>0.2.1</VersionPrefix>
+        <VersionPrefix>0.3.0</VersionPrefix>
     </PropertyGroup>
 </Project>

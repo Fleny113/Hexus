@@ -30,10 +30,14 @@ internal class HexusConfigurationManager
             return;
         }
 
-        var configurationFile = File.ReadAllText(EnvironmentHelper.ConfigurationFile);
-        var configFile = _yamlDeserializer.Deserialize<HexusConfigurationFile?>(configurationFile) ?? new HexusConfigurationFile();
+        lock (this)
+        {
+            var configurationFile = File.ReadAllText(EnvironmentHelper.ConfigurationFile);
 
-        Configuration = configFile.MapToConfig();
+            var configFile = _yamlDeserializer.Deserialize<HexusConfigurationFile?>(configurationFile) ?? new HexusConfigurationFile();
+
+            Configuration = configFile.MapToConfig();
+        }
 
         SaveConfiguration();
     }

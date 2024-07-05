@@ -1,7 +1,6 @@
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.Diagnostics;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
@@ -28,87 +27,97 @@ internal static class UpdateCommand
         Command.SetHandler(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(InvocationContext context)
     {
         var ci = context.ParseResult.GetValueForOption(CiBuildOption);
         var ct = context.GetCancellationToken();
 
-        if (await HttpInvocation.CheckForRunningDaemon(ct) && OperatingSystem.IsWindows())
-        {
-            PrettyConsole.Error.MarkupLine("The [indianred1]daemon needs to not be running[/] to update hexus on Windows. Stop it first using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.");
-            return;
-        }
-
         var file = $"{RuntimeInformation.RuntimeIdentifier}-{Variant}.tar.gz";
+
+        var daemonRunning = await HttpInvocation.CheckForRunningDaemon(ct);
+        var oldFilesRequired = OperatingSystem.IsWindows();
 
         var link = ci
             ? $"https://github.com/Fleny113/Hexus/releases/download/ci/{file}"
             : $"https://github.com/Fleny113/Hexus/releases/latest/download/{file}";
 
         var currentPath = Environment.ProcessPath;
+        var currentDir = Path.GetDirectoryName(currentPath);
 
-        if (currentPath is null)
+        if (currentPath is null || currentDir is null)
         {
-            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] fetching the current executable path.");
-            return;
+            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] fetching the Hexus files path.");
+            return 1;
         }
 
-        PrettyConsole.Out.MarkupLineInterpolated($"Downloading the updated binary from \"{link}\".");
+        if (!CleanOldFiles(currentDir))
+        {
+            PrettyConsole.Error.MarkupLine("[lightsteelblue].old[/] files where found and they [red1]couldn't be removed[/]. [aquamarine1]Restart the daemon[/] and try again");
+            return 1;
+        }
+
+        PrettyConsole.Out.MarkupLineInterpolated($"[mediumpurple]Downloading[/] the updated files from \"[link]{link}[/]\".");
 
         using var httpClient = new HttpClient();
-        using var tar = await httpClient.GetAsync(link, ct);
+        using var request = await httpClient.GetAsync(link, ct);
 
-        if (!tar.IsSuccessStatusCode)
+        if (!request.IsSuccessStatusCode)
         {
-            var body = await tar.Content.ReadAsStringAsync(ct);
-            PrettyConsole.Error.MarkupLineInterpolated($"There [indianred1]was an error[/] fetching the updated binary. HTTP status code: {tar.StatusCode}, body: \"{body}\"");
-            return;
+            var body = await request.Content.ReadAsStringAsync(ct);
+            PrettyConsole.Error.MarkupLineInterpolated($"There [indianred1]was an error[/] fetching the updated files. HTTP status code: {request.StatusCode}, body: \"{body}\"");
+            return 1;
         }
 
-        await using var stream = await tar.Content.ReadAsStreamAsync(ct);
-
+        await using var stream = await request.Content.ReadAsStreamAsync(ct);
         await using var gzipStream = new GZipStream(stream, CompressionMode.Decompress);
         await using var tarReader = new TarReader(gzipStream);
 
-        var tempFileExec = Path.GetTempFileName();
-
-        while (await tarReader.GetNextEntryAsync(cancellationToken: ct) is { DataStream: not null } entry)
+        while (await tarReader.GetNextEntryAsync(cancellationToken: ct) is { } entry)
         {
-            // Find the hexus (or hexus.exe) file
-            if (!entry.Name.StartsWith("hexus"))
-                continue;
+            var path = Path.Combine(currentDir, entry.Name);
 
-            await entry.ExtractToFileAsync(tempFileExec, overwrite: true, cancellationToken: ct);
-            break;
-        }
-
-        // Under windows the file will be locked, so we need to use a script to bypass the file locking
-        if (OperatingSystem.IsWindows())
-        {
-            var tempFileScript = $"{Path.GetTempFileName()}.bat";
-
-            // there is a timeout delay to allow for the CLI to exit
-            var script = $"""
-                          @echo off
-                          timeout /t 3 > NUL
-                          del "{currentPath}"
-                          move "{tempFileExec}" "{currentPath}"
-                          del "%~f0"
-                          """;
-
-            await File.WriteAllTextAsync(tempFileScript, script, ct);
-
-            PrettyConsole.Out.MarkupLine("[yellow]WARNING[/]: To update hexus a batch script will run to replace the file. Please wait about 5 seconds before restarting hexus.");
-            Process.Start(new ProcessStartInfo(tempFileScript)
+            if (entry.EntryType is TarEntryType.Directory)
             {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            });
+                Directory.CreateDirectory(path);
+                continue;
+            }
 
-            return;
+            // On Windows we need to rename the files to change the handles and being able to update the files
+            if (oldFilesRequired)
+            {
+                File.Move(path, $"{path}.old", overwrite: true);
+            }
+
+            await entry.ExtractToFileAsync(path, overwrite: true, cancellationToken: ct);
         }
 
-        File.Move(tempFileExec, currentPath, overwrite: true);
-        PrettyConsole.Out.MarkupLine("[springgreen1]Update done[/], restart the daemon to make the update have effect on it too.");
+        if (daemonRunning)
+        {
+            PrettyConsole.Out.MarkupLine("The [lightcoral]daemon[/] could not be updated as it is running. [aquamarine1]Restart the daemon[/] to finish the update.");
+            return 0;
+        }
+
+        PrettyConsole.Out.MarkupLine("Update [springgreen1]done[/].");
+
+        return 0;
+    }
+
+    private static bool CleanOldFiles(string searchPath)
+    {
+        var oldFiles = Directory.EnumerateFiles(searchPath, "*.old", SearchOption.AllDirectories);
+
+        try
+        {
+            foreach (var file in oldFiles)
+            {
+                File.Delete(file);
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        return true;
     }
 }
