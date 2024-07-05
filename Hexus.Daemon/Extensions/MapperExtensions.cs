@@ -36,9 +36,9 @@ internal static class MapperExtensions
             MemoryUsage: applicationStatisticsResponse.MemoryUsage
         );
     }
-        
 
-    public static IEnumerable<ApplicationResponse> MapToResponse(this IEnumerable<HexusApplication> applications, 
+
+    public static IEnumerable<ApplicationResponse> MapToResponse(this IEnumerable<HexusApplication> applications,
         Func<HexusApplication, ApplicationStatistics> getApplicationStats)
     {
         return applications.Select(app => app.MapToResponse(getApplicationStats(app)));

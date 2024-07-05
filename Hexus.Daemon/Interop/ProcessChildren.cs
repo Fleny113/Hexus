@@ -39,7 +39,7 @@ internal static class ProcessChildren
                 if (processEntity.th32ParentProcessID != parentId && !parents.Contains(processEntity.th32ParentProcessID)) continue;
 
                 parents.Push(processEntity.th32ProcessID);
-                yield return new ProcessInfo { ProcessId = (int)processEntity.th32ProcessID, ParentProcessId = (int)processEntity.th32ParentProcessID};
+                yield return new ProcessInfo { ProcessId = (int)processEntity.th32ProcessID, ParentProcessId = (int)processEntity.th32ParentProcessID };
             } while (Win32Bindings.Process32Next(processSnap, ref processEntity));
         }
         finally
