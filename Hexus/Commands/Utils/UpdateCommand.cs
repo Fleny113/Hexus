@@ -1,8 +1,10 @@
+using Octokit;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Formats.Tar;
 using System.IO.Compression;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace Hexus.Commands.Utils;
@@ -32,6 +34,20 @@ internal static class UpdateCommand
         var ci = context.ParseResult.GetValueForOption(CiBuildOption);
         var ct = context.GetCancellationToken();
 
+        var update = await CheckForUpdate(ci);
+
+        if (!ci)
+        {
+            if (!update.NeedsUpdate)
+            {
+                PrettyConsole.Out.MarkupLine("There is [mediumspringgreen]no update[/] available. Your are already up to date");
+                return 0;
+            }
+
+            PrettyConsole.Out.MarkupLineInterpolated($"Version [steelblue1]{update.Version}[/] is available.");
+        }
+
+
         var file = $"{RuntimeInformation.RuntimeIdentifier}-{Variant}.tar.gz";
 
         var daemonRunning = await HttpInvocation.CheckForRunningDaemon(ct);
@@ -39,7 +55,7 @@ internal static class UpdateCommand
 
         var link = ci
             ? $"https://github.com/Fleny113/Hexus/releases/download/ci/{file}"
-            : $"https://github.com/Fleny113/Hexus/releases/latest/download/{file}";
+            : $"https://github.com/Fleny113/Hexus/releases/download/{update.Version}/{file}";
 
         var currentPath = Environment.ProcessPath;
         var currentDir = Path.GetDirectoryName(currentPath);
@@ -56,7 +72,7 @@ internal static class UpdateCommand
             return 1;
         }
 
-        PrettyConsole.Out.MarkupLineInterpolated($"[mediumpurple]Downloading[/] the updated files from \"[link]{link}[/]\".");
+        PrettyConsole.Out.MarkupLineInterpolated($"[mediumpurple]Downloading[/] the update from \"[link]{link}[/]\".");
 
         using var httpClient = new HttpClient();
         using var request = await httpClient.GetAsync(link, ct);
@@ -64,7 +80,7 @@ internal static class UpdateCommand
         if (!request.IsSuccessStatusCode)
         {
             var body = await request.Content.ReadAsStringAsync(ct);
-            PrettyConsole.Error.MarkupLineInterpolated($"There [indianred1]was an error[/] fetching the updated files. HTTP status code: {request.StatusCode}, body: \"{body}\"");
+            PrettyConsole.Error.MarkupLineInterpolated($"There [indianred1]was an error[/] fetching the update. HTTP status code: {request.StatusCode}, body: \"{body}\"");
             return 1;
         }
 
@@ -85,7 +101,14 @@ internal static class UpdateCommand
             // On Windows we need to rename the files to change the handles and being able to update the files
             if (oldFilesRequired)
             {
-                File.Move(path, $"{path}.old", overwrite: true);
+                try
+                {
+                    File.Move(path, $"{path}.old", overwrite: true);
+                }
+                catch (FileNotFoundException ex) when (ex.Message == $"Could not find file '{path}'.")
+                {
+                    // Ignore the exception
+                }
             }
 
             await entry.ExtractToFileAsync(path, overwrite: true, cancellationToken: ct);
@@ -100,6 +123,34 @@ internal static class UpdateCommand
         PrettyConsole.Out.MarkupLine("Update [springgreen1]done[/].");
 
         return 0;
+    }
+
+    private static async Task<(bool NeedsUpdate, string Version)> CheckForUpdate(bool ci)
+    {
+        if (ci)
+        {
+            // As fair as i known, there isn't a way to use [MaybeNullWhen] with tuples
+            return (false, null!);
+        }
+
+        var assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version ?? throw new Exception("Couldn't get version from assembly");
+
+        // .NET uses a "Major.Minor.Build.Revision" versioning system for the Version class. Hexus uses SemVer, so we need to change the format
+        var versionString = assemblyVersion.ToString(3);
+        var currentVersion = Version.Parse(versionString);
+
+        var github = new GitHubClient(new ProductHeaderValue("Hexus", versionString));
+        var latestRelease = await github.Repository.Release.GetLatest("Fleny113", "Hexus");
+
+        if (!Version.TryParse(latestRelease.TagName, out var tagVersion))
+        {
+            throw new Exception("Couldn't parse the tag name as a version");
+        }
+
+        // The tags are named using the version they refer to ("0.2.1", "0.3.0") so we can just compare the tag name with the current running version
+        var needsUpdate = tagVersion > currentVersion;
+
+        return (needsUpdate, latestRelease.TagName);
     }
 
     private static bool CleanOldFiles(string searchPath)
