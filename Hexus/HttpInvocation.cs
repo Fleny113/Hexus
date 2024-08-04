@@ -136,7 +136,12 @@ internal static class HttpInvocation
                 }
             default:
                 {
-                    response = await request.Content.ReadAsStringAsync(ct);
+                    response = $"""
+                        Unknown error,
+                        HTTP status code: {request.StatusCode}
+                        Content-Type: {request.Content.Headers.ContentType?.MediaType}
+                        Body: {await request.Content.ReadAsStringAsync(ct)}
+                        """;
                     break;
                 }
         }
