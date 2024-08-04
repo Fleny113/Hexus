@@ -22,10 +22,7 @@ internal sealed class RestartApplicationEndpoint : IEndpoint
 
         processStatisticsService.StopTrackingApplicationUsage(application);
 
-        if (!processManager.StopApplication(application, forceStop))
-        {
-            return TypedResults.StatusCode((int)HttpStatusCode.InternalServerError);
-        }
+        processManager.StopApplication(application, forceStop);
 
         processStatisticsService.TrackApplicationUsages(application);
 

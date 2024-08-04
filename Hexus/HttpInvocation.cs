@@ -129,7 +129,7 @@ internal static class HttpInvocation
                     response = "No application with this name has been found.";
                     break;
                 }
-            case { StatusCode: > HttpStatusCode.InternalServerError }:
+            case { StatusCode: >= HttpStatusCode.InternalServerError }:
                 {
                     response = "The daemon had an internal server error.";
                     break;
