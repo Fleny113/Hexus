@@ -136,7 +136,7 @@ internal static class HttpInvocation
                 }
             default:
                 {
-                    response = "<Unable to get the error from the daemon>";
+                    response = await request.Content.ReadAsStringAsync(ct);
                     break;
                 }
         }
