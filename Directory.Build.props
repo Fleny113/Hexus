@@ -8,6 +8,6 @@
         
         <UseArtifactsOutput>true</UseArtifactsOutput>
         <NuGetAudit>true</NuGetAudit>
-        <VersionPrefix>0.3.0</VersionPrefix>
+        <VersionPrefix>0.3.1</VersionPrefix>
     </PropertyGroup>
 </Project>
