@@ -13,17 +13,27 @@ internal sealed class StopApplicationEndpoint : IEndpoint
     public static Results<NoContent, NotFound, ValidationProblem> Handle(
         [FromServices] ProcessManagerService processManager,
         [FromServices] ProcessStatisticsService processStatisticsService,
-        [FromServices] HexusConfiguration configuration,
+        [FromServices] HexusConfigurationManager configurationManager,
         [FromRoute] string name,
         [FromQuery] bool forceStop = false)
     {
-        if (!configuration.Applications.TryGetValue(name, out var application))
+        if (!configurationManager.Configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
 
-        if (!processManager.StopApplication(application, forceStop))
+        var stop = processManager.StopApplication(application, forceStop);
+        var abort = processManager.AbortProcessRestart(application);
+
+        if (stop)
+            processStatisticsService.StopTrackingApplicationUsage(application);
+
+        if (!stop && !abort)
             return TypedResults.ValidationProblem(ErrorResponses.ApplicationNotRunning);
 
-        processStatisticsService.StopTrackingApplicationUsage(application);
+        if (!stop && abort)
+        {
+            application.Status = HexusApplicationStatus.Exited;
+            configurationManager.SaveConfiguration();
+        }
 
         return TypedResults.NoContent();
     }

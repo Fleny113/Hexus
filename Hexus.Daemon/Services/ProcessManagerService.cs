@@ -97,17 +97,6 @@ internal partial class ProcessManagerService(
         Parallel.ForEach(_processToApplicationMap, tuple => StopApplication(tuple.Value));
     }
 
-    public void DeleteApplication(HexusApplication application, bool forceStop)
-    {
-        StopApplication(application, forceStop);
-
-        if (!_consequentialRestarts.Remove(application.Name, out var metadata)) return;
-
-        metadata.ClearConsenquentialRestartCancellationTokenSource.Cancel();
-        metadata.ClearConsenquentialRestartCancellationTokenSource.Dispose();
-        metadata.AbortRestartCancellationTokenSource?.Dispose();
-    }
-
     public bool IsApplicationRunning(HexusApplication application, [NotNullWhen(true)] out Process? process)
     {
         if (!_applicationToProcessMap.TryGetValue(application.Name, out process))
@@ -215,6 +204,17 @@ internal partial class ProcessManagerService(
 
     private readonly Dictionary<string, ConsequentialRestartsMetadata> _consequentialRestarts = [];
 
+    public bool AbortProcessRestart(HexusApplication application)
+    {
+        if (!_consequentialRestarts.Remove(application.Name, out var metadata)) return false;
+
+        metadata.ClearConsenquentialRestartCancellationTokenSource?.Dispose();
+        metadata.AbortRestartCancellationTokenSource.Cancel();
+        metadata.AbortRestartCancellationTokenSource.Dispose();
+
+        return true;
+    }
+
     private void AcknowledgeProcessExit(object? sender, EventArgs e)
     {
         if (sender is not Process process || !_processToApplicationMap.TryGetValue(process, out var application))
@@ -247,8 +247,8 @@ internal partial class ProcessManagerService(
         var status = _consequentialRestarts.GetValueOrDefault(application.Name, new ConsequentialRestartsMetadata());
 
         status.Count++;
-        status.AbortRestartCancellationTokenSource?.Dispose();
-        status.AbortRestartCancellationTokenSource = new CancellationTokenSource(ResetTimeWindow);
+        status.ClearConsenquentialRestartCancellationTokenSource?.Dispose();
+        status.ClearConsenquentialRestartCancellationTokenSource = new CancellationTokenSource(ResetTimeWindow);
 
         _consequentialRestarts[application.Name] = status;
         ClearApplicationStateOnExit(sender, e);
@@ -257,7 +257,7 @@ internal partial class ProcessManagerService(
         {
             LogCrashedApplication(logger, application.Name, status.Count, ResetTimeWindow.TotalSeconds);
 
-            status.AbortRestartCancellationTokenSource.Dispose();
+            status.ClearConsenquentialRestartCancellationTokenSource.Dispose();
             _consequentialRestarts.Remove(application.Name, out _);
 
             application.Status = HexusApplicationStatus.Crashed;
@@ -267,24 +267,27 @@ internal partial class ProcessManagerService(
         }
 
         var delay = CalculateDelay(status.Count);
-        status.AbortRestartCancellationTokenSource.Token.Register(ResetConsequentialRestarts, application.Name);
+        status.ClearConsenquentialRestartCancellationTokenSource.Token.Register(ClearConsequentialRestarts, application.Name);
 
         LogRestartAttemptDelay(logger, application.Name, delay.TotalSeconds);
 
-        Task.Delay(delay, status.ClearConsenquentialRestartCancellationTokenSource.Token).ContinueWith(_ =>
+        Task.Delay(delay, status.AbortRestartCancellationTokenSource.Token).ContinueWith(delayTask =>
         {
+            // If the task was aborted we need to not restart the application.
+            if (!delayTask.IsCompletedSuccessfully) return;
+
             StartApplication(application);
             configManager.SaveConfiguration();
         });
     }
 
-    private void ResetConsequentialRestarts(object? state)
+    private void ClearConsequentialRestarts(object? state)
     {
         if (state is not string name)
             return;
 
         _consequentialRestarts.Remove(name, out var status);
-        status.AbortRestartCancellationTokenSource?.Dispose();
+        status.ClearConsenquentialRestartCancellationTokenSource?.Dispose();
 
         LogConsequentialRestartsStop(logger, status.Count, name);
     }
@@ -303,8 +306,8 @@ internal partial class ProcessManagerService(
 
     private record struct ConsequentialRestartsMetadata(
         int Count,
-        CancellationTokenSource? AbortRestartCancellationTokenSource,
-        CancellationTokenSource ClearConsenquentialRestartCancellationTokenSource)
+        CancellationTokenSource? ClearConsenquentialRestartCancellationTokenSource,
+        CancellationTokenSource AbortRestartCancellationTokenSource)
     {
         public ConsequentialRestartsMetadata() : this(0, null, new CancellationTokenSource())
         {

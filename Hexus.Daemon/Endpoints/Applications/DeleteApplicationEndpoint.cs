@@ -20,7 +20,8 @@ internal sealed class DeleteApplicationEndpoint : IEndpoint
         if (!configManager.Configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
 
-        processManager.DeleteApplication(application, forceStop);
+        processManager.StopApplication(application, forceStop);
+        processManager.AbortProcessRestart(application);
         processStatisticsService.StopTrackingApplicationUsage(application);
         processLogsService.DeleteApplication(application);
 
