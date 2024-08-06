@@ -170,7 +170,6 @@ Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2
 ## Limitations
 
 - MacOS is not supported as Hexus needs to get the child processes for an application to calculate the correct RAM and CPU usages, and I don't have anything to test how to get them.
-- Under Windows the update command requires about 5 seconds to wait to allow the CLI to exit and the script to replace the file to run. This is to bypass the file locking in Windows 
 
 ## License
 
