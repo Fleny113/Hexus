@@ -33,9 +33,9 @@ internal partial class ProcessManagerService(
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true,
-            StandardOutputEncoding = Encoding.ASCII,
-            StandardErrorEncoding = Encoding.ASCII,
-            StandardInputEncoding = Encoding.ASCII,
+            StandardOutputEncoding = _processEncoding,
+            StandardErrorEncoding = _processEncoding,
+            StandardInputEncoding = _processEncoding,
         };
 
         processInfo.Environment.Clear();
