@@ -1,6 +1,7 @@
 ﻿using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Interop;
+using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
@@ -32,9 +33,9 @@ internal partial class ProcessManagerService(
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true,
-            StandardOutputEncoding = _processEncoding,
-            StandardErrorEncoding = _processEncoding,
-            StandardInputEncoding = _processEncoding,
+            StandardOutputEncoding = Encoding.ASCII,
+            StandardErrorEncoding = Encoding.ASCII,
+            StandardInputEncoding = Encoding.ASCII,
         };
 
         processInfo.Environment.Clear();
@@ -137,7 +138,7 @@ internal partial class ProcessManagerService(
     {
         if (forceStop)
         {
-            KillProcess(process, true);
+            process.Kill(true);
             return;
         }
 
@@ -150,7 +151,7 @@ internal partial class ProcessManagerService(
             if (code is 0 && process.WaitForExit(TimeSpan.FromSeconds(30)))
                 return;
 
-            KillProcess(process, true);
+            process.Kill(true);
         }
         catch (InvalidOperationException exception) when (exception.Message == "No process is associated with this object.")
         {
@@ -165,15 +166,8 @@ internal partial class ProcessManagerService(
                 return;
 
             // Fallback to the .NET build-in Kernel call to force stop the process
-            KillProcess(process, true);
+            process.Kill(true);
         }
-    }
-
-    private static void KillProcess(Process process, bool killTree = false)
-    {
-        process.Kill(killTree);
-        // The getter for HasExited calls the Exited event if it hasn't been called yet
-        _ = process.HasExited;
     }
 
     #endregion
