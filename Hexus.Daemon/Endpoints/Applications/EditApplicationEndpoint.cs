@@ -35,7 +35,7 @@ internal sealed class EditApplicationEndpoint : IEndpoint
             Name: request.Name ?? application.Name,
             Executable: EnvironmentHelper.NormalizePath(request.Executable ?? application.Executable),
             Arguments: request.Arguments ?? application.Arguments,
-            Note: request.Note ?? application.Note,
+            Note: request.Note ?? application.Note ?? "",
             WorkingDirectory: EnvironmentHelper.NormalizePath(request.WorkingDirectory ?? application.WorkingDirectory),
             NewEnvironmentVariables: request.NewEnvironmentVariables ?? [],
             RemoveEnvironmentVariables: request.RemoveEnvironmentVariables ?? [],
