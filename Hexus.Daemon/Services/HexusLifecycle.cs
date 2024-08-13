@@ -18,7 +18,8 @@ internal sealed class HexusLifecycle(
         {
             processLogsService.RegisterApplication(application);
 
-            if (application.Status is not HexusApplicationStatus.Running) continue;
+            // If the application was Running or Restarting we want to start it
+            if (application.Status is not HexusApplicationStatus.Running or HexusApplicationStatus.Restarting) continue;
 
             processStatisticsService.TrackApplicationUsages(application);
             processManager.StartApplication(application);

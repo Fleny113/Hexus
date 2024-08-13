@@ -75,6 +75,8 @@ internal partial class ProcessManagerService(
         if (!IsApplicationRunning(application, out var process))
             return false;
 
+        application.Status = HexusApplicationStatus.Stopping;
+
         // Remove the restart event handler, or else it will restart the process as soon as it stops
         process.Exited -= HandleProcessRestart;
         process.Exited += ClearApplicationStateOnExit;
@@ -259,6 +261,8 @@ internal partial class ProcessManagerService(
 
             return;
         }
+
+        application.Status = HexusApplicationStatus.Restarting;
 
         var delay = CalculateDelay(status.Count);
         status.ClearConsenquentialRestartCancellationTokenSource.Token.Register(ClearConsequentialRestarts, application.Name);

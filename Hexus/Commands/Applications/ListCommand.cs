@@ -85,6 +85,8 @@ internal static class ListCommand
         HexusApplicationStatus.Crashed => Color.LightSalmon3,
         HexusApplicationStatus.Exited => Color.OrangeRed1,
         HexusApplicationStatus.Running => Color.Aquamarine1,
+        HexusApplicationStatus.Stopping => Color.IndianRed1,
+        HexusApplicationStatus.Restarting => Color.SkyBlue1,
         _ => throw new ArgumentOutOfRangeException(nameof(status), "The requested status is not mapped to a color"),
     };
 }
