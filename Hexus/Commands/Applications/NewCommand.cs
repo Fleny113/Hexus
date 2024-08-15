@@ -96,6 +96,32 @@ internal static class NewCommand
             ? EnvironmentHelper.NormalizePath(executable)
             : PathHelper.ResolveExecutable(executable);
 
+        // Python will not send the logs due to buffering the stdout/stderr, since this can look like a bug in Hexus we warn the user
+
+        var fileName = Path.GetFileName(executable);
+        // This check can cause false positivies it the exe is not python but starts with "py"
+        // However "py" is the smallest common string for all python exe(s), including the Windows python launcher, as:
+        // - On Windows you get: "py" on WINDIR, "python" on the install folder
+        // - On Linux you get: "python", "python3", "python3.<ver>" based on distro configuration
+        var isPython = fileName.StartsWith("py");
+
+        // This only checks for PYTHONUNBUFFERED, checking for -u would be problematic and would require parsing the arguments, something we do not want to do
+        var isPyStdoutUnbuffered = environmentVariables.TryGetValue("PYTHONUNBUFFERED", out var pyUnbuffered) && pyUnbuffered?.Length > 0;
+
+        if (isPython && !isPyStdoutUnbuffered)
+        {
+            PrettyConsole.Error.MarkupLine("""
+                [yellow1]Warning[/]: A python executable was detected. Hexus will not be able to get the output of the program without the '-u' flag or 'PTYHONUNBUFFERED' environment variable. If you are actually running Python, consider using either solutions.
+
+                Python documentation for those options: [link]https://docs.python.org/3/using/cmdline.html#cmdoption-u[/]
+
+                [italic]Due to limitations, if you are using the '-u' flag, Hexus will still show this warning, you can ignore it if you are using the '-u' flag.[/]
+
+                If you are not using Python, you can ignore this warning.
+
+                """);
+        }
+
         var newRequest = await HttpInvocation.PostAsJsonAsync(
             "Creating new application",
             "/new",
