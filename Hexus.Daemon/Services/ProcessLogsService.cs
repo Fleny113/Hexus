@@ -55,7 +55,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         try
         {
             var logs = GetLogsFromFileAsync(application, lines, currentExecution, before, after, ct);
-            
+
             await foreach (var log in logs.Reverse())
             {
                 yield return log;
@@ -132,7 +132,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         using var file = File.Open($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log", options);
 
         // 36 is the size of the start of a line in the logs
-        if (file.Length <= 36) 
+        if (file.Length <= 36)
         {
             yield break;
         }

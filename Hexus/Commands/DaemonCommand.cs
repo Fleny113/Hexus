@@ -73,7 +73,7 @@ internal static class DaemonCommand
         var ct = context.GetCancellationToken();
 
         var isRunning = await HttpInvocation.CheckForRunningDaemon(ct);
-        
+
         if (showSocket)
         {
             PrettyConsole.Out.MarkupLineInterpolated($"[gray]Socket being used: [link italic]{Configuration.HexusConfiguration.UnixSocket}[/][/]");
