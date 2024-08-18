@@ -11,7 +11,7 @@ namespace Hexus.Commands.Utils;
 
 internal static class UpdateCommand
 {
-    private static readonly Option<bool> CiBuildOption = new("--ci", "Use a build from ci");
+    private static readonly Option<bool> CiBuildOption = new("--ci", "Use a build from CI");
 
     public static readonly Command Command = new("update", "Update hexus to the latest version")
     {

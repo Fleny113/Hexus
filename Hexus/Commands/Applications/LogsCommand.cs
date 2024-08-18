@@ -64,8 +64,8 @@ internal static class LogsCommand
             return;
         }
 
-        var showBeforeParam = showBefore is not null ? $"&before={showBefore}" : null;
-        var showAfterParam = showAfter is not null ? $"&after={showAfter}" : null;
+        var showBeforeParam = showBefore is not null ? $"&before={showBefore:O}" : null;
+        var showAfterParam = showAfter is not null ? $"&after={showAfter:O}" : null;
 
         var logsRequest = await HttpInvocation.GetAsync(
             "Getting logs",

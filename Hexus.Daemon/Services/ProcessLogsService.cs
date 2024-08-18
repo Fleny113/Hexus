@@ -1,5 +1,7 @@
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
+using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -30,20 +32,9 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
 
         logController.Channels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
-        logController.Semaphore.Wait();
-
-        try
-        {
-            File.AppendAllText(
-                $"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log",
-                $"[{applicationLog.Date.DateTime:O},{applicationLog.LogType}] {applicationLog.Text}\n"
-            );
-        }
-        finally
-        {
-            logController.Semaphore.Release();
-        }
+        logController.FileWriter.WriteLine($"[{applicationLog.Date.DateTime:O},{applicationLog.LogType}] {applicationLog.Text}");
     }
+
     public async IAsyncEnumerable<ApplicationLog> GetLogs(HexusApplication application, int lines, bool streaming,
         bool currentExecution, DateTimeOffset? before, DateTimeOffset? after, [EnumeratorCancellation] CancellationToken ct)
     {
@@ -63,12 +54,10 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
         try
         {
-            var logs = GetLogsFromFile(application, logController, lines, currentExecution, before, after);
-
-            foreach (var log in logs.Reverse())
+            var logs = GetLogsFromFileAsync(application, lines, currentExecution, before, after, ct);
+            
+            await foreach (var log in logs.Reverse())
             {
-                if (!IsLogDateInRange(log.Date, before, after)) continue;
-
                 yield return log;
             }
 
@@ -95,12 +84,28 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     public void RegisterApplication(HexusApplication application)
     {
         LogRegisteringApplication(logger, application.Name);
-        _logControllers[application.Name] = new LogController();
+
+        var fileStreamOptions = new FileStreamOptions()
+        {
+            Access = FileAccess.Write,
+            Mode = FileMode.Append,
+            Share = FileShare.Read,
+            Options = FileOptions.Asynchronous,
+        };
+
+        _logControllers[application.Name] = new LogController
+        {
+            FileWriter = new StreamWriter($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log", Encoding.UTF8, fileStreamOptions)
+            {
+                AutoFlush = true,
+                NewLine = "\n",
+            }
+        };
     }
 
     public bool UnregisterApplication(HexusApplication application)
     {
-        LogUnRegisteringApplication(logger, application.Name);
+        LogUnregisteringApplication(logger, application.Name);
         return _logControllers.Remove(application.Name, out _);
     }
 
@@ -112,126 +117,150 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     #region Log From File Parser
 
-    private IEnumerable<ApplicationLog> GetLogsFromFile(HexusApplication application, LogController logController,
-        int lines, bool currentExecution, DateTimeOffset? before, DateTimeOffset? after)
+    private const int _readBufferSize = 4096;
+
+    private async IAsyncEnumerable<ApplicationLog> GetLogsFromFileAsync(HexusApplication application, int lines, bool currentExecution,
+        DateTimeOffset? before, DateTimeOffset? after, [EnumeratorCancellation] CancellationToken ct)
     {
-        logController.Semaphore.Wait();
-
-        try
+        var options = new FileStreamOptions
         {
-            using var stream = File.OpenRead($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log");
-            using var reader = new StreamReader(stream, Encoding.UTF8);
+            Access = FileAccess.Read,
+            Mode = FileMode.Open,
+            Share = FileShare.ReadWrite,
+        };
 
-            if (stream.Length <= 2)
-                yield break;
+        using var file = File.Open($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log", options);
 
-            var lineFound = 0;
+        // 36 is the size of the start of a line in the logs
+        if (file.Length <= 36) 
+        {
+            yield break;
+        }
 
-            // Go to the end of the file.
-            stream.Position = stream.Length - 1;
+        using var memPoll = MemoryPool<byte>.Shared.Rent(_readBufferSize);
+        var sb = new StringBuilder();
+        var lineCount = 0;
 
-            // If the last character is a LF we can skip it as it isn't a log line.
-            if (stream.ReadByte() == '\n')
-                stream.Position -= 2;
+        // Go to the end
+        file.Position = Math.Max(file.Length - _readBufferSize, 0);
 
-            while (lineFound < lines)
+        // The buffer may need to be resized to avoid duplicating some data
+        var actualBufferSize = _readBufferSize;
+
+        var bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
+
+        // We only want to consume the memory that has data we have just read
+        var readMemory = memPoll.Memory[0..bytesRead];
+
+        // We don't know where new lines are, we will search them but we need to start from the end,
+        // but we know the last line (of the file) should always be a new line so we can already skip that
+        var lastNewLine = bytesRead - 1;
+
+        // If the position of the cursor is the same as the size of our (actual) buffer size it means we started reading from 0
+        var isEntireStream = file.Position == actualBufferSize;
+
+        while (lineCount < lines)
+        {
+            var pos = readMemory.Span[0..lastNewLine].LastIndexOf("\n"u8);
+
+            var line = Encoding.UTF8.GetString(readMemory.Span[(pos + 1)..lastNewLine]);
+            lastNewLine = pos;
+
+            if (!isEntireStream && pos == -1)
             {
-                // We are in a line, so we go back until we find the lastNewline of this line.
-                if (stream.Position != 0 && stream.ReadByte() != '\n')
-                {
-                    if (stream.Position >= 2)
-                    {
-                        stream.Position -= 2;
-                        continue;
-                    }
+                // We need to store this part of the log line or else we are going to lose it
+                sb.Insert(0, line);
 
-                    break;
-                }
+                // We don't want to read stuff twice, so we need "resize" our buffer
+                actualBufferSize = (int)Math.Min(file.Position - bytesRead, _readBufferSize);
 
-                var positionBeforeRead = stream.Position;
+                // Go back to before the read, and get another buffer of space.
+                file.Position = Math.Max(file.Position - bytesRead - _readBufferSize, 0);
 
-                reader.DiscardBufferedData();
-                var line = reader.ReadLine();
+                bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
 
-                stream.Position = positionBeforeRead;
+                readMemory = memPoll.Memory[0..bytesRead];
+                lastNewLine = bytesRead;
+                isEntireStream = file.Position == actualBufferSize;
 
-                if (string.IsNullOrEmpty(line))
-                {
-                    if (stream.Position >= 2)
-                        stream.Position -= 2;
+                continue;
+            }
 
-                    continue;
-                }
+            // We have buffered a string, use it and clear the StringBuilder to be reused
+            if (sb.Length > 0)
+            {
+                sb.Insert(0, line);
+                line = sb.ToString();
 
-                var startMetadata = line.IndexOf('[') + 1;
-                var endDate = line.IndexOf(',', startMetadata);
-                var endMetadata = line.IndexOf(']', endDate);
-                var startMessage = line.IndexOf(' ', endMetadata) + 1;
+                sb.Clear();
+            }
 
-                var logDateString = line[startMetadata..endDate];
-                if (!TryLogTimeFormat(logDateString, out var logDate))
-                {
-                    LogFailedDateTimeParsing(logger, application.Name, logDateString);
+            if (!TryParseLogLine(line, application, out var appLog))
+            {
+                continue;
+            }
 
-                    if (stream.Position >= 2)
-                    {
-                        stream.Position -= 2;
-                        continue;
-                    }
+            if (!IsLogDateInRange(appLog.Date, before, after))
+            {
+                continue;
+            }
 
-                    break;
-                }
+            lineCount++;
+            yield return appLog;
 
-                if (!IsLogDateInRange(logDate, before, after))
-                {
-                    if (stream.Position >= 2)
-                    {
-                        stream.Position -= 2;
-                        continue;
-                    }
-
-                    break;
-                }
-
-                lineFound++;
-
-                var logTypeString = line[(endDate + 1)..endMetadata];
-                var logText = line[startMessage..];
-
-                if (!Enum.TryParse<LogType>(logTypeString.AsSpan(), out var logType))
-                {
-                    LogFailedTypeParsing(logger, application.Name, logTypeString);
-
-                    if (stream.Position >= 2)
-                    {
-                        stream.Position -= 2;
-                        continue;
-                    }
-
-                    break;
-                }
-
-                yield return new ApplicationLog(logDate, logType, logText);
-
-                // We only wanted the current execution and we found an application started notice. We should now stop.
-                if (currentExecution && logType == LogType.SYSTEM && logText == ApplicationStartedLog)
-                {
-                    yield break;
-                }
-
-                if (stream.Position >= 2)
-                {
-                    stream.Position -= 2;
-                    continue;
-                }
-
+            // We only wanted the current execution and we found an application started notice. We should now stop.
+            if (currentExecution && appLog.LogType == LogType.SYSTEM && appLog.Text == ApplicationStartedLog)
+            {
                 break;
             }
         }
-        finally
+    }
+
+    private bool TryParseLogLine(ReadOnlySpan<char> logSpan, HexusApplication application, [MaybeNullWhen(false)] out ApplicationLog appLog)
+    {
+        appLog = null;
+
+        if (logSpan[0] != '[')
         {
-            logController.Semaphore.Release();
+            LogFailedFormatChecks(logger, application.Name);
+            return false;
         }
+
+        var endDate = logSpan.IndexOf(',');
+        if (endDate == -1)
+        {
+            LogFailedFormatChecks(logger, application.Name);
+            return false;
+        }
+
+        var endMetadata = logSpan.IndexOf(']');
+        if (endMetadata == -1)
+        {
+            LogFailedFormatChecks(logger, application.Name);
+            return false;
+        }
+
+        var startMessage = endMetadata + 2;
+
+        var dateSpan = logSpan[1..endDate];
+
+        if (!TryLogTimeFormat(dateSpan, out var date))
+        {
+            LogFailedDateTimeParsing(logger, application.Name, dateSpan.ToString());
+            return false;
+        }
+
+        var logTypeSpan = logSpan[(endDate + 1)..endMetadata];
+        var logText = logSpan[startMessage..];
+
+        if (!Enum.TryParse<LogType>(logTypeSpan, out var logType))
+        {
+            LogFailedTypeParsing(logger, application.Name, logTypeSpan.ToString());
+            return false;
+        }
+
+        appLog = new ApplicationLog(date, logType, logText.ToString());
+        return true;
     }
 
     private static bool TryLogTimeFormat(ReadOnlySpan<char> logDate, out DateTimeOffset dateTimeOffset)
@@ -257,6 +286,8 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     [LoggerMessage(LogLevel.Warning, "There was an error parsing the log file for application {Name}: Couldn't parse \"{LogType}\" as a LogType. Skipping log line.")]
     private static partial void LogFailedTypeParsing(ILogger logger, string name, string logType);
+    [LoggerMessage(LogLevel.Warning, "There was an error parsing the log file for application {Name}: Couldn't parse line. Invalid format")]
+    private static partial void LogFailedFormatChecks(ILogger logger, string name);
 
     [LoggerMessage(LogLevel.Warning, "Unable to get log controller for application \"{Name}\"")]
     private static partial void LogUnableToGetLogController(ILogger logger, string name);
@@ -265,14 +296,14 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
     private static partial void LogRegisteringApplication(ILogger logger, string name);
 
     [LoggerMessage(LogLevel.Debug, "Application \"{Name}\" is being unregistered in the process logs service ")]
-    private static partial void LogUnRegisteringApplication(ILogger logger, string name);
+    private static partial void LogUnregisteringApplication(ILogger logger, string name);
 
     [LoggerMessage(LogLevel.Trace, "Application \"{Name}\" says: '{OutputData}'")]
     private static partial void LogApplicationOutput(ILogger logger, string name, string outputData);
 
     private record LogController
     {
-        public SemaphoreSlim Semaphore { get; } = new(initialCount: 1, maxCount: 1);
+        public required StreamWriter FileWriter { get; init; }
         public List<Channel<ApplicationLog>> Channels { get; } = [];
     }
 }
