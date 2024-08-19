@@ -4,6 +4,8 @@
         <ServerGarbageCollection>false</ServerGarbageCollection>
         <InvariantGlobalization>true</InvariantGlobalization>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+        <AssemblyName>hexusd</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>
