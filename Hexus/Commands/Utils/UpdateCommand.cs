@@ -3,6 +3,7 @@ using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Formats.Tar;
+using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -66,9 +67,9 @@ internal static class UpdateCommand
             return 1;
         }
 
-        if (!CleanOldFiles(currentDir))
+        if (!ClearFolder(currentDir, "*.old", useOldFiles: false))
         {
-            PrettyConsole.Error.MarkupLine("[lightsteelblue].old[/] files where found and they [red1]couldn't be removed[/]. [aquamarine1]Restart the daemon[/] and try again");
+            PrettyConsole.Error.MarkupLine("[lightsteelblue].old[/] files where found and they [red1]couldn't be removed[/]. Try [aquamarine1]restaring the daemon[/] and try again");
             return 1;
         }
 
@@ -88,6 +89,8 @@ internal static class UpdateCommand
         await using var gzipStream = new GZipStream(stream, CompressionMode.Decompress);
         await using var tarReader = new TarReader(gzipStream);
 
+        ClearFolder(currentDir, "*", oldFilesRequired);
+
         while (await tarReader.GetNextEntryAsync(cancellationToken: ct) is { } entry)
         {
             var path = Path.Combine(currentDir, entry.Name);
@@ -96,19 +99,6 @@ internal static class UpdateCommand
             {
                 Directory.CreateDirectory(path);
                 continue;
-            }
-
-            // On Windows we need to rename the files to change the handles and being able to update the files
-            if (oldFilesRequired)
-            {
-                try
-                {
-                    File.Move(path, $"{path}.old", overwrite: true);
-                }
-                catch (FileNotFoundException ex) when (ex.Message == $"Could not find file '{path}'.")
-                {
-                    // Ignore the exception
-                }
             }
 
             await entry.ExtractToFileAsync(path, overwrite: true, cancellationToken: ct);
@@ -153,22 +143,38 @@ internal static class UpdateCommand
         return (needsUpdate, latestRelease.TagName);
     }
 
-    private static bool CleanOldFiles(string searchPath)
+    private static bool ClearFolder(string searchPath, string pattern, bool useOldFiles)
     {
-        var oldFiles = Directory.EnumerateFiles(searchPath, "*.old", SearchOption.AllDirectories);
+        var files = Directory.EnumerateFiles(searchPath, pattern, SearchOption.TopDirectoryOnly);
+        var dirs = Directory.EnumerateDirectories(searchPath, pattern, SearchOption.TopDirectoryOnly);
 
-        try
+        var deletedAllFiles = true;
+
+        foreach (var file in files)
         {
-            foreach (var file in oldFiles)
+            try
             {
                 File.Delete(file);
             }
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
+            catch (UnauthorizedAccessException) when (useOldFiles)
+            {
+                deletedAllFiles = false;
+                File.Move(file, $"{file}.old", overwrite: true);
+            }
+            catch (Exception)
+            {
+                deletedAllFiles = false;
+            }
         }
 
-        return true;
+        foreach (var dir in dirs)
+        {
+            if (ClearFolder(dir, pattern, useOldFiles))
+            {
+                Directory.Delete(dir);
+            }
+        }
+
+        return deletedAllFiles;
     }
 }
