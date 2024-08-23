@@ -24,7 +24,7 @@ internal static class ShowTimezones
             Local Timezone information:
              - Display name: "[lightskyblue1]{localTimezone.DisplayName}[/]"
              - ID: "[cyan3]{localTimezone.Id}[/]"
-             - Offset: [seagreen3]{localTimezone.BaseUtcOffset.Humanize(precision: 2, minUnit: TimeUnit.Minute)}[/]
+             - Offset: [seagreen3]{FormatOffset(localTimezone.BaseUtcOffset)}[/]
 
              --- All timezones ---
 
@@ -35,9 +35,24 @@ internal static class ShowTimezones
             PrettyConsole.Out.MarkupLineInterpolated($"""
             Timezone "[lightskyblue1]{timezone.DisplayName}[/]"
              - ID: "[cyan3]{timezone.Id}[/]"
-             - Offset: [seagreen3]{timezone.BaseUtcOffset.Humanize(precision: 2)}[/]
+             - Offset: [seagreen3]{FormatOffset(timezone.BaseUtcOffset)}[/]
 
             """);
         }
+    }
+
+    private static string FormatOffset(TimeSpan offset)
+    {
+        if (offset.Ticks == 0) return "none";
+
+        var text = offset.Humanize(precision: 2, minUnit: TimeUnit.Minute);
+        var symbol = offset.Ticks switch
+        {
+            > 0 => '+',
+            < 0 => '-',
+            0 => throw new InvalidOperationException(),
+        };
+
+        return $"{symbol} {text}";
     }
 }
