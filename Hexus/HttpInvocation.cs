@@ -25,7 +25,7 @@ internal static class HttpInvocation
         },
     };
 
-    private static HttpClient HttpClient { get; } = new(HttpClientHandler)
+    public static HttpClient HttpClient { get; } = new(HttpClientHandler)
     {
         BaseAddress = new Uri("http://hexus-socket"),
     };

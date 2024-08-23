@@ -14,9 +14,6 @@ internal sealed class GetLogsEndpoint : IEndpoint
         [FromServices] HexusConfiguration configuration,
         [FromServices] ProcessLogsService processLogsService,
         [FromRoute] string name,
-        [FromQuery] int lines = 100,
-        [FromQuery] bool noStreaming = false,
-        [FromQuery] bool currentExecution = false,
         [FromQuery] DateTimeOffset? before = null,
         [FromQuery] DateTimeOffset? after = null,
         CancellationToken ct = default)
@@ -27,10 +24,7 @@ internal sealed class GetLogsEndpoint : IEndpoint
         // When the aspnet or the hexus cancellation token get cancelled it cancels this as well
         var combinedCtSource = CancellationTokenSource.CreateLinkedTokenSource(ct, HexusLifecycle.DaemonStoppingToken);
 
-        // If the before is in the past we can disable steaming
-        if (before is not null && before < DateTimeOffset.UtcNow) noStreaming = true;
-
-        var logs = processLogsService.GetLogs(application, lines, !noStreaming, currentExecution, before, after, combinedCtSource.Token);
+        var logs = processLogsService.GetLogs(application, before, after, combinedCtSource.Token);
 
         return TypedResults.Ok(logs);
     }

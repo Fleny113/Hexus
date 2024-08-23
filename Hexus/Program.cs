@@ -7,26 +7,28 @@ using System.CommandLine;
 using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
 
-var rootCommand = new RootCommand("The Hexus management CLI");
+var rootCommand = new RootCommand("The Hexus management CLI")
+{
+    NewCommand.Command,
 
-rootCommand.AddCommand(NewCommand.Command);
+    ListCommand.Command,
+    InfoCommand.Command,
+    LogsCommand.Command,
 
-rootCommand.AddCommand(ListCommand.Command);
-rootCommand.AddCommand(InfoCommand.Command);
-rootCommand.AddCommand(LogsCommand.Command);
+    InputCommand.Command,
+    StartCommand.Command,
+    EditCommand.Command,
+    StopCommand.Command,
+    RestartCommand.Command,
+    DeleteCommand.Command,
 
-rootCommand.AddCommand(InputCommand.Command);
-rootCommand.AddCommand(StartCommand.Command);
-rootCommand.AddCommand(EditCommand.Command);
-rootCommand.AddCommand(StopCommand.Command);
-rootCommand.AddCommand(RestartCommand.Command);
-rootCommand.AddCommand(DeleteCommand.Command);
+    DaemonCommand.Command,
 
-rootCommand.AddCommand(DaemonCommand.Command);
-
-rootCommand.AddCommand(UpdateCommand.Command);
-rootCommand.AddCommand(StartupCommand.Command);
-rootCommand.AddCommand(MigratePm2Command.Command);
+    UpdateCommand.Command,
+    StartupCommand.Command,
+    MigratePm2Command.Command,
+    ShowTimezones.Command,
+};
 
 var builder = new CommandLineBuilder(rootCommand);
 
