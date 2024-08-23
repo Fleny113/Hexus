@@ -130,21 +130,22 @@ internal static class LogsCommand
         var showBeforeParam = showBefore is not null ? $"&before={localizedBefore:O}" : null;
         var showAfterParam = showAfter is not null ? $"&after={localizedAfter:O}" : null;
 
-        var logsRequest = await HttpInvocation.HttpClient.GetAsync(
-            $"/{name}/logs?{showBeforeParam}{showAfterParam}",
-            HttpCompletionOption.ResponseHeadersRead,
-            ct
-        );
-
-        if (!logsRequest.IsSuccessStatusCode)
-        {
-            await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
-            context.ExitCode = 1;
-            return;
-        }
-
         try
         {
+            var logsRequest = await HttpInvocation.HttpClient.GetAsync(
+                $"/{name}/logs?{showBeforeParam}{showAfterParam}",
+                HttpCompletionOption.ResponseHeadersRead,
+                ct
+            );
+
+            if (!logsRequest.IsSuccessStatusCode)
+            {
+                await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
+                context.ExitCode = 1;
+                return;
+            }
+
+
             var logs = logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
 
             await foreach (var logLine in logs)

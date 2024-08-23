@@ -58,7 +58,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
             }
         }
         finally
-        {   
+        {
             channel.Writer.Complete();
             channels.Remove(channel);
         }
