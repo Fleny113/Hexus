@@ -12,9 +12,9 @@ internal static class MapperExtensions
         return new()
         {
             Name = request.Name,
-            Executable = EnvironmentHelper.NormalizePath(request.Executable),
+            Executable = Path.GetFullPath(request.Executable),
             Arguments = request.Arguments,
-            WorkingDirectory = EnvironmentHelper.NormalizePath(request.WorkingDirectory ?? EnvironmentHelper.Home),
+            WorkingDirectory = Path.GetFullPath(request.WorkingDirectory ?? EnvironmentHelper.Home),
             Note = request.Note,
             EnvironmentVariables = request.EnvironmentVariables ?? [],
         };
@@ -24,9 +24,9 @@ internal static class MapperExtensions
     {
         return new(
             Name: application.Name,
-            Executable: EnvironmentHelper.NormalizePath(application.Executable),
+            Executable: Path.GetFullPath(application.Executable),
             Arguments: application.Arguments,
-            WorkingDirectory: EnvironmentHelper.NormalizePath(application.WorkingDirectory),
+            WorkingDirectory: Path.GetFullPath(application.WorkingDirectory),
             Note: application.Note,
             EnvironmentVariables: application.EnvironmentVariables,
             Status: application.Status,

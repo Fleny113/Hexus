@@ -5,7 +5,7 @@ public static class EnvironmentHelper
     public static readonly bool IsDevelopment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development";
     public static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-    // XDG directories based on the XDG basedir spec, we use there folder on Windows too.
+    // XDG directories based on the XDG basedir spec, we use these folders on Windows too.
     //
     // XDG_RUNTIME_DIR does not have a default we can point to due to the requirement this folder has (being owned by the user and being the only with Read Write Execute so 0o700)
     // This mean that we need to default to a directory in the temp, on Windows we instead use the XDG_STATE_HOME
@@ -17,11 +17,11 @@ public static class EnvironmentHelper
     private static readonly string HexusStateDirectory = $"{XdgState}/hexus";
     private static readonly string HexusRuntimeDirectory = XdgRuntime ?? CreateRuntimeDirectory();
 
-    public static readonly string LogFile = NormalizePath(IsDevelopment ? $"{HexusStateDirectory}/daemon.dev.log" : $"{HexusStateDirectory}/daemon.log");
-    public static readonly string ApplicationLogsDirectory = NormalizePath($"{HexusStateDirectory}/applications");
+    public static readonly string LogFile = Path.GetFullPath(IsDevelopment ? $"{HexusStateDirectory}/daemon.dev.log" : $"{HexusStateDirectory}/daemon.log");
+    public static readonly string ApplicationLogsDirectory = Path.GetFullPath($"{HexusStateDirectory}/applications");
 
-    public static readonly string ConfigurationFile = NormalizePath(IsDevelopment ? $"{XdgConfig}/hexus.dev.yaml" : $"{XdgConfig}/hexus.yaml");
-    public static readonly string SocketFile = NormalizePath(IsDevelopment ? $"{HexusRuntimeDirectory}/hexus.dev.sock" : $"{HexusRuntimeDirectory}/hexus.sock");
+    public static readonly string ConfigurationFile = Path.GetFullPath(IsDevelopment ? $"{XdgConfig}/hexus.dev.yaml" : $"{XdgConfig}/hexus.yaml");
+    public static readonly string SocketFile = Path.GetFullPath(IsDevelopment ? $"{HexusRuntimeDirectory}/hexus.dev.sock" : $"{HexusRuntimeDirectory}/hexus.sock");
 
     public static void EnsureDirectoriesExistence()
     {
@@ -29,7 +29,7 @@ public static class EnvironmentHelper
         // The check is performed on the env itself to prevent erroring if we are falling back to something else (the XDG_STATE_HOME on Windows and /tmp/hexus-runtime on Linux)
         if (XdgRuntime is not null && !Directory.Exists(XdgRuntime))
         {
-            throw new InvalidOperationException("The directory XDG_RUNTIME_DIR does not exist.");
+            throw new InvalidOperationException("The directory $XDG_RUNTIME_DIR does not exist.");
         }
 
         Directory.CreateDirectory(XdgConfig);
@@ -37,9 +37,6 @@ public static class EnvironmentHelper
         Directory.CreateDirectory(HexusRuntimeDirectory);
         Directory.CreateDirectory(ApplicationLogsDirectory);
     }
-
-    // Used to convert to the correct slashes ("/" and "\") based on the platform
-    public static string NormalizePath(string path) => Path.GetFullPath(path);
 
     private static string CreateRuntimeDirectory()
     {

@@ -7,7 +7,6 @@ using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -19,18 +18,27 @@ internal static class LogsCommand
     {
         Description = "The name of the application",
     };
-    private static readonly Option<int?> LinesOption = new(["-l", "--lines"])
-    {
-        Description = "The number of lines to show from the log file",
-    };
+
+    // Behaviour options
+
     private static readonly Option<bool> DontStream = new("--no-streaming")
     {
         Description = "Disable the streaming of new logs. It will only fetch from the log file",
     };
+
+    // Display options
+
     private static readonly Option<bool> DontShowDates = new("--no-dates")
     {
         Description = "Disable the dates of the log lines. Useful if you already have those in your log file",
     };
+    private static readonly Option<string> TimezoneOption = new(["-t", "--timezone"])
+    {
+        Description = "Show the log dates in a specified timezone. The timezone should be compatible with the one provided by your system.",
+    };
+
+    // Filtering options
+
     private static readonly Option<bool> CurrentExecution = new(["-c", "--current"])
     {
         Description = "Show logs only from the current or last execution",
@@ -43,21 +51,16 @@ internal static class LogsCommand
     {
         Description = "Show logs only before a specified date. The date is in the same timezone provided by the \"timezone\" option",
     };
-    private static readonly Option<string> TimezoneOption = new(["-t", "--timezone"])
-    {
-        Description = "Show the log dates in a specified timezone. The timezone should be compatible with the one provided by your system.",
-    };
 
     public static readonly Command Command = new("logs", "View the logs of an application")
     {
         NameArgument,
-        LinesOption,
         DontStream,
         DontShowDates,
+        TimezoneOption,
         CurrentExecution,
         ShowLogsAfter,
         ShowLogsBefore,
-        TimezoneOption,
     };
 
     static LogsCommand()
@@ -81,18 +84,22 @@ internal static class LogsCommand
     private static async Task Handler(InvocationContext context)
     {
         var name = context.ParseResult.GetValueForArgument(NameArgument);
-        var lines = context.ParseResult.GetValueForOption(LinesOption) ?? 100;
-        var noStreaming = context.ParseResult.GetValueForOption(DontStream);
+        var streaming = !context.ParseResult.GetValueForOption(DontStream);
+
         var noDates = context.ParseResult.GetValueForOption(DontShowDates);
+        var timezoneOption = context.ParseResult.GetValueForOption(TimezoneOption);
+
         var currentExecution = context.ParseResult.GetValueForOption(CurrentExecution);
         var showAfter = context.ParseResult.GetValueForOption(ShowLogsAfter);
         var showBefore = context.ParseResult.GetValueForOption(ShowLogsBefore);
-        var timezoneOption = context.ParseResult.GetValueForOption(TimezoneOption);
+
         var ct = context.GetCancellationToken();
 
+        // Time zone validation
         ArgumentNullException.ThrowIfNull(timezoneOption);
         var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timezoneOption);
 
+        // Adjust to timezone the before and the after
         var localizedBefore = showBefore is { } before ? TimeZoneInfo.ConvertTime(before, timeZoneInfo) : (DateTime?)null;
         var localizedAfter = showAfter is { } after ? TimeZoneInfo.ConvertTime(after, timeZoneInfo) : (DateTime?)null;
 
@@ -107,57 +114,146 @@ internal static class LogsCommand
             return;
         }
 
-        var fileLogs = GetLogsFromFileAsync(logFileName, lines, currentExecution, localizedBefore, localizedAfter, ct);
-
-        await foreach (var log in fileLogs.Reverse())
+        if (streaming)
         {
-            PrintLogLine(log, timeZoneInfo, !noDates);
+            var isDaemonRunning = await HttpInvocation.CheckForRunningDaemon(ct);
+            streaming = isDaemonRunning;
+
+            if (!isDaemonRunning)
+            {
+                PrettyConsole.Out.MarkupLine("""
+                    [yellow1]Warning[/]: Streaming was enabled, but the [indianred1]daemon is not running[/].
+
+                    [italic]Press any key to continue.[/]
+                    [italic gray]To disable this warning when the daemon is not running, use the "--no-streaming" flag[/]
+                    """);
+
+                Console.ReadKey(true);
+            }
         }
-
-        // Stream the new logs
-
-        if (noStreaming) return;
-
-        // It doesn't make sense to stream stuff in the past.
-        if (showBefore < DateTimeOffset.UtcNow) return;
-
-        if (!await HttpInvocation.CheckForRunningDaemon(ct))
-        {
-            PrettyConsole.Out.MarkupLine("The [indianred1]daemon is not running[/]. Logs will not be streamed.");
-            return;
-        }
-
-        var showBeforeParam = showBefore is not null ? $"&before={localizedBefore:O}" : null;
-        var showAfterParam = showAfter is not null ? $"&after={localizedAfter:O}" : null;
 
         try
         {
-            var logsRequest = await HttpInvocation.HttpClient.GetAsync(
-                $"/{name}/logs?{showBeforeParam}{showAfterParam}",
-                HttpCompletionOption.ResponseHeadersRead,
-                ct
-            );
+            // \e[?1049h is the escape sequence to open an alternate screen buffer.
+            PrettyConsole.Out.Write("\e[?1049h");
+            Console.SetCursorPosition(0, 0);
 
-            if (!logsRequest.IsSuccessStatusCode)
-            {
-                await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
-                context.ExitCode = 1;
-                return;
-            }
-
-
-            var logs = logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
-
-            await foreach (var logLine in logs)
-            {
-                if (logLine is null) continue;
-
-                PrintLogLine(logLine, timeZoneInfo, !noDates);
-            }
+            await Handler(logFileName, currentExecution, timeZoneInfo, localizedBefore, localizedAfter, !noDates, streaming, ct);
         }
         catch (TaskCanceledException)
         {
-            // Discard the exception
+            // We really don't care for a TaskCancelledException
+            return;
+        }
+        finally
+        {
+            // \e[?1049l is the escape sequence to close the alternate screen buffer.
+            PrettyConsole.Out.Write("\e[?1049l");
+        }
+
+        //// Stream the new logs
+
+        //if (!streaming) return;
+
+        //// It doesn't make sense to stream stuff in the past.
+        //if (showBefore < DateTimeOffset.UtcNow) return;
+
+        //var showBeforeParam = showBefore is not null ? $"&before={localizedBefore:O}" : null;
+        //var showAfterParam = showAfter is not null ? $"&after={localizedAfter:O}" : null;
+
+        //try
+        //{
+        //    var logsRequest = await HttpInvocation.HttpClient.GetAsync(
+        //        $"/{name}/logs?{showBeforeParam}{showAfterParam}",
+        //        HttpCompletionOption.ResponseHeadersRead,
+        //        ct
+        //    );
+
+        //    if (!logsRequest.IsSuccessStatusCode)
+        //    {
+        //        await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
+        //        context.ExitCode = 1;
+        //        return;
+        //    }
+
+
+        //    var logs = logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
+
+        //    await foreach (var logLine in logs)
+        //    {
+        //        if (logLine is null) continue;
+
+        //        PrintLogLine(logLine, timeZoneInfo, !noDates);
+        //    }
+        //}
+        //catch (TaskCanceledException)
+        //{
+        //    // Discard the exception
+        //}
+    }
+
+    private static async Task Handler(string log, bool current, TimeZoneInfo timezone, DateTimeOffset? before,
+        DateTimeOffset? after, bool dates, bool streaming, CancellationToken ct)
+    {
+        // We need to show the initial file.
+
+        // While we allow others to write to this file, the expectation is that they will only append. We cannot enforce that sadly.
+        using var file = File.Open(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        var offset = file.Length;
+
+        var lines = Console.WindowHeight - 1;
+        var logs = await GetLogsFromFileAsync(file, lines, offset, current, before, after, ct).Reverse().ToArrayAsync(ct);
+
+        ReprintScreen(lines, logs, timezone, dates);
+
+        // From now on we will keep track of the user input and react to it accordingly
+
+        while (!ct.IsCancellationRequested)
+        {
+            if (Console.KeyAvailable)
+            {
+                var key = Console.ReadKey(true);
+
+                switch (key.Key)
+                {
+                    case ConsoleKey.Q:
+                    case ConsoleKey.Escape:
+                        return;
+                    case ConsoleKey.R when key.Modifiers == ConsoleModifiers.Control:
+                        ReprintScreen(lines, logs, timezone, dates);
+                        break;
+                    case ConsoleKey.UpArrow:
+                        // If this is the last line, ignore the command
+                        if (logs.Length == 1) break;
+
+                        lines = Console.WindowHeight - 1;
+                        offset = logs.Last().FileOffset;
+                        logs = await GetLogsFromFileAsync(file, lines, offset, current, before, after, ct).Reverse().ToArrayAsync(ct);
+
+                        ReprintScreen(lines, logs, timezone, dates);
+                        break;
+                }
+            }
+
+            await Task.Delay(100, ct);
+        }
+    }
+
+    private static void ReprintScreen(int expectedLines, FileLog[] logs, TimeZoneInfo timezone, bool dates)
+    {
+        Console.Clear();
+
+        // We want to keep the text at the bottom, so we print some text at the top
+        var missingLines = expectedLines - logs.Length;
+        for (int i = 0; i < missingLines; i++)
+        {
+            PrettyConsole.Out.MarkupLine("[black on white]>[/]");
+        }
+
+        foreach (var line in logs)
+        {
+            PrettyConsole.Out.Write($"{line.FileOffset} | ");
+            PrintLogLine(line.Log, timezone, dates);
         }
     }
 
@@ -184,27 +280,18 @@ internal static class LogsCommand
 
     private const int _readBufferSize = 4096;
 
-    private static async IAsyncEnumerable<ApplicationLog> GetLogsFromFileAsync(string fileName, int lines, bool currentExecution,
+    private static async IAsyncEnumerable<FileLog> GetLogsFromFileAsync(FileStream file, int lines, long offset, bool currentExecution,
         DateTimeOffset? before, DateTimeOffset? after, [EnumeratorCancellation] CancellationToken ct)
     {
-        // While we allow others to write to this file, the expectation is that they will only append. We cannot enforce that sadly.
-        using var file = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-
-        // 36 is the size of the start of a line in the logs
-        if (file.Length <= 36)
-        {
-            yield break;
-        }
-
         using var memPoll = MemoryPool<byte>.Shared.Rent(_readBufferSize);
         var sb = new StringBuilder();
         var lineCount = 0;
 
         // Go to the end
-        file.Position = Math.Max(file.Length - _readBufferSize, 0);
+        file.Position = Math.Max(offset - _readBufferSize, 0);
 
         // The buffer may need to be resized to avoid duplicating some data
-        var actualBufferSize = _readBufferSize;
+        var actualBufferSize = Math.Min(_readBufferSize, (int)offset);
 
         var bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
 
@@ -225,6 +312,7 @@ internal static class LogsCommand
             var line = Encoding.UTF8.GetString(readMemory.Span[(pos + 1)..lastNewLine]);
             lastNewLine = pos;
 
+            // If this isn't the entire stream, and we did not found a \n, we need to fetch another chunk
             if (!isEntireStream && pos == -1)
             {
                 // We need to store this part of the log line or else we are going to lose it
@@ -259,13 +347,25 @@ internal static class LogsCommand
                 continue;
             }
 
-            if (!appLog.IsLogDateInRange(before, after))
+            // If the log is after the date we want, we want to ignore this one and continue searching.
+            if (before is { } b && appLog.Date > b)
             {
                 continue;
             }
 
+            // If the log is before the date we want, we can stop now.
+            // Since the log file is sorted oldest to newest after we find a line that is before the after filter all the next lines will be before the after as well.
+            if (after is { } a && appLog.Date < a)
+            {
+                break;
+            }
+
             lineCount++;
-            yield return appLog;
+
+            // The position before the last read
+            var filePosition = file.Position - bytesRead;
+
+            yield return new FileLog(appLog, filePosition + lastNewLine + 1);
 
             // We only wanted the current execution and we found an application started notice. We should now stop.
             if (currentExecution && appLog.LogType == LogType.SYSTEM && appLog.Text == ProcessLogsService.ApplicationStartedLog)
@@ -326,6 +426,8 @@ internal static class LogsCommand
     {
         return DateTimeOffset.TryParseExact(logDate, "O", null, DateTimeStyles.AssumeUniversal, out dateTimeOffset);
     }
+
+    private record FileLog(ApplicationLog Log, long FileOffset);
 
     #endregion
 

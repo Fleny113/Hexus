@@ -73,7 +73,7 @@ internal static class NewCommand
         }
 
         workingDirectory ??= Environment.CurrentDirectory;
-        workingDirectory = EnvironmentHelper.NormalizePath(workingDirectory);
+        workingDirectory = Path.GetFullPath(workingDirectory);
 
         if (useShellEnv)
         {
@@ -93,7 +93,7 @@ internal static class NewCommand
         }
 
         executable = Path.IsPathFullyQualified(executable)
-            ? EnvironmentHelper.NormalizePath(executable)
+            ? Path.GetFullPath(executable)
             : PathHelper.ResolveExecutable(executable);
 
         // Python will not send the logs due to buffering the stdout/stderr, since this can look like a bug in Hexus we warn the user

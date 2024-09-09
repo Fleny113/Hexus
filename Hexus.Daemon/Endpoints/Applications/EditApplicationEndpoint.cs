@@ -33,10 +33,10 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         // FIlle the rest of the request with the data from the application to edit
         request = new EditApplicationRequest(
             Name: request.Name ?? application.Name,
-            Executable: EnvironmentHelper.NormalizePath(request.Executable ?? application.Executable),
+            Executable: Path.GetFullPath(request.Executable ?? application.Executable),
             Arguments: request.Arguments ?? application.Arguments,
             Note: request.Note ?? application.Note ?? "",
-            WorkingDirectory: EnvironmentHelper.NormalizePath(request.WorkingDirectory ?? application.WorkingDirectory),
+            WorkingDirectory: Path.GetFullPath(request.WorkingDirectory ?? application.WorkingDirectory),
             NewEnvironmentVariables: request.NewEnvironmentVariables ?? [],
             RemoveEnvironmentVariables: request.RemoveEnvironmentVariables ?? [],
             IsReloadingEnvironmentVariables: request.IsReloadingEnvironmentVariables ?? false

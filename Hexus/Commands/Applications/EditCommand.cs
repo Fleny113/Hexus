@@ -85,11 +85,11 @@ internal static class EditCommand
         }
 
         if (newWorkingDirectory is not null)
-            newWorkingDirectory = EnvironmentHelper.NormalizePath(newWorkingDirectory);
+            newWorkingDirectory = Path.GetFullPath(newWorkingDirectory);
 
         if (newExecutable is not null)
             newExecutable = Path.IsPathFullyQualified(newExecutable)
-                ? EnvironmentHelper.NormalizePath(newExecutable)
+                ? Path.GetFullPath(newExecutable)
                 : PathHelper.ResolveExecutable(newExecutable);
 
         if (reloadEnv)
