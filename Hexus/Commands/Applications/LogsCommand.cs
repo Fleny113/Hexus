@@ -199,10 +199,11 @@ internal static class LogsCommand
 
         // While we allow others to write to this file, the expectation is that they will only append. We cannot enforce that sadly.
         using var file = File.Open(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        var offset = file.Length;
 
+        var offset = file.Length;
         var lines = Console.WindowHeight - 1;
-        var logs = await GetLogsFromFileAsync(file, lines, offset, current, before, after, ct).Reverse().ToArrayAsync(ct);
+
+        var logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
 
         ReprintScreen(lines, logs, timezone, dates);
 
@@ -224,13 +225,35 @@ internal static class LogsCommand
                         break;
                     case ConsoleKey.UpArrow:
                         // If this is the last line, ignore the command
-                        if (logs.Length == 1) break;
+                        if (logs.Count == 1) break;
 
                         lines = Console.WindowHeight - 1;
                         offset = logs.Last().FileOffset;
-                        logs = await GetLogsFromFileAsync(file, lines, offset, current, before, after, ct).Reverse().ToArrayAsync(ct);
+                        logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
 
                         ReprintScreen(lines, logs, timezone, dates);
+                        break;
+                    case ConsoleKey.DownArrow:
+                        var line = logs.Last();
+
+                        lines = Console.WindowHeight - 1;
+                        var lineLength = 36 + Encoding.UTF8.GetByteCount(line.Log.Text);
+                        var calculatedOffset = line.FileOffset + lineLength + 2;
+
+                        if (calculatedOffset >= file.Length) break;
+
+                        offset = calculatedOffset;
+
+                        var fetched = await GetLogsFromFileForwardsAsync(file, 1, offset, before, ct).ElementAtOrDefaultAsync(0, ct);
+
+                        if (fetched is null) break;
+
+                        // We remove the top line and replace it with the one we just fetched at the bottom
+                        logs.RemoveAt(0);
+                        logs.Add(fetched);
+
+                        ReprintScreen(lines, logs, timezone, dates);
+
                         break;
                 }
             }
@@ -239,12 +262,12 @@ internal static class LogsCommand
         }
     }
 
-    private static void ReprintScreen(int expectedLines, FileLog[] logs, TimeZoneInfo timezone, bool dates)
+    private static void ReprintScreen(int expectedLines, List<FileLog> logs, TimeZoneInfo timezone, bool dates)
     {
         Console.Clear();
 
         // We want to keep the text at the bottom, so we print some text at the top
-        var missingLines = expectedLines - logs.Length;
+        var missingLines = expectedLines - logs.Count;
         for (int i = 0; i < missingLines; i++)
         {
             PrettyConsole.Out.MarkupLine("[black on white]>[/]");
@@ -280,30 +303,33 @@ internal static class LogsCommand
 
     private const int _readBufferSize = 4096;
 
-    private static async IAsyncEnumerable<FileLog> GetLogsFromFileAsync(FileStream file, int lines, long offset, bool currentExecution,
+    // The following 2 methods are very similar, but the handling is different as one is backwards reading and one is forwards reading
+    //  - Backwards reading: given an offset, it starts reading backwards the file and returns the N lines before the offset
+    //  - Forwards reading: given an offset, it starts reading forwards and returns the next N lines
+
+    private static async IAsyncEnumerable<FileLog> GetLogsFromFileBackwardsAsync(FileStream file, int lines, long offset, bool currentExecution,
         DateTimeOffset? before, DateTimeOffset? after, [EnumeratorCancellation] CancellationToken ct)
     {
         using var memPoll = MemoryPool<byte>.Shared.Rent(_readBufferSize);
         var sb = new StringBuilder();
         var lineCount = 0;
 
-        // Go to the end
+        // Go to the offset location
         file.Position = Math.Max(offset - _readBufferSize, 0);
 
         // The buffer may need to be resized to avoid duplicating some data
-        var actualBufferSize = Math.Min(_readBufferSize, (int)offset);
+        var actualBufferSize = (int)Math.Min(_readBufferSize, offset);
 
         var bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
 
-        // We only want to consume the memory that has data we have just read
+        // We only want to consume the memory that has data we have just read to avoid some work
         var readMemory = memPoll.Memory[0..bytesRead];
 
-        // We don't know where new lines are, we will search them but we need to start from the end,
-        // but we know the last line (of the file) should always be a new line so we can already skip that
-        var lastNewLine = bytesRead - 1;
+        // The position of the last \n we found. Right after a read this will be the end of the buffer
+        var lastNewLine = bytesRead;
 
         // If the position of the cursor is the same as the size of our (actual) buffer size it means we started reading from 0
-        var isEntireStream = file.Position == actualBufferSize;
+        var isEntireStream = file.Position - bytesRead == 0;
 
         while (lineCount < lines)
         {
@@ -328,7 +354,8 @@ internal static class LogsCommand
 
                 readMemory = memPoll.Memory[0..bytesRead];
                 lastNewLine = bytesRead;
-                isEntireStream = file.Position == actualBufferSize;
+
+                isEntireStream = file.Position - bytesRead == 0;
 
                 continue;
             }
@@ -380,11 +407,78 @@ internal static class LogsCommand
         }
     }
 
+    private static async IAsyncEnumerable<FileLog?> GetLogsFromFileForwardsAsync(FileStream file, int lines, long offset,
+        DateTimeOffset? before, [EnumeratorCancellation] CancellationToken ct)
+    {
+        using var memPoll = MemoryPool<byte>.Shared.Rent(_readBufferSize);
+        var sb = new StringBuilder();
+        int lineCount = 0;
+
+        // Go to the offset
+        file.Position = offset;
+
+        // The buffer may need to be resized to avoid reading data that isn't needed
+        var actualBufferSize = (int)Math.Min(_readBufferSize, file.Length - offset);
+
+        var bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
+
+        // We only want to consume the memory that has data we have just read
+        var readMemory = memPoll.Memory[0..bytesRead];
+
+        // In this case, since we read the file forwards the stream ends if we reach the EOF
+        var isEntireStream = file.Position == file.Length;
+
+        while (lineCount < lines)
+        {
+            var pos = readMemory.Span.IndexOf("\n"u8);
+            var line = Encoding.UTF8.GetString(pos == -1 ? readMemory.Span : readMemory.Span[..pos]);
+
+            // If this isn't the entire stream, and we did not found a \n, we need to fetch another chunk
+            if (!isEntireStream && pos == -1)
+            {
+                // We need to store this part of the log line or else we are going to lose it
+                sb.Insert(0, line);
+
+                // We don't want to read stuff twice, so we need "resize" our buffer
+                actualBufferSize = (int)Math.Min(file.Length - file.Position, _readBufferSize);
+
+                bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
+
+                readMemory = memPoll.Memory[0..bytesRead];
+                isEntireStream = file.Position == file.Length;
+
+                continue;
+            }
+
+            // We have buffered a string, use it and clear the StringBuilder to be reused
+            if (sb.Length > 0)
+            {
+                sb.Append(line);
+                line = sb.ToString();
+
+                sb.Clear();
+            }
+
+            if (!TryParseLogLine(line, out var appLog))
+            {
+                continue;
+            }
+
+            // If the log is after the date we want, we want to ignore this one and continue searching.
+            if (before is { } b && appLog.Date > b)
+            {
+                break;
+            }
+
+            yield return new FileLog(appLog, offset);
+        }
+    }
+
     private static bool TryParseLogLine(ReadOnlySpan<char> logSpan, [MaybeNullWhen(false)] out ApplicationLog appLog)
     {
         appLog = null;
 
-        if (logSpan[0] != '[')
+        if (logSpan.Length == 0 || logSpan[0] != '[')
         {
             return false;
         }
