@@ -224,37 +224,75 @@ internal static class LogsCommand
                         ReprintScreen(lines, logs, timezone, dates);
                         break;
                     case ConsoleKey.UpArrow:
-                        // If this is the last line, ignore the command
-                        if (logs.Count == 1) break;
+                    case ConsoleKey.K:
+                        {
+                            // If this is the first file in the file, ignore
+                            if (logs.Count == 1)
+                            {
+                                PrettyConsole.Out.Write("\a");
+                                break;
+                            }
 
-                        lines = Console.WindowHeight - 1;
-                        offset = logs.Last().FileOffset;
-                        logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
+                            var line = logs.Last();
 
-                        ReprintScreen(lines, logs, timezone, dates);
-                        break;
+                            lines = Console.WindowHeight - 1;
+                            offset = line.FileOffset;
+                            logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
+
+                            ReprintScreen(lines, logs, timezone, dates);
+                            break;
+                        }
                     case ConsoleKey.DownArrow:
-                        var line = logs.Last();
+                    case ConsoleKey.J:
+                        {
+                            var line = logs.Last();
 
-                        lines = Console.WindowHeight - 1;
-                        var lineLength = 36 + Encoding.UTF8.GetByteCount(line.Log.Text);
-                        var calculatedOffset = line.FileOffset + lineLength + 2;
+                            lines = Console.WindowHeight - 1;
+                            var lineLength = 36 + Encoding.UTF8.GetByteCount(line.Log.Text);
+                            var calculatedOffset = line.FileOffset + lineLength + 2;
 
-                        if (calculatedOffset >= file.Length) break;
+                            // If this is the last line in the file, ignore
+                            if (calculatedOffset >= file.Length)
+                            {
+                                PrettyConsole.Out.Write("\a");
+                                break;
+                            }
 
-                        offset = calculatedOffset;
+                            offset = calculatedOffset;
 
-                        var fetched = await GetLogsFromFileForwardsAsync(file, 1, offset, before, ct).ElementAtOrDefaultAsync(0, ct);
+                            var fetched = await GetLogsFromFileForwardsAsync(file, 1, offset, before, ct).ElementAtOrDefaultAsync(0, ct);
 
-                        if (fetched is null) break;
+                            if (fetched is null) break;
 
-                        // We remove the top line and replace it with the one we just fetched at the bottom
-                        logs.RemoveAt(0);
-                        logs.Add(fetched);
+                            // We remove the top line (if needed) and replace it with the one we just fetched at the bottom
+                            if (logs.Count >= lines)
+                            {
+                                logs.RemoveAt(0);
+                            }
 
-                        ReprintScreen(lines, logs, timezone, dates);
+                            logs.Add(fetched);
 
-                        break;
+                            ReprintScreen(lines, logs, timezone, dates);
+                            break;
+                        }
+                    case ConsoleKey.PageUp:
+                        {
+                            var line = logs.First();
+
+                            // If this is the first line in the file, ignore
+                            if (line.FileOffset == 0)
+                            {
+                                PrettyConsole.Out.Write("\a");
+                                break;
+                            } 
+
+                            lines = Console.WindowHeight - 1;
+                            offset = line.FileOffset;
+                            logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
+
+                            ReprintScreen(lines, logs, timezone, dates);
+                            break;
+                        }
                 }
             }
 
