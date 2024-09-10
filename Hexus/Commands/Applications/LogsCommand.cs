@@ -248,8 +248,7 @@ internal static class LogsCommand
                             var line = logs.Last();
 
                             lines = Console.WindowHeight - 1;
-                            var lineLength = 36 + Encoding.UTF8.GetByteCount(line.Log.Text);
-                            var calculatedOffset = line.FileOffset + lineLength + 2;
+                            var calculatedOffset = line.FileOffset + line.LineLength + 1;
 
                             // If this is the last line in the file, ignore
                             if (calculatedOffset >= file.Length)
@@ -260,9 +259,7 @@ internal static class LogsCommand
 
                             offset = calculatedOffset;
 
-                            var fetched = await GetLogsFromFileForwardsAsync(file, 1, offset, before, ct).ElementAtOrDefaultAsync(0, ct);
-
-                            if (fetched is null) break;
+                            var fetched = await GetLogsFromFileForwardsAsync(file, 1, offset, before, ct).ElementAtAsync(0, ct);
 
                             // We remove the top line (if needed) and replace it with the one we just fetched at the bottom
                             if (logs.Count >= lines)
@@ -272,25 +269,72 @@ internal static class LogsCommand
 
                             logs.Add(fetched);
 
-                            ReprintScreen(lines, logs, timezone, dates);
+                            // We can simply write in this situation
+                            PrettyConsole.Out.Write($"{fetched.FileOffset} | ");
+                            PrintLogLine(fetched.Log, timezone, dates);
+
                             break;
                         }
                     case ConsoleKey.PageUp:
                         {
                             var line = logs.First();
 
-                            // If this is the first line in the file, ignore
+                            // If the first line in the buffer is the one with offset 0...
                             if (line.FileOffset == 0)
                             {
-                                PrettyConsole.Out.Write("\a");
+                                // ... and if it is the only line, we ignore the command
+                                if (logs.Count == 1)
+                                {
+                                    PrettyConsole.Out.Write("\a");
+                                    break;
+                                }
+
+                                // ... and there are other lines, we only leave the first one
+                                logs.Clear();
+                                logs.Add(line);
+
+                                ReprintScreen(lines, logs, timezone, dates);
                                 break;
-                            } 
+                            }
 
                             lines = Console.WindowHeight - 1;
                             offset = line.FileOffset;
                             logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
 
                             ReprintScreen(lines, logs, timezone, dates);
+                            break;
+                        }
+                    case ConsoleKey.PageDown:
+                        {
+                            var line = logs.Last();
+                            var calculatedOffset = line.FileOffset + line.LineLength + 1;
+
+                            // If this is the last line in the file, ignore
+                            if (calculatedOffset >= file.Length)
+                            {
+                                PrettyConsole.Out.Write("\a");
+                                break;
+                            }
+
+                            lines = Console.WindowHeight - 1;
+                            offset = calculatedOffset;
+                            var fetchedLogs = await GetLogsFromFileForwardsAsync(file, lines, offset, before, ct).ToArrayAsync(ct);
+
+                            foreach (var fetchedLog in fetchedLogs)
+                            {
+                                // We remove the top line (if needed) and replace it with the one we just fetched at the bottom
+                                if (logs.Count >= lines)
+                                {
+                                    logs.RemoveAt(0);
+                                }
+
+                                logs.Add(fetchedLog);
+
+                                // We can simply write in this situation
+                                PrettyConsole.Out.Write($"{fetchedLog.FileOffset} | ");
+                                PrintLogLine(fetchedLog.Log, timezone, dates);
+                            }
+
                             break;
                         }
                 }
@@ -369,6 +413,9 @@ internal static class LogsCommand
         // If the position of the cursor is the same as the size of our (actual) buffer size it means we started reading from 0
         var isEntireStream = file.Position - bytesRead == 0;
 
+        // This is a value used when a line is between chunks, used to store where the line starts, relative to the file.
+        long lineOffset = -1;
+
         while (lineCount < lines)
         {
             var pos = readMemory.Span[0..lastNewLine].LastIndexOf("\n"u8);
@@ -379,6 +426,9 @@ internal static class LogsCommand
             // If this isn't the entire stream, and we did not found a \n, we need to fetch another chunk
             if (!isEntireStream && pos == -1)
             {
+                // Save the start of this line, (if there isn't a line already saved)
+                if (lineOffset == -1) lineOffset = file.Position - bytesRead + lastNewLine + 1;
+
                 // We need to store this part of the log line or else we are going to lose it
                 sb.Insert(0, line);
 
@@ -427,10 +477,10 @@ internal static class LogsCommand
 
             lineCount++;
 
-            // The position before the last read
-            var filePosition = file.Position - bytesRead;
+            // lineOffset is -1 when the line is not between chunks.
+            yield return new FileLog(appLog, lineOffset == -1 ? file.Position - bytesRead + lastNewLine + 1 : lineOffset, line.Length);
 
-            yield return new FileLog(appLog, filePosition + lastNewLine + 1);
+            lineOffset = -1;
 
             // We only wanted the current execution and we found an application started notice. We should now stop.
             if (currentExecution && appLog.LogType == LogType.SYSTEM && appLog.Text == ProcessLogsService.ApplicationStartedLog)
@@ -445,7 +495,7 @@ internal static class LogsCommand
         }
     }
 
-    private static async IAsyncEnumerable<FileLog?> GetLogsFromFileForwardsAsync(FileStream file, int lines, long offset,
+    private static async IAsyncEnumerable<FileLog> GetLogsFromFileForwardsAsync(FileStream file, int lines, long offset,
         DateTimeOffset? before, [EnumeratorCancellation] CancellationToken ct)
     {
         using var memPoll = MemoryPool<byte>.Shared.Rent(_readBufferSize);
@@ -463,19 +513,32 @@ internal static class LogsCommand
         // We only want to consume the memory that has data we have just read
         var readMemory = memPoll.Memory[0..bytesRead];
 
+        // The position of the last \n we found. Right after a read this will be 0
+        var lastNewLine = 0;
+
         // In this case, since we read the file forwards the stream ends if we reach the EOF
         var isEntireStream = file.Position == file.Length;
 
+        // This is a value used when a line is between chunks, used to store where the line starts, relative to the file.
+        long lineOffset = -1;
+
         while (lineCount < lines)
         {
-            var pos = readMemory.Span.IndexOf("\n"u8);
-            var line = Encoding.UTF8.GetString(pos == -1 ? readMemory.Span : readMemory.Span[..pos]);
+            var pos = readMemory.Span[lastNewLine..].IndexOf("\n"u8);
+
+            var line = Encoding.UTF8.GetString(readMemory.Span[lastNewLine..(pos == -1 ? readMemory.Span.Length : lastNewLine + pos)]);
+
+            // The +1 is needed, or else we will finding the same \n over and over again
+            lastNewLine += pos + 1;
 
             // If this isn't the entire stream, and we did not found a \n, we need to fetch another chunk
             if (!isEntireStream && pos == -1)
             {
+                // Save the start of this line, (if there isn't a line already saved)
+                if (lineOffset == -1) lineOffset = file.Position - bytesRead + lastNewLine - pos - 1;
+
                 // We need to store this part of the log line or else we are going to lose it
-                sb.Insert(0, line);
+                sb.Append(line);
 
                 // We don't want to read stuff twice, so we need "resize" our buffer
                 actualBufferSize = (int)Math.Min(file.Length - file.Position, _readBufferSize);
@@ -483,6 +546,7 @@ internal static class LogsCommand
                 bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
 
                 readMemory = memPoll.Memory[0..bytesRead];
+                lastNewLine = 0;
                 isEntireStream = file.Position == file.Length;
 
                 continue;
@@ -499,16 +563,33 @@ internal static class LogsCommand
 
             if (!TryParseLogLine(line, out var appLog))
             {
+                // If the last line failed to parse, provably due to being empty since the logs have a trailing \n we need to break out
+                if (isEntireStream && pos == -1)
+                {
+                    break;
+                }
+
                 continue;
             }
 
-            // If the log is after the date we want, we want to ignore this one and continue searching.
+            // If the log is after the date we want, we can stop, as since we are working forwards there won't be dates before this one going on
             if (before is { } b && appLog.Date > b)
             {
                 break;
             }
 
-            yield return new FileLog(appLog, offset);
+            lineCount++;
+
+            // lineOffset is -1 when the line is not between chunks.
+            yield return new FileLog(appLog, lineOffset == -1 ? file.Position - bytesRead + lastNewLine - pos - 1 : lineOffset, line.Length);
+
+            lineOffset = -1;
+
+            // If this was the last line, break out
+            if (isEntireStream && pos == -1)
+            {
+                break;
+            }
         }
     }
 
@@ -559,7 +640,7 @@ internal static class LogsCommand
         return DateTimeOffset.TryParseExact(logDate, "O", null, DateTimeStyles.AssumeUniversal, out dateTimeOffset);
     }
 
-    private record FileLog(ApplicationLog Log, long FileOffset);
+    private record FileLog(ApplicationLog Log, long FileOffset, int LineLength);
 
     #endregion
 
