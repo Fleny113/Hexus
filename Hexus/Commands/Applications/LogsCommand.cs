@@ -151,7 +151,7 @@ internal static class LogsCommand
             PrettyConsole.Out.Write("\e[?1049l");
         }
 
-        //// Stream the new logs
+        // Stream the new logs
 
         //if (!streaming) return;
 
@@ -161,34 +161,27 @@ internal static class LogsCommand
         //var showBeforeParam = showBefore is not null ? $"&before={localizedBefore:O}" : null;
         //var showAfterParam = showAfter is not null ? $"&after={localizedAfter:O}" : null;
 
-        //try
+        //var logsRequest = await HttpInvocation.HttpClient.GetAsync(
+        //    $"/{name}/logs?{showBeforeParam}{showAfterParam}",
+        //    HttpCompletionOption.ResponseHeadersRead,
+        //    ct
+        //);
+
+        //if (!logsRequest.IsSuccessStatusCode)
         //{
-        //    var logsRequest = await HttpInvocation.HttpClient.GetAsync(
-        //        $"/{name}/logs?{showBeforeParam}{showAfterParam}",
-        //        HttpCompletionOption.ResponseHeadersRead,
-        //        ct
-        //    );
-
-        //    if (!logsRequest.IsSuccessStatusCode)
-        //    {
-        //        await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
-        //        context.ExitCode = 1;
-        //        return;
-        //    }
-
-
-        //    var logs = logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
-
-        //    await foreach (var logLine in logs)
-        //    {
-        //        if (logLine is null) continue;
-
-        //        PrintLogLine(logLine, timeZoneInfo, !noDates);
-        //    }
+        //    await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
+        //    context.ExitCode = 1;
+        //    return;
         //}
-        //catch (TaskCanceledException)
+
+
+        //var logs = logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
+
+        //await foreach (var logLine in logs)
         //{
-        //    // Discard the exception
+        //    if (logLine is null) continue;
+
+        //    PrintLogLine(logLine, timeZoneInfo, !noDates);
         //}
     }
 
@@ -226,8 +219,8 @@ internal static class LogsCommand
                     case ConsoleKey.UpArrow:
                     case ConsoleKey.K:
                         {
-                            // If this is the first file in the file, ignore
-                            if (logs.Count == 1)
+                            // If the first line is being displayed, ignore the command
+                            if (logs.First().FileOffset == 0)
                             {
                                 PrettyConsole.Out.Write("\a");
                                 break;
@@ -279,27 +272,25 @@ internal static class LogsCommand
                         {
                             var line = logs.First();
 
-                            // If the first line in the buffer is the one with offset 0...
+                            // If the first line is being displayed, ignore the command
                             if (line.FileOffset == 0)
                             {
-                                // ... and if it is the only line, we ignore the command
-                                if (logs.Count == 1)
-                                {
-                                    PrettyConsole.Out.Write("\a");
-                                    break;
-                                }
-
-                                // ... and there are other lines, we only leave the first one
-                                logs.Clear();
-                                logs.Add(line);
-
-                                ReprintScreen(lines, logs, timezone, dates);
+                                PrettyConsole.Out.Write("\a");
                                 break;
                             }
 
                             lines = Console.WindowHeight - 1;
                             offset = line.FileOffset;
                             logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
+
+                            // If didn't fetched enoght lines, we fetch the rest going forwards
+                            if (logs.Count != lines)
+                            {
+                                var last = logs.Last();
+                                var logLines = await GetLogsFromFileForwardsAsync(file, lines - logs.Count, last.FileOffset + last.LineLength + 1, before, ct).ToListAsync(ct);
+
+                                logs.AddRange(logLines);
+                            }
 
                             ReprintScreen(lines, logs, timezone, dates);
                             break;
@@ -352,7 +343,7 @@ internal static class LogsCommand
         var missingLines = expectedLines - logs.Count;
         for (int i = 0; i < missingLines; i++)
         {
-            PrettyConsole.Out.MarkupLine("[black on white]>[/]");
+            PrettyConsole.Out.WriteLine();
         }
 
         foreach (var line in logs)
@@ -640,7 +631,7 @@ internal static class LogsCommand
         return DateTimeOffset.TryParseExact(logDate, "O", null, DateTimeStyles.AssumeUniversal, out dateTimeOffset);
     }
 
-    private record FileLog(ApplicationLog Log, long FileOffset, int LineLength);
+    private record struct FileLog(ApplicationLog Log, long FileOffset, int LineLength);
 
     #endregion
 
