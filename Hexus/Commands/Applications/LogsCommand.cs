@@ -216,6 +216,9 @@ internal static class LogsCommand
                     case ConsoleKey.R when key.Modifiers == ConsoleModifiers.Control:
                         ReprintScreen(lines, logs, timezone, dates);
                         break;
+
+                    // Up & Down
+
                     case ConsoleKey.UpArrow:
                     case ConsoleKey.K:
                         {
@@ -268,6 +271,9 @@ internal static class LogsCommand
 
                             break;
                         }
+
+                    // Page keys
+
                     case ConsoleKey.PageUp:
                         {
                             var line = logs.First();
@@ -325,6 +331,29 @@ internal static class LogsCommand
                                 PrettyConsole.Out.Write($"{fetchedLog.FileOffset} | ");
                                 PrintLogLine(fetchedLog.Log, timezone, dates);
                             }
+
+                            break;
+                        }
+
+                    // "g" & "G"
+
+                    case ConsoleKey.G when key.Modifiers == ConsoleModifiers.Shift:
+                        {
+                            offset = file.Length;
+                            lines = Console.WindowHeight - 1;
+                            logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
+
+                            ReprintScreen(lines, logs, timezone, dates);
+
+                            break;
+                        }
+                    case ConsoleKey.G:
+                        {
+                            offset = 0;
+                            lines = Console.WindowHeight - 1;
+                            logs = await GetLogsFromFileForwardsAsync(file, lines, offset, before, ct).ToListAsync(ct);
+
+                            ReprintScreen(lines, logs, timezone, dates);
 
                             break;
                         }
