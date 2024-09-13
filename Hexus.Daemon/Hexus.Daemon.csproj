@@ -15,7 +15,7 @@
         <PackageReference Include="NReco.Logging.File" Version="1.2.1" />
         <PackageReference Include="System.Linq.Async" Version="6.0.1" />
         <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="16.0.0" />
-        <PackageReference Include="YamlDotNet" Version="16.1.0" />
+        <PackageReference Include="YamlDotNet" Version="16.1.2" />
         <InternalsVisibleTo Include="Hexus" />
     </ItemGroup>
 </Project>
