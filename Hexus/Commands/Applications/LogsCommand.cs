@@ -208,6 +208,8 @@ internal static class LogsCommand
             {
                 var key = Console.ReadKey(true);
 
+                lines = Console.WindowHeight - 1;
+
                 switch (key.Key)
                 {
                     case ConsoleKey.Q:
@@ -231,7 +233,6 @@ internal static class LogsCommand
 
                             var line = logs.Last();
 
-                            lines = Console.WindowHeight - 1;
                             offset = line.FileOffset;
                             logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
 
@@ -242,8 +243,6 @@ internal static class LogsCommand
                     case ConsoleKey.J:
                         {
                             var line = logs.Last();
-
-                            lines = Console.WindowHeight - 1;
                             var calculatedOffset = line.FileOffset + line.LineLength + 1;
 
                             // If this is the last line in the file, ignore
@@ -265,9 +264,7 @@ internal static class LogsCommand
 
                             logs.Add(fetched);
 
-                            // We can simply write in this situation
-                            PrettyConsole.Out.Write($"{fetched.FileOffset} | ");
-                            PrintLogLine(fetched.Log, timezone, dates);
+                            ReprintScreen(lines, logs, timezone, dates);
 
                             break;
                         }
@@ -285,7 +282,6 @@ internal static class LogsCommand
                                 break;
                             }
 
-                            lines = Console.WindowHeight - 1;
                             offset = line.FileOffset;
                             logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
 
@@ -313,7 +309,6 @@ internal static class LogsCommand
                                 break;
                             }
 
-                            lines = Console.WindowHeight - 1;
                             offset = calculatedOffset;
                             var fetchedLogs = await GetLogsFromFileForwardsAsync(file, lines, offset, before, ct).ToArrayAsync(ct);
 
@@ -326,11 +321,9 @@ internal static class LogsCommand
                                 }
 
                                 logs.Add(fetchedLog);
-
-                                // We can simply write in this situation
-                                PrettyConsole.Out.Write($"{fetchedLog.FileOffset} | ");
-                                PrintLogLine(fetchedLog.Log, timezone, dates);
                             }
+
+                            ReprintScreen(lines, logs, timezone, dates);
 
                             break;
                         }
@@ -340,7 +333,6 @@ internal static class LogsCommand
                     case ConsoleKey.G when key.Modifiers == ConsoleModifiers.Shift:
                         {
                             offset = file.Length;
-                            lines = Console.WindowHeight - 1;
                             logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
 
                             ReprintScreen(lines, logs, timezone, dates);
@@ -350,7 +342,6 @@ internal static class LogsCommand
                     case ConsoleKey.G:
                         {
                             offset = 0;
-                            lines = Console.WindowHeight - 1;
                             logs = await GetLogsFromFileForwardsAsync(file, lines, offset, before, ct).ToListAsync(ct);
 
                             ReprintScreen(lines, logs, timezone, dates);
@@ -366,23 +357,24 @@ internal static class LogsCommand
 
     private static void ReprintScreen(int expectedLines, List<FileLog> logs, TimeZoneInfo timezone, bool dates)
     {
-        Console.Clear();
+        var sb = new StringBuilder();
 
         // We want to keep the text at the bottom, so we print some text at the top
         var missingLines = expectedLines - logs.Count;
         for (int i = 0; i < missingLines; i++)
         {
-            PrettyConsole.Out.WriteLine();
+            sb.AppendLine();
         }
 
         foreach (var line in logs)
         {
-            PrettyConsole.Out.Write($"{line.FileOffset} | ");
-            PrintLogLine(line.Log, timezone, dates);
+            sb.AppendLine($"{line.FileOffset:0000} | " + PrintLogLine(line.Log, timezone, dates));
         }
+
+        PrettyConsole.OutLimitlessWidth.Markup(sb.ToString());
     }
 
-    private static void PrintLogLine(ApplicationLog log, TimeZoneInfo timeZoneInfo, bool showDates)
+    private static string PrintLogLine(ApplicationLog log, TimeZoneInfo timeZoneInfo, bool showDates)
     {
         var color = GetLogTypeColor(log.LogType);
 
@@ -390,7 +382,7 @@ internal static class LogsCommand
         var date = showDates ? $"{timezone:yyyy-MM-dd HH:mm:ss} [{color}]| " : $"[{color}]";
         var text = log.Text.EscapeMarkup();
 
-        PrettyConsole.OutLimitlessWidth.MarkupLine($"{date}{log.LogType} |[/] {text}");
+        return $"{date}{log.LogType} |[/] {text}";
     }
 
     private static Color GetLogTypeColor(LogType logType) => logType switch
@@ -663,5 +655,4 @@ internal static class LogsCommand
     private record struct FileLog(ApplicationLog Log, long FileOffset, int LineLength);
 
     #endregion
-
 }
