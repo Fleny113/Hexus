@@ -33,7 +33,7 @@ var rootCommand = new RootCommand("The Hexus management CLI")
 var builder = new CommandLineBuilder(rootCommand);
 
 builder.UseDefaults();
-builder.UseExceptionHandler((exception, _) => PrettyConsole.Error.WriteException(exception), 1);
+builder.UseExceptionHandler((exception, _) => PrettyConsole.Error.WriteException(exception, ExceptionFormats.ShortenPaths), 1);
 
 var app = builder.Build();
 
