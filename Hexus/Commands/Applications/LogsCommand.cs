@@ -9,10 +9,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Hexus.Commands.Applications;
 
-internal static class LogsCommand
+internal static partial class LogsCommand
 {
     private static readonly Argument<string> NameArgument = new("name")
     {
@@ -181,9 +182,11 @@ internal static class LogsCommand
         //{
         //    if (logLine is null) continue;
 
-        //    PrintLogLine(logLine, timeZoneInfo, !noDates);
+        //    GetLogLine(logLine, timeZoneInfo, !noDates);
         //}
     }
+
+    // TODO: handle streaming
 
     private static async Task Handler(string log, bool current, TimeZoneInfo timezone, DateTimeOffset? before,
         DateTimeOffset? after, bool dates, bool streaming, CancellationToken ct)
@@ -193,22 +196,31 @@ internal static class LogsCommand
         // While we allow others to write to this file, the expectation is that they will only append. We cannot enforce that sadly.
         using var file = File.Open(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
+        // The offset of the file
         var offset = file.Length;
-        var lines = Console.WindowHeight - 1;
+        var lines = Console.BufferHeight - 1;
+        // We take a char off to have the chars to display the symbol to indicate there will be a new page available to the right
+        var width = Console.BufferWidth - 1;
+        // The offset of the left/right pagination
+        var textOffset = 0;
 
         var logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
 
-        ReprintScreen(lines, logs, timezone, dates);
+        ReprintScreen(lines, logs, timezone, dates, textOffset, width);
 
         // From now on we will keep track of the user input and react to it accordingly
 
         while (!ct.IsCancellationRequested)
         {
+            var newLines = Console.BufferHeight - 1;
+            var newWidth = Console.BufferWidth - 1;
+
             if (Console.KeyAvailable)
             {
                 var key = Console.ReadKey(true);
 
-                lines = Console.WindowHeight - 1;
+                lines = newLines;
+                width = newWidth;
 
                 switch (key.Key)
                 {
@@ -216,7 +228,7 @@ internal static class LogsCommand
                     case ConsoleKey.Escape:
                         return;
                     case ConsoleKey.R when key.Modifiers == ConsoleModifiers.Control:
-                        ReprintScreen(lines, logs, timezone, dates);
+                        ReprintScreen(lines, logs, timezone, dates, textOffset, width);
                         break;
 
                     // Up & Down
@@ -236,7 +248,7 @@ internal static class LogsCommand
                             offset = line.FileOffset;
                             logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
 
-                            ReprintScreen(lines, logs, timezone, dates);
+                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
                             break;
                         }
                     case ConsoleKey.DownArrow:
@@ -264,7 +276,7 @@ internal static class LogsCommand
 
                             logs.Add(fetched);
 
-                            ReprintScreen(lines, logs, timezone, dates);
+                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
 
                             break;
                         }
@@ -294,7 +306,7 @@ internal static class LogsCommand
                                 logs.AddRange(logLines);
                             }
 
-                            ReprintScreen(lines, logs, timezone, dates);
+                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
                             break;
                         }
                     case ConsoleKey.PageDown:
@@ -310,9 +322,9 @@ internal static class LogsCommand
                             }
 
                             offset = calculatedOffset;
-                            var fetchedLogs = await GetLogsFromFileForwardsAsync(file, lines, offset, before, ct).ToArrayAsync(ct);
+                            var fetchedLogs = GetLogsFromFileForwardsAsync(file, lines, offset, before, ct);
 
-                            foreach (var fetchedLog in fetchedLogs)
+                            await foreach (var fetchedLog in fetchedLogs)
                             {
                                 // We remove the top line (if needed) and replace it with the one we just fetched at the bottom
                                 if (logs.Count >= lines)
@@ -323,7 +335,7 @@ internal static class LogsCommand
                                 logs.Add(fetchedLog);
                             }
 
-                            ReprintScreen(lines, logs, timezone, dates);
+                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
 
                             break;
                         }
@@ -335,7 +347,7 @@ internal static class LogsCommand
                             offset = file.Length;
                             logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
 
-                            ReprintScreen(lines, logs, timezone, dates);
+                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
 
                             break;
                         }
@@ -344,18 +356,71 @@ internal static class LogsCommand
                             offset = 0;
                             logs = await GetLogsFromFileForwardsAsync(file, lines, offset, before, ct).ToListAsync(ct);
 
-                            ReprintScreen(lines, logs, timezone, dates);
+                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
+
+                            break;
+                        }
+
+                    // Left and right
+
+                    // CTRL-RightArrow is not implemented as i'm not sure how to implement it
+
+                    case ConsoleKey.LeftArrow when key.Modifiers == ConsoleModifiers.Control:
+                        {
+                            textOffset = 0;
+
+                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
+
+                            break;
+                        }
+
+                    case ConsoleKey.RightArrow:
+                        {
+                            textOffset++;
+
+                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
+
+                            break;
+                        }
+                    case ConsoleKey.LeftArrow:
+                        {
+                            // We don't want to go into a negative offset
+                            if (textOffset == 0)
+                            {
+                                PrettyConsole.Out.Write("\a");
+                                break;
+                            }
+
+                            textOffset--;
+
+                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
 
                             break;
                         }
                 }
             }
 
+            var heightDifferent = newLines != lines;
+
+            // If the console has been resized
+            if (heightDifferent || newWidth != width)
+            {
+                lines = newLines;
+                width = newWidth;
+
+                if (heightDifferent)
+                {
+                    logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
+                }
+
+                ReprintScreen(lines, logs, timezone, dates, textOffset, width);
+            }
+
             await Task.Delay(100, ct);
         }
     }
 
-    private static void ReprintScreen(int expectedLines, List<FileLog> logs, TimeZoneInfo timezone, bool dates)
+    private static void ReprintScreen(int expectedLines, List<FileLog> logs, TimeZoneInfo timezone, bool dates, int offset, int width)
     {
         var sb = new StringBuilder();
 
@@ -368,21 +433,39 @@ internal static class LogsCommand
 
         foreach (var line in logs)
         {
-            sb.AppendLine($"{line.FileOffset:0000} | " + PrintLogLine(line.Log, timezone, dates));
+            sb.AppendLine(GetLogLine(line, timezone, dates, offset, width));
         }
 
         PrettyConsole.OutLimitlessWidth.Markup(sb.ToString());
     }
 
-    private static string PrintLogLine(ApplicationLog log, TimeZoneInfo timeZoneInfo, bool showDates)
+    private static readonly string AnsiReset = "\e[0m\e]8;;\e\\".EscapeMarkup();
+
+    private static string GetLogLine(FileLog line, TimeZoneInfo timeZoneInfo, bool showDates, int offset, int width)
     {
-        var color = GetLogTypeColor(log.LogType);
+        var color = GetLogTypeColor(line.Log.LogType);
 
-        var timezone = TimeZoneInfo.ConvertTime(log.Date, timeZoneInfo);
+        var timezone = TimeZoneInfo.ConvertTime(line.Log.Date, timeZoneInfo);
         var date = showDates ? $"{timezone:yyyy-MM-dd HH:mm:ss} [{color}]| " : $"[{color}]";
-        var text = log.Text.EscapeMarkup();
 
-        return $"{date}{log.LogType} |[/] {text}";
+        // TODO: remove the file offset
+        var header = $"{/*$"{line.FileOffset:0000} | "*/""}{date}{line.Log.LogType} |[/] ";
+
+        var headerLen = Markup.Remove(header).Length;
+        var startLen = width - headerLen;
+
+        var logText = PaginateString(line.Log.Text, offset, offset == 0 ? startLen : width, out var hadMore);
+
+        // If the length of the paginated is different then it means it had to truncate
+        var seeMoreArrow = hadMore ? "[black on white]>[/]" : ""; 
+
+        // When the offset is not 0 do not show the header
+        if (offset > 0)
+        {
+            return $"{logText.EscapeMarkup()}{AnsiReset}{seeMoreArrow}";
+        }
+
+        return $"{header}{logText.EscapeMarkup()}{AnsiReset}{seeMoreArrow}";
     }
 
     private static Color GetLogTypeColor(LogType logType) => logType switch
@@ -392,6 +475,86 @@ internal static class LogsCommand
         LogType.SYSTEM => Color.MediumPurple2,
         _ => throw new ArgumentOutOfRangeException(nameof(logType), "The requested log type is not mapped to a color"),
     };
+
+    #region String length pagination
+
+    // The string could be very long and we want to fit it in one screen only due to the fact that scrollback is disabled (A virtual screen buffer disables scrollback)
+    // However since we have some "Header" to the line line (output type and [optionally] the date) we need the first split to be shorter based on the header length
+
+    private static string PaginateString(ReadOnlySpan<char> text, int offset, int stringLen, out bool hadMore)
+    {
+        hadMore = false;
+
+        var ansiSequences = AnsiRegex().EnumerateMatches(text);
+        var startIndex = stringLen / 2 * offset;
+
+        var sb = new StringBuilder();
+
+        // To preserve all formatting we need to prepend all ANSI and OSC8 sequences before the actual text
+        foreach (var ansi in ansiSequences)
+        {
+            // If we found an ansi sequence after where our start index is we can break out
+            if (ansi.Index >= startIndex) break;
+
+            // If we mapped in between an ansi sequence we move the start index
+            if (startIndex >= ansi.Index && startIndex <= ansi.Index + ansi.Length)
+            {
+                startIndex = ansi.Index + ansi.Length;
+            }
+
+            // Take the ANSI sequence
+            sb.Append(text.Slice(ansi.Index, ansi.Length));
+        }
+
+
+        if (text.Length < startIndex) return "";
+
+        // If don't have stringLen chars, so we can just take all from the remainder
+        if (stringLen >= text.Length - startIndex)
+        {
+            sb.Append(text[startIndex..]);
+        }
+        // If we have more then stringLen chars we need to be carful as we don't want to consider ANSI chars to part of this
+        else
+        {
+            // We re-define the enumerator because now we have a startIndex
+            ansiSequences = AnsiRegex().EnumerateMatches(text, startIndex);
+            var found = ansiSequences.MoveNext();
+            var takenChars = 0;
+
+            for (var i = startIndex; i < text.Length; i++)
+            {
+                // If we found the ansi sequence take it
+                if (found && ansiSequences.Current.Index == i)
+                {
+                    sb.Append(text.Slice(ansiSequences.Current.Index, ansiSequences.Current.Length));
+                    // Skip the sequence, we need the -1 to take account of the i++
+                    i = ansiSequences.Current.Index + ansiSequences.Current.Length - 1;
+                    // Find the next ansi sequence
+                    found = ansiSequences.MoveNext();
+
+                    continue;
+                }
+
+                // If we taken the chars we needed we can exit
+                if (takenChars++ >= stringLen)
+                {
+                    hadMore = true;
+                    break;
+                }
+
+                sb.Append(text[i]);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    // Regex taken from the npm package "ansi-regex" (https://github.com/chalk/ansi-regex/blob/9cba40dc3df00ee7316c01db4955d31ef7527012/index.js)
+    [GeneratedRegex(@"[\u001B\u009B][[\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\d\/#&.:=?%@~_]+)*|[a-zA-Z\d]+(?:;[-a-zA-Z\d\/#&.:=?%@~_]*)*)?(?:\u0007|\u001B\u005C|\u009C))|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))")]
+    private static partial Regex AnsiRegex();
+
+    #endregion
 
     #region Log From File Parser
 
@@ -441,7 +604,7 @@ internal static class LogsCommand
                 // Save the start of this line, (if there isn't a line already saved)
                 if (lineOffset == -1) lineOffset = file.Position - bytesRead + lastNewLine + 1;
 
-                // We need to store this part of the log line or else we are going to lose it
+                // We need to store this part of the line line or else we are going to lose it
                 sb.Insert(0, line);
 
                 // We don't want to read stuff twice, so we need "resize" our buffer
@@ -474,14 +637,14 @@ internal static class LogsCommand
                 continue;
             }
 
-            // If the log is after the date we want, we want to ignore this one and continue searching.
+            // If the line is after the date we want, we want to ignore this one and continue searching.
             if (before is { } b && appLog.Date > b)
             {
                 continue;
             }
 
-            // If the log is before the date we want, we can stop now.
-            // Since the log file is sorted oldest to newest after we find a line that is before the after filter all the next lines will be before the after as well.
+            // If the line is before the date we want, we can stop now.
+            // Since the line file is sorted oldest to newest after we find a line that is before the after filter all the next lines will be before the after as well.
             if (after is { } a && appLog.Date < a)
             {
                 break;
@@ -549,7 +712,7 @@ internal static class LogsCommand
                 // Save the start of this line, (if there isn't a line already saved)
                 if (lineOffset == -1) lineOffset = file.Position - bytesRead + lastNewLine - pos - 1;
 
-                // We need to store this part of the log line or else we are going to lose it
+                // We need to store this part of the line line or else we are going to lose it
                 sb.Append(line);
 
                 // We don't want to read stuff twice, so we need "resize" our buffer
@@ -584,7 +747,7 @@ internal static class LogsCommand
                 continue;
             }
 
-            // If the log is after the date we want, we can stop, as since we are working forwards there won't be dates before this one going on
+            // If the line is after the date we want, we can stop, as since we are working forwards there won't be dates before this one going on
             if (before is { } b && appLog.Date > b)
             {
                 break;
