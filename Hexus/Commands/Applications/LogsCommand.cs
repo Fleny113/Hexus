@@ -456,7 +456,6 @@ internal static partial class LogsCommand
 
         var logText = PaginateString(line.Log.Text, offset, offset == 0 ? startLen : width, out var hadMore);
 
-        // If the length of the paginated is different then it means it had to truncate
         var seeMoreArrow = hadMore ? "[black on white]>[/]" : ""; 
 
         // When the offset is not 0 do not show the header
