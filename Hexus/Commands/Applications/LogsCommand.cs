@@ -564,7 +564,7 @@ internal static partial class LogsCommand
         // If we have more then stringLen chars we need to be carful as we don't want to consider ANSI chars to part of this
         else
         {
-            // We re-define the streamingEnumerator because now we have a startIndex
+            // We re-define the enumerator because now we have a startIndex
             ansiSequences = AnsiRegex().EnumerateMatches(text, startIndex);
             var found = ansiSequences.MoveNext();
             var takenChars = 0;

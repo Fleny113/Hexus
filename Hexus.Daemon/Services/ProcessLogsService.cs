@@ -48,7 +48,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         {
             await foreach (var log in channel.Reader.ReadAllAsync(ct))
             {
-                if (before.HasValue && log.Date > before) yield break;
+                if (before.HasValue && log.Date > before.Value) yield break;
 
                 yield return log;
             }
