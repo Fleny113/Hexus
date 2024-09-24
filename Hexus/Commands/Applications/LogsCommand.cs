@@ -7,6 +7,7 @@ using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -115,6 +116,7 @@ internal static partial class LogsCommand
             return;
         }
 
+        // Streaming check for the daemon status
         if (streaming)
         {
             var isDaemonRunning = await HttpInvocation.CheckForRunningDaemon(ct);
@@ -133,13 +135,15 @@ internal static partial class LogsCommand
             }
         }
 
+        var streamedLogs = streaming ? await CreateStreamingLogs(name, localizedBefore, ct) : AsyncEnumerable.Empty<ApplicationLog>();
+
         try
         {
             // \e[?1049h is the escape sequence to open an alternate screen buffer.
             PrettyConsole.Out.Write("\e[?1049h");
             Console.SetCursorPosition(0, 0);
 
-            await Handler(logFileName, currentExecution, timeZoneInfo, localizedBefore, localizedAfter, !noDates, streaming, ct);
+            await Handler(logFileName, currentExecution, timeZoneInfo, localizedBefore, localizedAfter, !noDates, streamedLogs, ct);
         }
         catch (TaskCanceledException)
         {
@@ -151,64 +155,55 @@ internal static partial class LogsCommand
             // \e[?1049l is the escape sequence to close the alternate screen buffer.
             PrettyConsole.Out.Write("\e[?1049l");
         }
-
-        // Stream the new logs
-
-        //if (!streaming) return;
-
-        //// It doesn't make sense to stream stuff in the past.
-        //if (showBefore < DateTimeOffset.UtcNow) return;
-
-        //var showBeforeParam = showBefore is not null ? $"&before={localizedBefore:O}" : null;
-        //var showAfterParam = showAfter is not null ? $"&after={localizedAfter:O}" : null;
-
-        //var logsRequest = await HttpInvocation.HttpClient.GetAsync(
-        //    $"/{name}/logs?{showBeforeParam}{showAfterParam}",
-        //    HttpCompletionOption.ResponseHeadersRead,
-        //    ct
-        //);
-
-        //if (!logsRequest.IsSuccessStatusCode)
-        //{
-        //    await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
-        //    context.ExitCode = 1;
-        //    return;
-        //}
-
-
-        //var logs = logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
-
-        //await foreach (var logLine in logs)
-        //{
-        //    if (logLine is null) continue;
-
-        //    GetLogLine(logLine, timeZoneInfo, !noDates);
-        //}
     }
 
-    // TODO: handle streaming
+    private static async Task<IAsyncEnumerable<ApplicationLog?>> CreateStreamingLogs(string name, DateTime? before, CancellationToken ct)
+    {
+        var showBeforeParam = before is not null ? $"before={before:O}" : null;
+
+        var logsRequest = await HttpInvocation.HttpClient.GetAsync(
+            $"/{name}/logs?{showBeforeParam}",
+            HttpCompletionOption.ResponseHeadersRead,
+            ct
+        );
+
+        if (!logsRequest.IsSuccessStatusCode)
+        {
+            PrettyConsole.Out.MarkupLine("""
+                    [yellow1]Warning[/]: Streaming was enabled, but the [indianred1]daemon returned an error[/].
+
+                    [italic]Press any key to continue.[/]
+                    [italic gray]See below for more details:[/]
+                    """);
+
+            await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
+            Console.ReadKey(true);
+
+            return AsyncEnumerable.Empty<ApplicationLog>();
+        }
+
+        return logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
+    }
 
     private static async Task Handler(string log, bool current, TimeZoneInfo timezone, DateTimeOffset? before,
-        DateTimeOffset? after, bool dates, bool streaming, CancellationToken ct)
+        DateTimeOffset? after, bool dates, IAsyncEnumerable<ApplicationLog?> streamedLogs, CancellationToken ct)
     {
-        // We need to show the initial file.
-
         // While we allow others to write to this file, the expectation is that they will only append. We cannot enforce that sadly.
         using var file = File.Open(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
-        // The offset of the file
-        var offset = file.Length;
         var lines = Console.BufferHeight - 1;
         // We take a char off to have the chars to display the symbol to indicate there will be a new page available to the right
         var width = Console.BufferWidth - 1;
         // The offset of the left/right pagination
         var textOffset = 0;
+        var ignoreStream = false;
 
-        var logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
+        var logs = await GetLogsFromFileBackwardsAsync(file, lines, file.Length, current, before, after, ct).Reverse().ToListAsync(ct);
 
         ReprintScreen(lines, logs, timezone, dates, textOffset, width);
 
-        // From now on we will keep track of the user input and react to it accordingly
+        var streamingEnumerator = streamedLogs.GetAsyncEnumerator(ct);
+        var streamingTask = streamingEnumerator.MoveNextAsync().AsTask();
 
         while (!ct.IsCancellationRequested)
         {
@@ -244,10 +239,9 @@ internal static partial class LogsCommand
                             }
 
                             var line = logs.Last();
+                            logs = await GetLogsFromFileBackwardsAsync(file, lines, line.FileOffset, current, before, after, ct).Reverse().ToListAsync(ct);
 
-                            offset = line.FileOffset;
-                            logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
-
+                            ignoreStream = true;
                             ReprintScreen(lines, logs, timezone, dates, textOffset, width);
                             break;
                         }
@@ -264,9 +258,9 @@ internal static partial class LogsCommand
                                 break;
                             }
 
-                            offset = calculatedOffset;
+                            var fetched = await GetLogsFromFileForwardsAsync(file, 1, calculatedOffset, before, ct).ElementAtOrDefaultAsync(0, ct);
 
-                            var fetched = await GetLogsFromFileForwardsAsync(file, 1, offset, before, ct).ElementAtAsync(0, ct);
+                            if (fetched == default) break;
 
                             // We remove the top line (if needed) and replace it with the one we just fetched at the bottom
                             if (logs.Count >= lines)
@@ -276,6 +270,10 @@ internal static partial class LogsCommand
 
                             logs.Add(fetched);
 
+                            line = logs.Last();
+                            calculatedOffset = line.FileOffset + line.LineLength + 1;
+                            // If the new last line is the last line in the file, resume streaming
+                            ignoreStream = calculatedOffset != file.Length;
                             ReprintScreen(lines, logs, timezone, dates, textOffset, width);
 
                             break;
@@ -294,8 +292,7 @@ internal static partial class LogsCommand
                                 break;
                             }
 
-                            offset = line.FileOffset;
-                            logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
+                            logs = await GetLogsFromFileBackwardsAsync(file, lines, line.FileOffset, current, before, after, ct).Reverse().ToListAsync(ct);
 
                             // If didn't fetched enoght lines, we fetch the rest going forwards
                             if (logs.Count != lines)
@@ -306,6 +303,7 @@ internal static partial class LogsCommand
                                 logs.AddRange(logLines);
                             }
 
+                            ignoreStream = true;
                             ReprintScreen(lines, logs, timezone, dates, textOffset, width);
                             break;
                         }
@@ -321,8 +319,7 @@ internal static partial class LogsCommand
                                 break;
                             }
 
-                            offset = calculatedOffset;
-                            var fetchedLogs = GetLogsFromFileForwardsAsync(file, lines, offset, before, ct);
+                            var fetchedLogs = GetLogsFromFileForwardsAsync(file, lines, calculatedOffset, before, ct);
 
                             await foreach (var fetchedLog in fetchedLogs)
                             {
@@ -335,6 +332,10 @@ internal static partial class LogsCommand
                                 logs.Add(fetchedLog);
                             }
 
+                            line = logs.Last();
+                            calculatedOffset = line.FileOffset + line.LineLength + 1;
+                            // If the new last line is the last line in the file, resume streaming
+                            ignoreStream = calculatedOffset != file.Length;
                             ReprintScreen(lines, logs, timezone, dates, textOffset, width);
 
                             break;
@@ -344,18 +345,18 @@ internal static partial class LogsCommand
 
                     case ConsoleKey.G when key.Modifiers == ConsoleModifiers.Shift:
                         {
-                            offset = file.Length;
-                            logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
+                            logs = await GetLogsFromFileBackwardsAsync(file, lines, file.Length, current, before, after, ct).Reverse().ToListAsync(ct);
 
+                            ignoreStream = false;
                             ReprintScreen(lines, logs, timezone, dates, textOffset, width);
 
                             break;
                         }
                     case ConsoleKey.G:
                         {
-                            offset = 0;
-                            logs = await GetLogsFromFileForwardsAsync(file, lines, offset, before, ct).ToListAsync(ct);
+                            logs = await GetLogsFromFileForwardsAsync(file, lines, offset: 0, before, ct).ToListAsync(ct);
 
+                            ignoreStream = true;
                             ReprintScreen(lines, logs, timezone, dates, textOffset, width);
 
                             break;
@@ -410,13 +411,61 @@ internal static partial class LogsCommand
 
                 if (heightDifferent)
                 {
-                    logs = await GetLogsFromFileBackwardsAsync(file, lines, offset, current, before, after, ct).Reverse().ToListAsync(ct);
+                    var line = logs.Last();
+                    var calculatedOffset = line.FileOffset + line.LineLength + 1;
+
+                    // If this is the last line in the file, ignore
+                    if (calculatedOffset >= file.Length)
+                    {
+                        PrettyConsole.Out.Write("\a");
+                        break;
+                    }
+
+                    logs = await GetLogsFromFileBackwardsAsync(file, lines, calculatedOffset, current, before, after, ct).Reverse().ToListAsync(ct);
                 }
 
                 ReprintScreen(lines, logs, timezone, dates, textOffset, width);
             }
 
-            await Task.Delay(100, ct);
+            await Task.WhenAny(
+                Task.Delay(100, ct),
+                streamingTask
+            );
+
+            if (streamingTask is { IsCompletedSuccessfully: true, Result: bool taskResult })
+            {
+                if (taskResult)
+                {
+                    streamingTask = streamingEnumerator.MoveNextAsync().AsTask();
+                }
+
+                if (ignoreStream || streamingEnumerator.Current is null) continue;
+
+                var line = logs.Last();
+                var calculatedOffset = line.FileOffset + line.LineLength + 1;
+
+                // If this is the last line in the file, ignore
+                if (calculatedOffset >= file.Length)
+                {
+                    PrettyConsole.Out.Write("\a");
+                    continue;
+                }
+
+                // TODO: do we have a way to avoid fetching from the file and use what the daemon gives us?
+                // The daemon gives us a Applicationlog, use need a FileLog for the tl;dr of the issue
+
+                var logLine = await GetLogsFromFileForwardsAsync(file, 1, calculatedOffset, before, ct).ElementAtAsync(0, ct);
+
+                // We remove the top line (if needed) and replace it with the one we just fetched at the bottom
+                if (logs.Count >= lines)
+                {
+                    logs.RemoveAt(0);
+                }
+
+                logs.Add(logLine);
+
+                ReprintScreen(lines, logs, timezone, dates, textOffset, width);
+            }
         }
     }
 
@@ -448,8 +497,7 @@ internal static partial class LogsCommand
         var timezone = TimeZoneInfo.ConvertTime(line.Log.Date, timeZoneInfo);
         var date = showDates ? $"{timezone:yyyy-MM-dd HH:mm:ss} [{color}]| " : $"[{color}]";
 
-        // TODO: remove the file offset
-        var header = $"{/*$"{line.FileOffset:0000} | "*/""}{date}{line.Log.LogType} |[/] ";
+        var header = $"{date}{line.Log.LogType} |[/] ";
 
         var headerLen = Markup.Remove(header).Length;
         var startLen = width - headerLen;
@@ -516,7 +564,7 @@ internal static partial class LogsCommand
         // If we have more then stringLen chars we need to be carful as we don't want to consider ANSI chars to part of this
         else
         {
-            // We re-define the enumerator because now we have a startIndex
+            // We re-define the streamingEnumerator because now we have a startIndex
             ansiSequences = AnsiRegex().EnumerateMatches(text, startIndex);
             var found = ansiSequences.MoveNext();
             var takenChars = 0;

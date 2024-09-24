@@ -15,12 +15,6 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     internal void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
     {
-        if (!_logChannels.TryGetValue(application.Name, out var channels))
-        {
-            LogUnableToGetLogController(logger, application.Name);
-            return;
-        }
-
         if (logType != LogType.SYSTEM)
         {
             LogApplicationOutput(logger, application.Name, message);
@@ -28,7 +22,10 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
         var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
 
-        channels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
+        if (_logChannels.TryGetValue(application.Name, out var channels))
+        {
+            channels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
+        }
 
         using var logFile = File.Open($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log", FileMode.Append, FileAccess.Write, FileShare.Read);
         using var log = new StreamWriter(logFile, Encoding.UTF8);
@@ -36,8 +33,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         log.WriteLine($"[{applicationLog.Date.DateTime:O},{applicationLog.LogType}] {applicationLog.Text}");
     }
 
-    public async IAsyncEnumerable<ApplicationLog> GetLogs(HexusApplication application, DateTimeOffset? before,
-        DateTimeOffset? after, [EnumeratorCancellation] CancellationToken ct)
+    public async IAsyncEnumerable<ApplicationLog> GetLogs(HexusApplication application, DateTimeOffset? before, [EnumeratorCancellation] CancellationToken ct)
     {
         if (!_logChannels.TryGetValue(application.Name, out var channels))
         {
@@ -52,7 +48,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         {
             await foreach (var log in channel.Reader.ReadAllAsync(ct))
             {
-                if (!log.IsLogDateInRange(before, after)) continue;
+                if (before.HasValue && log.Date > before) yield break;
 
                 yield return log;
             }
