@@ -21,14 +21,15 @@ internal static partial class LogsCommand
         Description = "The name of the application",
     };
 
-    // Behaviour options
+    #region Behaviour options
 
     private static readonly Option<bool> DontStream = new("--no-streaming")
     {
         Description = "Disable the streaming of new logs. It will only fetch from the log file",
     };
 
-    // Display options
+    #endregion
+    #region Display options
 
     private static readonly Option<bool> DontShowDates = new("--no-dates")
     {
@@ -39,7 +40,8 @@ internal static partial class LogsCommand
         Description = "Show the log dates in a specified timezone. The timezone should be compatible with the one provided by your system.",
     };
 
-    // Filtering options
+    #endregion
+    # region Filtering options
 
     private static readonly Option<bool> CurrentExecution = new(["-c", "--current"])
     {
@@ -53,6 +55,8 @@ internal static partial class LogsCommand
     {
         Description = "Show logs only before a specified date. The date is in the same timezone provided by the \"timezone\" option",
     };
+
+    #endregion
 
     public static readonly Command Command = new("logs", "View the logs of an application")
     {
@@ -83,7 +87,7 @@ internal static partial class LogsCommand
         Command.SetHandler(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(InvocationContext context)
     {
         var name = context.ParseResult.GetValueForArgument(NameArgument);
         var streaming = !context.ParseResult.GetValueForOption(DontStream);
@@ -105,15 +109,12 @@ internal static partial class LogsCommand
         var localizedBefore = showBefore is { } before ? TimeZoneInfo.ConvertTime(before, timeZoneInfo) : (DateTime?)null;
         var localizedAfter = showAfter is { } after ? TimeZoneInfo.ConvertTime(after, timeZoneInfo) : (DateTime?)null;
 
-        // Show the log file
-
         var logFileName = $"{EnvironmentHelper.ApplicationLogsDirectory}/{name}.log";
 
         if (!File.Exists(logFileName))
         {
             PrettyConsole.Error.MarkupLine("The request [indianred1]application does not have a log file[/]. Does the application exist?");
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         // Streaming check for the daemon status
@@ -131,7 +132,7 @@ internal static partial class LogsCommand
                     [italic gray]To disable this warning when the daemon is not running, use the "--no-streaming" flag[/]
                     """);
 
-                Console.ReadKey(true);
+                Console.ReadKey(intercept: true);
             }
         }
 
@@ -139,16 +140,22 @@ internal static partial class LogsCommand
 
         try
         {
+            // While we allow others to write to this file, the expectation is that they will only append. We cannot enforce that sadly.
+            using var file = File.Open(logFileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
             // \e[?1049h is the escape sequence to open an alternate screen buffer.
             PrettyConsole.Out.Write("\e[?1049h");
             Console.SetCursorPosition(0, 0);
 
-            await Handler(logFileName, currentExecution, timeZoneInfo, localizedBefore, localizedAfter, !noDates, streamedLogs, ct);
+            var displayOptions = new DisplayOptions(currentExecution, timeZoneInfo, localizedBefore, localizedAfter, !noDates);
+
+            await HandlerCore(file, displayOptions, streamedLogs, ct);
+            return 0;
         }
         catch (TaskCanceledException)
         {
             // We really don't care for a TaskCancelledException
-            return;
+            return 0;
         }
         finally
         {
@@ -157,274 +164,35 @@ internal static partial class LogsCommand
         }
     }
 
-    private static async Task<IAsyncEnumerable<ApplicationLog?>> CreateStreamingLogs(string name, DateTime? before, CancellationToken ct)
+    private static async Task HandlerCore(FileStream file, DisplayOptions displayOptions, IAsyncEnumerable<ApplicationLog?> streamedLogs, CancellationToken ct)
     {
-        var showBeforeParam = before is not null ? $"before={before:O}" : null;
-
-        var logsRequest = await HttpInvocation.HttpClient.GetAsync(
-            $"/{name}/logs?{showBeforeParam}",
-            HttpCompletionOption.ResponseHeadersRead,
+        var logs = await GetLogsFromFileBackwardsAsync(
+            file,
+            displayOptions.PageHeight,
+            offset: file.Length,
+            displayOptions.ShowCurrentExecution,
+            displayOptions.BeforeDate,
+            displayOptions.AfterDate,
             ct
-        );
+        ).Reverse().ToListAsync(ct);
 
-        if (!logsRequest.IsSuccessStatusCode)
-        {
-            PrettyConsole.Out.MarkupLine("""
-                    [yellow1]Warning[/]: Streaming was enabled, but the [indianred1]daemon returned an error[/].
-
-                    [italic]Press any key to continue.[/]
-                    [italic gray]See below for more details:[/]
-                    """);
-
-            await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
-            Console.ReadKey(true);
-
-            return AsyncEnumerable.Empty<ApplicationLog>();
-        }
-
-        return logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
-    }
-
-    private static async Task Handler(string log, bool current, TimeZoneInfo timezone, DateTimeOffset? before,
-        DateTimeOffset? after, bool dates, IAsyncEnumerable<ApplicationLog?> streamedLogs, CancellationToken ct)
-    {
-        // While we allow others to write to this file, the expectation is that they will only append. We cannot enforce that sadly.
-        using var file = File.Open(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-
-        var lines = Console.BufferHeight - 1;
-        // We take a char off to have the chars to display the symbol to indicate there will be a new page available to the right
-        var width = Console.BufferWidth - 1;
-        // The offset of the left/right pagination
-        var textOffset = 0;
-        var ignoreStream = false;
-
-        var logs = await GetLogsFromFileBackwardsAsync(file, lines, file.Length, current, before, after, ct).Reverse().ToListAsync(ct);
-
-        ReprintScreen(lines, logs, timezone, dates, textOffset, width);
+        ReprintScreen(logs, displayOptions);
 
         var streamingEnumerator = streamedLogs.GetAsyncEnumerator(ct);
         var streamingTask = streamingEnumerator.MoveNextAsync().AsTask();
 
         while (!ct.IsCancellationRequested)
         {
-            var newLines = Console.BufferHeight - 1;
-            var newWidth = Console.BufferWidth - 1;
+            var resized = displayOptions.WasConsoleResized(out var heightChanged);
 
             if (Console.KeyAvailable)
             {
-                var key = Console.ReadKey(true);
-
-                lines = newLines;
-                width = newWidth;
-
-                switch (key.Key)
-                {
-                    case ConsoleKey.Q:
-                    case ConsoleKey.Escape:
-                        return;
-                    case ConsoleKey.R when key.Modifiers == ConsoleModifiers.Control:
-                        ReprintScreen(lines, logs, timezone, dates, textOffset, width);
-                        break;
-
-                    // Up & Down
-
-                    case ConsoleKey.UpArrow:
-                    case ConsoleKey.K:
-                        {
-                            // If the first line is being displayed, ignore the command
-                            if (logs.First().FileOffset == 0)
-                            {
-                                PrettyConsole.Out.Write("\a");
-                                break;
-                            }
-
-                            var line = logs.Last();
-                            logs = await GetLogsFromFileBackwardsAsync(file, lines, line.FileOffset, current, before, after, ct).Reverse().ToListAsync(ct);
-
-                            ignoreStream = true;
-                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
-                            break;
-                        }
-                    case ConsoleKey.DownArrow:
-                    case ConsoleKey.J:
-                        {
-                            var line = logs.Last();
-                            var calculatedOffset = line.FileOffset + line.LineLength + 1;
-
-                            // If this is the last line in the file, ignore
-                            if (calculatedOffset >= file.Length)
-                            {
-                                PrettyConsole.Out.Write("\a");
-                                break;
-                            }
-
-                            var fetched = await GetLogsFromFileForwardsAsync(file, 1, calculatedOffset, before, ct).ElementAtOrDefaultAsync(0, ct);
-
-                            if (fetched == default) break;
-
-                            // We remove the top line (if needed) and replace it with the one we just fetched at the bottom
-                            if (logs.Count >= lines)
-                            {
-                                logs.RemoveAt(0);
-                            }
-
-                            logs.Add(fetched);
-
-                            line = logs.Last();
-                            calculatedOffset = line.FileOffset + line.LineLength + 1;
-                            // If the new last line is the last line in the file, resume streaming
-                            ignoreStream = calculatedOffset != file.Length;
-                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
-
-                            break;
-                        }
-
-                    // Page keys
-
-                    case ConsoleKey.PageUp:
-                        {
-                            var line = logs.First();
-
-                            // If the first line is being displayed, ignore the command
-                            if (line.FileOffset == 0)
-                            {
-                                PrettyConsole.Out.Write("\a");
-                                break;
-                            }
-
-                            logs = await GetLogsFromFileBackwardsAsync(file, lines, line.FileOffset, current, before, after, ct).Reverse().ToListAsync(ct);
-
-                            // If didn't fetched enoght lines, we fetch the rest going forwards
-                            if (logs.Count != lines)
-                            {
-                                var last = logs.Last();
-                                var logLines = await GetLogsFromFileForwardsAsync(file, lines - logs.Count, last.FileOffset + last.LineLength + 1, before, ct).ToListAsync(ct);
-
-                                logs.AddRange(logLines);
-                            }
-
-                            ignoreStream = true;
-                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
-                            break;
-                        }
-                    case ConsoleKey.PageDown:
-                        {
-                            var line = logs.Last();
-                            var calculatedOffset = line.FileOffset + line.LineLength + 1;
-
-                            // If this is the last line in the file, ignore
-                            if (calculatedOffset >= file.Length)
-                            {
-                                PrettyConsole.Out.Write("\a");
-                                break;
-                            }
-
-                            var fetchedLogs = GetLogsFromFileForwardsAsync(file, lines, calculatedOffset, before, ct);
-
-                            await foreach (var fetchedLog in fetchedLogs)
-                            {
-                                // We remove the top line (if needed) and replace it with the one we just fetched at the bottom
-                                if (logs.Count >= lines)
-                                {
-                                    logs.RemoveAt(0);
-                                }
-
-                                logs.Add(fetchedLog);
-                            }
-
-                            line = logs.Last();
-                            calculatedOffset = line.FileOffset + line.LineLength + 1;
-                            // If the new last line is the last line in the file, resume streaming
-                            ignoreStream = calculatedOffset != file.Length;
-                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
-
-                            break;
-                        }
-
-                    // "g" & "G"
-
-                    case ConsoleKey.G when key.Modifiers == ConsoleModifiers.Shift:
-                        {
-                            logs = await GetLogsFromFileBackwardsAsync(file, lines, file.Length, current, before, after, ct).Reverse().ToListAsync(ct);
-
-                            ignoreStream = false;
-                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
-
-                            break;
-                        }
-                    case ConsoleKey.G:
-                        {
-                            logs = await GetLogsFromFileForwardsAsync(file, lines, offset: 0, before, ct).ToListAsync(ct);
-
-                            ignoreStream = true;
-                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
-
-                            break;
-                        }
-
-                    // Left and right
-
-                    // CTRL-RightArrow is not implemented as i'm not sure how to implement it
-
-                    case ConsoleKey.LeftArrow when key.Modifiers == ConsoleModifiers.Control:
-                        {
-                            textOffset = 0;
-
-                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
-
-                            break;
-                        }
-
-                    case ConsoleKey.RightArrow:
-                        {
-                            textOffset++;
-
-                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
-
-                            break;
-                        }
-                    case ConsoleKey.LeftArrow:
-                        {
-                            // We don't want to go into a negative offset
-                            if (textOffset == 0)
-                            {
-                                PrettyConsole.Out.Write("\a");
-                                break;
-                            }
-
-                            textOffset--;
-
-                            ReprintScreen(lines, logs, timezone, dates, textOffset, width);
-
-                            break;
-                        }
-                }
+                logs = await HandleKeyInput(file, displayOptions, logs, ct);
             }
 
-            var heightDifferent = newLines != lines;
-
-            // If the console has been resized
-            if (heightDifferent || newWidth != width)
+            if (resized)
             {
-                lines = newLines;
-                width = newWidth;
-
-                if (heightDifferent)
-                {
-                    var line = logs.Last();
-                    var calculatedOffset = line.FileOffset + line.LineLength + 1;
-
-                    // If this is the last line in the file, ignore
-                    if (calculatedOffset >= file.Length)
-                    {
-                        PrettyConsole.Out.Write("\a");
-                        break;
-                    }
-
-                    logs = await GetLogsFromFileBackwardsAsync(file, lines, calculatedOffset, current, before, after, ct).Reverse().ToListAsync(ct);
-                }
-
-                ReprintScreen(lines, logs, timezone, dates, textOffset, width);
+                logs = await HandleConsoleResize(file, displayOptions, logs, heightChanged, ct);
             }
 
             await Task.WhenAny(
@@ -439,42 +207,17 @@ internal static partial class LogsCommand
                     streamingTask = streamingEnumerator.MoveNextAsync().AsTask();
                 }
 
-                if (ignoreStream || streamingEnumerator.Current is null) continue;
-
-                var line = logs.Last();
-                var calculatedOffset = line.FileOffset + line.LineLength + 1;
-
-                // If this is the last line in the file, ignore
-                if (calculatedOffset >= file.Length)
-                {
-                    PrettyConsole.Out.Write("\a");
-                    continue;
-                }
-
-                // TODO: do we have a way to avoid fetching from the file and use what the daemon gives us?
-                // The daemon gives us a Applicationlog, use need a FileLog for the tl;dr of the issue
-
-                var logLine = await GetLogsFromFileForwardsAsync(file, 1, calculatedOffset, before, ct).ElementAtAsync(0, ct);
-
-                // We remove the top line (if needed) and replace it with the one we just fetched at the bottom
-                if (logs.Count >= lines)
-                {
-                    logs.RemoveAt(0);
-                }
-
-                logs.Add(logLine);
-
-                ReprintScreen(lines, logs, timezone, dates, textOffset, width);
+                await HandleStreamingTask(file, displayOptions, logs, streamingEnumerator, ct);
             }
         }
     }
 
-    private static void ReprintScreen(int expectedLines, List<FileLog> logs, TimeZoneInfo timezone, bool dates, int offset, int width)
+    private static void ReprintScreen(List<FileLog> logs, DisplayOptions displayOptions)
     {
         var sb = new StringBuilder();
 
         // We want to keep the text at the bottom, so we print some text at the top
-        var missingLines = expectedLines - logs.Count;
+        var missingLines = displayOptions.PageHeight - logs.Count;
         for (int i = 0; i < missingLines; i++)
         {
             sb.AppendLine();
@@ -482,11 +225,12 @@ internal static partial class LogsCommand
 
         foreach (var line in logs)
         {
-            sb.AppendLine(GetLogLine(line, timezone, dates, offset, width));
+            sb.AppendLine(GetLogLine(line, displayOptions.TimeZone, displayOptions.ShowDates, displayOptions.PageOffset, displayOptions.PageWidth));
         }
 
         PrettyConsole.OutLimitlessWidth.Markup(sb.ToString());
     }
+
 
     private static readonly string AnsiReset = "\e[0m\e]8;;\e\\".EscapeMarkup();
 
@@ -504,7 +248,7 @@ internal static partial class LogsCommand
 
         var logText = PaginateString(line.Log.Text, offset, offset == 0 ? startLen : width, out var hadMore);
 
-        var seeMoreArrow = hadMore ? "[black on white]>[/]" : ""; 
+        var seeMoreArrow = hadMore ? "[black on white]>[/]" : "";
 
         // When the offset is not 0 do not show the header
         if (offset > 0)
@@ -522,6 +266,18 @@ internal static partial class LogsCommand
         LogType.SYSTEM => Color.MediumPurple2,
         _ => throw new ArgumentOutOfRangeException(nameof(logType), "The requested log type is not mapped to a color"),
     };
+
+    private static void ConsoleBell() => PrettyConsole.Out.Write("\a");
+
+    private static void PrependLine(List<FileLog> logs, DisplayOptions displayOptions, FileLog fetched)
+    {
+        if (logs.Count >= displayOptions.PageHeight)
+        {
+            logs.RemoveAt(0);
+        }
+
+        logs.Add(fetched);
+    }
 
     #region String length pagination
 
@@ -865,4 +621,377 @@ internal static partial class LogsCommand
     private record struct FileLog(ApplicationLog Log, long FileOffset, int LineLength);
 
     #endregion
+
+    #region Streaming logs
+
+    private static async Task<IAsyncEnumerable<ApplicationLog?>> CreateStreamingLogs(string name, DateTime? before, CancellationToken ct)
+    {
+        var showBeforeParam = before is not null ? $"before={before:O}" : null;
+
+        var logsRequest = await HttpInvocation.HttpClient.GetAsync(
+            $"/{name}/logs?{showBeforeParam}",
+            HttpCompletionOption.ResponseHeadersRead,
+            ct
+        );
+
+        if (!logsRequest.IsSuccessStatusCode)
+        {
+            PrettyConsole.Out.MarkupLine("""
+                    [yellow1]Warning[/]: Streaming was enabled, but the [indianred1]daemon returned an error[/].
+
+                    [italic]Press any key to continue.[/]
+                    [italic gray]See below for more details:[/]
+                    """);
+
+            await HttpInvocation.HandleFailedHttpRequestLogging(logsRequest, ct);
+            Console.ReadKey(true);
+
+            return AsyncEnumerable.Empty<ApplicationLog>();
+        }
+
+        return logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
+    }
+
+    private static async Task HandleStreamingTask(FileStream file, DisplayOptions displayOptions, List<FileLog> logs,
+        IAsyncEnumerator<ApplicationLog?> streamingEnumerator, CancellationToken ct)
+    {
+        if (displayOptions.IgnoreStream || streamingEnumerator.Current is null) return;
+
+        var line = logs.Last();
+        var calculatedOffset = line.FileOffset + line.LineLength + 1;
+
+        // If this is the last line in the file, ignore
+        if (calculatedOffset >= file.Length)
+        {
+            ConsoleBell();
+            return;
+        }
+
+        // TODO: do we have a way to avoid fetching from the file and use what the daemon gives us?
+        // The daemon gives us a Applicationlog, use need a FileLog for the tl;dr of the issue
+
+        var logLine = await GetLogsFromFileForwardsAsync(file, 1, calculatedOffset, displayOptions.BeforeDate, ct).ElementAtAsync(0, ct);
+
+        // We remove the top line (if needed) and replace it with the one we just fetched at the bottom
+        if (logs.Count >= displayOptions.PageHeight)
+        {
+            logs.RemoveAt(0);
+        }
+
+        logs.Add(logLine);
+
+        ReprintScreen(logs, displayOptions);
+    }
+
+    #endregion
+
+    #region User input
+
+    private static async Task<List<FileLog>> HandleKeyInput(FileStream file, DisplayOptions displayOptions, List<FileLog> logs, CancellationToken ct)
+    {
+        var key = Console.ReadKey(true);
+
+        switch (key.Key)
+        {
+            case ConsoleKey.Q:
+            case ConsoleKey.Escape:
+                throw new TaskCanceledException();
+
+            case ConsoleKey.R when key.Modifiers == ConsoleModifiers.Control:
+                ReprintScreen(logs, displayOptions);
+                break;
+
+            // Up & Down
+
+            case ConsoleKey.UpArrow:
+            case ConsoleKey.K:
+                logs = await ScrollUp(file, displayOptions, logs, ct);
+                break;
+
+            case ConsoleKey.DownArrow:
+            case ConsoleKey.J:
+                await ScrollDown(file, displayOptions, logs, ct);
+                break;
+
+            // Page keys
+
+            case ConsoleKey.PageUp:
+                logs = await PageUp(file, displayOptions, logs, ct);
+                break;
+
+            case ConsoleKey.PageDown:
+                await PageDown(file, displayOptions, logs, ct);
+                break;
+
+            // "g" & "G"
+
+            case ConsoleKey.G when key.Modifiers == ConsoleModifiers.Shift:
+                logs = await GoToBotton(file, displayOptions, ct);
+                break;
+
+            case ConsoleKey.G:
+                logs = await GoToTop(file, displayOptions, ct);
+                break;
+
+            // Left and right
+
+            // CTRL-RightArrow is not implemented as i'm not sure how to implement it
+
+            case ConsoleKey.LeftArrow when key.Modifiers == ConsoleModifiers.Control:
+                GoToLeft(displayOptions, logs);
+                break;
+
+            case ConsoleKey.RightArrow:
+                RightArrow(displayOptions, logs);
+                break;
+
+            case ConsoleKey.LeftArrow:
+                LeftArrow(displayOptions, logs);
+                break;
+        }
+
+        return logs;
+    }
+
+    private static async Task<List<FileLog>> ScrollUp(FileStream file, DisplayOptions displayOptions, List<FileLog> logs, CancellationToken ct)
+    {
+        // If the first line is being displayed, ignore the command
+        if (logs.First().FileOffset == 0)
+        {
+            ConsoleBell();
+            return logs;
+        }
+
+        var line = logs.Last();
+        logs = await GetLogsFromFileBackwardsAsync(
+            file,
+            displayOptions.PageHeight,
+            line.FileOffset,
+            displayOptions.ShowCurrentExecution,
+            displayOptions.BeforeDate,
+            displayOptions.AfterDate,
+            ct
+        ).Reverse().ToListAsync(ct);
+
+        displayOptions.IgnoreStream = true;
+        ReprintScreen(logs, displayOptions);
+
+        return logs;
+    }
+
+    private static async Task ScrollDown(FileStream file, DisplayOptions displayOptions, List<FileLog> logs, CancellationToken ct)
+    {
+        var line = logs.Last();
+        var calculatedOffset = line.FileOffset + line.LineLength + 1;
+
+        // If this is the last line in the file, ignore
+        if (calculatedOffset >= file.Length)
+        {
+            ConsoleBell();
+            return;
+        }
+
+        var fetched = await GetLogsFromFileForwardsAsync(file, lines: 1, calculatedOffset, displayOptions.BeforeDate, ct).ElementAtOrDefaultAsync(0, ct);
+
+        if (fetched == default) return;
+
+        PrependLine(logs, displayOptions, fetched);
+
+        line = logs.Last();
+        calculatedOffset = line.FileOffset + line.LineLength + 1;
+
+        // If the new last line is the last line in the file, resume streaming
+        displayOptions.IgnoreStream = calculatedOffset != file.Length;
+        ReprintScreen(logs, displayOptions);
+    }
+
+    private static async Task<List<FileLog>> PageUp(FileStream file, DisplayOptions displayOptions, List<FileLog> logs, CancellationToken ct)
+    {
+        var line = logs.First();
+
+        // If the first line is being displayed, ignore the command
+        if (line.FileOffset == 0)
+        {
+            ConsoleBell();
+            return logs;
+        }
+
+        logs = await GetLogsFromFileBackwardsAsync(
+            file,
+            displayOptions.PageHeight,
+            offset: line.FileOffset,
+            displayOptions.ShowCurrentExecution,
+            displayOptions.BeforeDate,
+            displayOptions.AfterDate,
+            ct
+        ).Reverse().ToListAsync(ct);
+
+        // If didn't fetched enoght lines, we fetch the rest going forwards
+        if (logs.Count != displayOptions.PageHeight)
+        {
+            var last = logs.Last();
+            var logLines = await GetLogsFromFileForwardsAsync(
+                file,
+                lines: displayOptions.PageHeight - logs.Count,
+                offset: last.FileOffset + last.LineLength + 1,
+                displayOptions.BeforeDate,
+                ct
+            ).ToListAsync(ct);
+
+            logs.AddRange(logLines);
+        }
+
+        displayOptions.IgnoreStream = true;
+        ReprintScreen(logs, displayOptions);
+
+        return logs;
+    }
+
+    private static async Task PageDown(FileStream file, DisplayOptions displayOptions, List<FileLog> logs, CancellationToken ct)
+    {
+        var line = logs.Last();
+        var calculatedOffset = line.FileOffset + line.LineLength + 1;
+
+        // If this is the last line in the file, ignore
+        if (calculatedOffset >= file.Length)
+        {
+            ConsoleBell();
+            return;
+        }
+
+        var fetchedLogs = GetLogsFromFileForwardsAsync(file, displayOptions.PageHeight, calculatedOffset, displayOptions.BeforeDate, ct);
+
+        await foreach (var fetchedLog in fetchedLogs)
+        {
+            PrependLine(logs, displayOptions, fetchedLog);
+        }
+
+        line = logs.Last();
+        calculatedOffset = line.FileOffset + line.LineLength + 1;
+
+        // If the new last line is the last line in the file, resume streaming
+        displayOptions.IgnoreStream = calculatedOffset != file.Length;
+        ReprintScreen(logs, displayOptions);
+    }
+
+    private static async Task<List<FileLog>> GoToTop(FileStream file, DisplayOptions displayOptions, CancellationToken ct)
+    {
+        var logs = await GetLogsFromFileForwardsAsync(file, displayOptions.PageHeight, offset: 0, displayOptions.BeforeDate, ct).ToListAsync(ct);
+
+        displayOptions.IgnoreStream = true;
+        ReprintScreen(logs, displayOptions);
+        return logs;
+    }
+
+    private static async Task<List<FileLog>> GoToBotton(FileStream file, DisplayOptions displayOptions, CancellationToken ct)
+    {
+        var logs = await GetLogsFromFileBackwardsAsync(
+            file,
+            displayOptions.PageHeight,
+            offset: file.Length,
+            displayOptions.ShowCurrentExecution,
+            displayOptions.BeforeDate,
+            displayOptions.AfterDate,
+            ct
+        ).Reverse().ToListAsync(ct);
+
+        displayOptions.IgnoreStream = false;
+        ReprintScreen(logs, displayOptions);
+        return logs;
+    }
+
+    private static void GoToLeft(DisplayOptions displayOptions, List<FileLog> logs)
+    {
+        displayOptions.PageOffset = 0;
+
+        ReprintScreen(logs, displayOptions);
+    }
+
+    private static void RightArrow(DisplayOptions displayOptions, List<FileLog> logs)
+    {
+        displayOptions.PageOffset++;
+
+        ReprintScreen(logs, displayOptions);
+    }
+
+    private static void LeftArrow(DisplayOptions displayOptions, List<FileLog> logs)
+    {
+        // We don't want to go into a negative offset
+        if (displayOptions.PageOffset == 0)
+        {
+            ConsoleBell();
+            return;
+        }
+
+        displayOptions.PageOffset--;
+
+        ReprintScreen(logs, displayOptions);
+    }
+
+    private static async Task<List<FileLog>> HandleConsoleResize(FileStream file, DisplayOptions displayOptions, List<FileLog> logs, bool heightChanged, CancellationToken ct)
+    {
+        if (heightChanged)
+        {
+            var line = logs.Last();
+            var calculatedOffset = line.FileOffset + line.LineLength + 1;
+
+            // If this is the last line in the file, ignore
+            if (calculatedOffset >= file.Length)
+            {
+                ConsoleBell();
+                return logs;
+            }
+
+            logs = await GetLogsFromFileBackwardsAsync(
+                file, displayOptions.PageHeight, calculatedOffset, displayOptions.ShowCurrentExecution,
+                displayOptions.BeforeDate, displayOptions.AfterDate, ct
+            ).Reverse().ToListAsync(ct);
+        }
+
+        ReprintScreen(logs, displayOptions);
+        return logs;
+    }
+
+    #endregion
+
+    private record DisplayOptions
+    {
+        public bool ShowCurrentExecution { get; init; }
+        public TimeZoneInfo TimeZone { get; init; }
+        public DateTimeOffset? BeforeDate { get; init; }
+        public DateTimeOffset? AfterDate { get; init; }
+        public bool ShowDates { get; init; }
+        public int PageWidth { get; private set; }
+        public int PageHeight { get; private set; }
+        public int PageOffset { get; set; }
+        public bool IgnoreStream { get; set; }
+
+        public DisplayOptions(bool current, TimeZoneInfo timezone, DateTimeOffset? before, DateTimeOffset? after, bool dates)
+        {
+            ShowCurrentExecution = current;
+            TimeZone = timezone;
+            BeforeDate = before;
+            AfterDate = after;
+            ShowDates = dates;
+
+            PageWidth = Console.BufferWidth - 1;
+            PageHeight = Console.BufferHeight - 1;
+            PageOffset = 0;
+            IgnoreStream = false;
+        }
+
+        public bool WasConsoleResized(out bool heightChanged)
+        {
+            var width = Console.BufferWidth - 1;
+            var widthChanged = width != PageWidth;
+
+            var height = Console.BufferHeight - 1;
+            heightChanged = height != PageHeight;
+
+            PageWidth = width;
+            PageHeight = height;
+
+            return widthChanged || heightChanged;
+        }
+    }
 }

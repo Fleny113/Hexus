@@ -37,7 +37,4 @@ builder.UseExceptionHandler((exception, _) => PrettyConsole.Error.WriteException
 
 var app = builder.Build();
 
-// TODO(commit): Remove this test code
-args = ["logs", "cmd", "--no-streaming"];
- 
 return await app.InvokeAsync(args);
