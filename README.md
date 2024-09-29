@@ -85,12 +85,11 @@ hexus logs <application name>
 
 ##### Flags
 
-- `--lines` or `-l` to select a number of lines to fetch from the log file
 - `--no-streaming` to disable the streaming of logs to the console while the command is active
 - `--no-dates` to disable the Hexus provided timestamp of the log lines
 - `--current` or `-c` to show only the logs from the currently running for last execution of the application.
-- `--after` or `-a` to select logs that have a timestamp after the one provided (does not get affected by `--timezone`)
-- `--before` or `-b` to select logs that have a timestamp before the one provided (does not get affected by `--timezone`)
+- `--after` or `-a` to select logs that have a timestamp after the one provided (does get affected by `--timezone`)
+- `--before` or `-b` to select logs that have a timestamp before the one provided (does get affected by `--timezone`)
 - `--timezone` timezone of the Hexus provided timestamps, should be picked from the system-provided timezones. Defaults to the computer current timezone.
 
 All the flags are available in the help for the command, you can use the `--help` or `-h` flag to see it.
@@ -100,7 +99,7 @@ All the flags are available in the help for the command, you can use the `--help
 If you want to manually parse the log files the format is as follows: `[<date>,<type>] <message>` where
 
 - `date` is a date in UTC time using the ISO8601 format
-- `type` is one of `STDOUT`, `STDERR` or `SYSTEM`, with `SYSTEM` being used for Hexus messages like the application start or stop while `STDOUT` and `STDERR`for the actual logs of the application
+- `type` is one of `STDOUT`, `STDERR` or `SYSTEM`, with `SYSTEM` being used for Hexus messages like the application start or stop while `STDOUT` and `STDERR` for the actual logs of the application
 - `message` is the actual message the application logged to the console
 
 #### Start / Stop / Restart / Delete application
