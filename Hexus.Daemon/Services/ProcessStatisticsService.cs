@@ -111,7 +111,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
             var stats = statistics.ProcessCpuStatistics.GetOrCreate(process.Id, _ => new CpuStatistics
             {
                 LastTotalProcessorTime = TimeSpan.Zero,
-                LastGetProcessCpuUsageInvocation = DateTimeOffset.UtcNow,
+                LastTime = DateTimeOffset.UtcNow,
             });
 
             yield return process.GetProcessCpuUsage(stats);
@@ -147,7 +147,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
     internal record CpuStatistics
     {
         public TimeSpan LastTotalProcessorTime { get; set; }
-        public DateTimeOffset LastGetProcessCpuUsageInvocation { get; set; }
+        public DateTimeOffset LastTime { get; set; }
     }
 }
 

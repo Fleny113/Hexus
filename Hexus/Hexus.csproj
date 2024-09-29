@@ -4,6 +4,8 @@
         <OutputType>Exe</OutputType>
 
         <AssemblyName>hexus</AssemblyName>
+
+        <LangVersion>preview</LangVersion>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(SelfContained)' == 'true'">

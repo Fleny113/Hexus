@@ -60,7 +60,7 @@ internal static class MigratePm2Command
 
     static MigratePm2Command()
     {
-        Pm2DumpFile.SetDefaultValue(EnvironmentHelper.NormalizePath($"{EnvironmentHelper.Home}/.pm2/dump.pm2"));
+        Pm2DumpFile.SetDefaultValue(Path.GetFullPath($"{EnvironmentHelper.Home}/.pm2/dump.pm2"));
 
         Command.SetHandler(Handler);
     }

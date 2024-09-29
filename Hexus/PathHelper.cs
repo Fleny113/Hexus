@@ -1,12 +1,11 @@
-﻿using Hexus.Daemon.Configuration;
+﻿namespace Hexus;
 
-namespace Hexus;
 internal static class PathHelper
 {
     public static string ResolveExecutable(string executable)
     {
         // relative folders resolver (./../exe)
-        var absolutePath = EnvironmentHelper.NormalizePath(executable);
+        var absolutePath = Path.GetFullPath(executable);
 
         if (File.Exists(absolutePath))
             return absolutePath;
@@ -31,7 +30,7 @@ internal static class PathHelper
                 return [file];
             })
             .Where(File.Exists)
-            .Select(EnvironmentHelper.NormalizePath)
+            .Select(Path.GetFullPath)
             .FirstOrDefault();
 
         if (resolvedExecutable is not null)

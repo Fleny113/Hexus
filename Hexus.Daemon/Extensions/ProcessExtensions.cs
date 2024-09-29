@@ -9,19 +9,15 @@ internal static class ProcessExtensions
     public static double GetProcessCpuUsage(this Process process, ProcessStatisticsService.CpuStatistics cpuStatistics)
     {
         var currentTime = DateTimeOffset.UtcNow;
-        var timeDifference = currentTime - cpuStatistics.LastGetProcessCpuUsageInvocation;
+        var deltaTime = currentTime - cpuStatistics.LastTime;
 
-        // In a situation like this we are provably going to give an unreasonable number, it's better to just say 0% than 100%
-        if (timeDifference < TimeSpan.FromMilliseconds(100))
-            return 0.00;
+        var totalProcessTime = process.TotalProcessorTime;
+        var deltaProcessTime = totalProcessTime - cpuStatistics.LastTotalProcessorTime;
 
-        var currentTotalProcessorTime = process.TotalProcessorTime;
-        var processorTimeDifference = currentTotalProcessorTime - cpuStatistics.LastTotalProcessorTime;
+        var cpuUsage = deltaProcessTime / Environment.ProcessorCount / deltaTime;
 
-        var cpuUsage = processorTimeDifference / Environment.ProcessorCount / timeDifference;
-
-        cpuStatistics.LastTotalProcessorTime = currentTotalProcessorTime;
-        cpuStatistics.LastGetProcessCpuUsageInvocation = currentTime;
+        cpuStatistics.LastTotalProcessorTime = totalProcessTime;
+        cpuStatistics.LastTime = currentTime;
 
         return cpuUsage * 100;
     }
