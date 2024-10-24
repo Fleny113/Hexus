@@ -8,7 +8,7 @@ internal static class DeleteCommand
 {
     private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to delete")
     {
-        Arity = ArgumentArity.OneOrMore
+        Arity = ArgumentArity.OneOrMore,
     };
     private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the stop of the application if it needs to be stopped");
 

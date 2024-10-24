@@ -8,7 +8,7 @@ internal static class RestartCommand
 {
     private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to restart")
     {
-        Arity = ArgumentArity.OneOrMore
+        Arity = ArgumentArity.OneOrMore,
     };
     private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the restart of the application");
 

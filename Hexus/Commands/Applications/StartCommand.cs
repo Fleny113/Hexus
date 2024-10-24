@@ -8,7 +8,7 @@ internal static class StartCommand
 {
     private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to start")
     {
-        Arity = ArgumentArity.OneOrMore
+        Arity = ArgumentArity.OneOrMore,
     };
 
     public static readonly Command Command = new("start", "Start an exiting application")

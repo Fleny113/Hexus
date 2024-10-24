@@ -1,4 +1,3 @@
-using Hexus.Daemon.Interop;
 using Hexus.Daemon.Services;
 using System.Diagnostics;
 
@@ -20,11 +19,5 @@ internal static class ProcessExtensions
         cpuStatistics.LastTime = currentTime;
 
         return cpuUsage * 100;
-    }
-
-    public static IEnumerable<Process> GetChildProcesses(this Process process)
-    {
-        return ProcessChildren.GetProcessChildrenInfo(process.Id)
-            .Select(processInfo => Process.GetProcessById(processInfo.ProcessId));
     }
 }

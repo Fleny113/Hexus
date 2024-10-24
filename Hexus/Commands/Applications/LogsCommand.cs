@@ -141,7 +141,7 @@ internal static partial class LogsCommand
         try
         {
             // While we allow others to write to this file, the expectation is that they will only append. We cannot enforce that sadly.
-            using var file = File.Open(logFileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            await using var file = File.Open(logFileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             // \e[?1049h is the escape sequence to open an alternate screen buffer.
             PrettyConsole.Out.Write("\e[?1049h");
@@ -200,15 +200,14 @@ internal static partial class LogsCommand
                 streamingTask
             );
 
-            if (streamingTask is { IsCompletedSuccessfully: true, Result: bool taskResult })
-            {
-                if (taskResult)
-                {
-                    streamingTask = streamingEnumerator.MoveNextAsync().AsTask();
-                }
+            if (streamingTask is not { IsCompletedSuccessfully: true, Result: var taskResult }) continue;
 
-                await HandleStreamingTask(file, displayOptions, logs, streamingEnumerator, ct);
+            if (taskResult)
+            {
+                streamingTask = streamingEnumerator.MoveNextAsync().AsTask();
             }
+
+            await HandleStreamingTask(file, displayOptions, logs, streamingEnumerator, ct);
         }
     }
 
@@ -218,7 +217,7 @@ internal static partial class LogsCommand
 
         // We want to keep the text at the bottom, so we print some text at the top
         var missingLines = displayOptions.PageHeight - logs.Count;
-        for (int i = 0; i < missingLines; i++)
+        for (var i = 0; i < missingLines; i++)
         {
             sb.AppendLine();
         }
@@ -251,12 +250,7 @@ internal static partial class LogsCommand
         var seeMoreArrow = hadMore ? "[black on white]>[/]" : "";
 
         // When the offset is not 0 do not show the header
-        if (offset > 0)
-        {
-            return $"{logText.EscapeMarkup()}{AnsiReset}{seeMoreArrow}";
-        }
-
-        return $"{header}{logText.EscapeMarkup()}{AnsiReset}{seeMoreArrow}";
+        return offset > 0 ? $"{logText.EscapeMarkup()}{AnsiReset}{seeMoreArrow}" : $"{header}{logText.EscapeMarkup()}{AnsiReset}{seeMoreArrow}";
     }
 
     private static Color GetLogTypeColor(LogType logType) => logType switch
@@ -380,10 +374,10 @@ internal static partial class LogsCommand
         // The buffer may need to be resized to avoid duplicating some data
         var actualBufferSize = (int)Math.Min(_readBufferSize, offset);
 
-        var bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
+        var bytesRead = await file.ReadAsync(memPoll.Memory[..actualBufferSize], ct);
 
         // We only want to consume the memory that has data we have just read to avoid some work
-        var readMemory = memPoll.Memory[0..bytesRead];
+        var readMemory = memPoll.Memory[..bytesRead];
 
         // The position of the last \n we found. Right after a read this will be the end of the buffer
         var lastNewLine = bytesRead;
@@ -396,7 +390,7 @@ internal static partial class LogsCommand
 
         while (lineCount < lines)
         {
-            var pos = readMemory.Span[0..lastNewLine].LastIndexOf("\n"u8);
+            var pos = readMemory.Span[..lastNewLine].LastIndexOf("\n"u8);
 
             var line = Encoding.UTF8.GetString(readMemory.Span[(pos + 1)..lastNewLine]);
             lastNewLine = pos;
@@ -416,9 +410,9 @@ internal static partial class LogsCommand
                 // Go back to before the read, and get another buffer of space.
                 file.Position = Math.Max(file.Position - bytesRead - _readBufferSize, 0);
 
-                bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
+                bytesRead = await file.ReadAsync(memPoll.Memory[..actualBufferSize], ct);
 
-                readMemory = memPoll.Memory[0..bytesRead];
+                readMemory = memPoll.Memory[..bytesRead];
                 lastNewLine = bytesRead;
 
                 isEntireStream = file.Position - bytesRead == 0;
@@ -460,8 +454,8 @@ internal static partial class LogsCommand
 
             lineOffset = -1;
 
-            // We only wanted the current execution and we found an application started notice. We should now stop.
-            if (currentExecution && appLog.LogType == LogType.SYSTEM && appLog.Text == ProcessLogsService.ApplicationStartedLog)
+            // We only wanted the current execution, and we found an application started notice. We should now stop.
+            if (currentExecution && appLog is { LogType: LogType.SYSTEM, Text: ProcessLogsService.ApplicationStartedLog })
             {
                 break;
             }
@@ -478,7 +472,7 @@ internal static partial class LogsCommand
     {
         using var memPoll = MemoryPool<byte>.Shared.Rent(_readBufferSize);
         var sb = new StringBuilder();
-        int lineCount = 0;
+        var lineCount = 0;
 
         // Go to the offset
         file.Position = offset;
@@ -486,10 +480,10 @@ internal static partial class LogsCommand
         // The buffer may need to be resized to avoid reading data that isn't needed
         var actualBufferSize = (int)Math.Min(_readBufferSize, file.Length - offset);
 
-        var bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
+        var bytesRead = await file.ReadAsync(memPoll.Memory[..actualBufferSize], ct);
 
         // We only want to consume the memory that has data we have just read
-        var readMemory = memPoll.Memory[0..bytesRead];
+        var readMemory = memPoll.Memory[..bytesRead];
 
         // The position of the last \n we found. Right after a read this will be 0
         var lastNewLine = 0;
@@ -515,15 +509,15 @@ internal static partial class LogsCommand
                 // Save the start of this line, (if there isn't a line already saved)
                 if (lineOffset == -1) lineOffset = file.Position - bytesRead + lastNewLine - pos - 1;
 
-                // We need to store this part of the line line or else we are going to lose it
+                // We need to store this part of the line or else we are going to lose it
                 sb.Append(line);
 
                 // We don't want to read stuff twice, so we need "resize" our buffer
                 actualBufferSize = (int)Math.Min(file.Length - file.Position, _readBufferSize);
 
-                bytesRead = await file.ReadAsync(memPoll.Memory[0..actualBufferSize], ct);
+                bytesRead = await file.ReadAsync(memPoll.Memory[..actualBufferSize], ct);
 
-                readMemory = memPoll.Memory[0..bytesRead];
+                readMemory = memPoll.Memory[..bytesRead];
                 lastNewLine = 0;
                 isEntireStream = file.Position == file.Length;
 
@@ -954,31 +948,17 @@ internal static partial class LogsCommand
 
     #endregion
 
-    private record DisplayOptions
+    private record DisplayOptions(
+        bool ShowCurrentExecution,
+        TimeZoneInfo TimeZone,
+        DateTimeOffset? BeforeDate,
+        DateTimeOffset? AfterDate,
+        bool ShowDates)
     {
-        public bool ShowCurrentExecution { get; init; }
-        public TimeZoneInfo TimeZone { get; init; }
-        public DateTimeOffset? BeforeDate { get; init; }
-        public DateTimeOffset? AfterDate { get; init; }
-        public bool ShowDates { get; init; }
-        public int PageWidth { get; private set; }
-        public int PageHeight { get; private set; }
+        public int PageWidth { get; private set; } = Console.BufferWidth - 1;
+        public int PageHeight { get; private set; } = Console.BufferHeight - 1;
         public int PageOffset { get; set; }
         public bool IgnoreStream { get; set; }
-
-        public DisplayOptions(bool current, TimeZoneInfo timezone, DateTimeOffset? before, DateTimeOffset? after, bool dates)
-        {
-            ShowCurrentExecution = current;
-            TimeZone = timezone;
-            BeforeDate = before;
-            AfterDate = after;
-            ShowDates = dates;
-
-            PageWidth = Console.BufferWidth - 1;
-            PageHeight = Console.BufferHeight - 1;
-            PageOffset = 0;
-            IgnoreStream = false;
-        }
 
         public bool WasConsoleResized(out bool heightChanged)
         {

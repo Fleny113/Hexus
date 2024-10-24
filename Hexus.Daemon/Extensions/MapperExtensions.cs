@@ -22,7 +22,7 @@ internal static class MapperExtensions
 
     public static ApplicationResponse MapToResponse(this HexusApplication application, ApplicationStatistics applicationStatisticsResponse)
     {
-        return new(
+        return new ApplicationResponse(
             Name: application.Name,
             Executable: Path.GetFullPath(application.Executable),
             Arguments: application.Arguments,
@@ -54,10 +54,10 @@ internal static class MapperExtensions
             WorkingDirectory = x.Value.WorkingDirectory,
             Status = x.Value.Status,
             Note = x.Value.Note,
-            EnvironmentVariables = x.Value.EnvironmentVariables
+            EnvironmentVariables = x.Value.EnvironmentVariables,
         }));
 
-        return new()
+        return new HexusConfiguration
         {
             UnixSocket = configurationFile.UnixSocket ?? EnvironmentHelper.SocketFile,
             HttpPort = configurationFile.HttpPort,
@@ -80,10 +80,10 @@ internal static class MapperExtensions
             WorkingDirectory = x.Value.WorkingDirectory,
             Status = x.Value.Status,
             Note = x.Value.Note,
-            EnvironmentVariables = x.Value.EnvironmentVariables
+            EnvironmentVariables = x.Value.EnvironmentVariables,
         }));
 
-        return new()
+        return new HexusConfigurationFile()
         {
             UnixSocket = socket,
             HttpPort = configuration.HttpPort,

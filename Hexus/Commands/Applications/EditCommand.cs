@@ -1,4 +1,3 @@
-using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts.Requests;
 using Hexus.Extensions;
 using Spectre.Console;

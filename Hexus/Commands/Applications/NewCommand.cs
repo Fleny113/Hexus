@@ -1,4 +1,3 @@
-using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts.Requests;
 using Hexus.Extensions;
 using Spectre.Console;
@@ -106,7 +105,7 @@ internal static class NewCommand
         var isPython = fileName.StartsWith("py");
 
         // This only checks for PYTHONUNBUFFERED, checking for -u would be problematic and would require parsing the arguments, something we do not want to do
-        var isPyStdoutUnbuffered = environmentVariables.TryGetValue("PYTHONUNBUFFERED", out var pyUnbuffered) && pyUnbuffered?.Length > 0;
+        var isPyStdoutUnbuffered = environmentVariables.TryGetValue("PYTHONUNBUFFERED", out var pyUnbuffered) && pyUnbuffered.Length > 0;
 
         if (isPython && !isPyStdoutUnbuffered)
         {

@@ -8,7 +8,7 @@ internal static class StopCommand
 {
     private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to stop")
     {
-        Arity = ArgumentArity.OneOrMore
+        Arity = ArgumentArity.OneOrMore,
     };
     private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the stop of the application");
 

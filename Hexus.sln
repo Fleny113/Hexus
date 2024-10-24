@@ -25,11 +25,3 @@ Global
 		{20DDAE66-734A-49FE-9746-F03EBE85241B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
--49FE-9746-F03EBE85241B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{20DDAE66-734A-49FE-9746-F03EBE85241B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{419FFBDB-2264-4CC8-9CBE-57CC42FE5F3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{419FFBDB-2264-4CC8-9CBE-57CC42FE5F3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{419FFBDB-2264-4CC8-9CBE-57CC42FE5F3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{419FFBDB-2264-4CC8-9CBE-57CC42FE5F3D}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-EndGlobal

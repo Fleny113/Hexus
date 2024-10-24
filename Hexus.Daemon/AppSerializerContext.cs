@@ -20,4 +20,4 @@ internal partial class AppJsonSerializerContext : JsonSerializerContext;
 [YamlSerializable(typeof(HexusConfigurationFile))]
 [YamlSerializable(typeof(HexusApplication))]
 [YamlStaticContext]
-public partial class AppYamlSerializerContext : StaticContext;
+public partial class AppYamlSerializerContext;

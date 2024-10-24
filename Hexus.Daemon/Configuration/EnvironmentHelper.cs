@@ -2,7 +2,7 @@
 
 public static class EnvironmentHelper
 {
-    public static readonly bool IsDevelopment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development";
+    private static readonly bool IsDevelopment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development";
     public static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     // XDG directories based on the XDG basedir spec, we use these folders on Windows too.

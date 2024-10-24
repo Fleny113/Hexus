@@ -44,7 +44,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         if (!children.TryGetValue(Environment.ProcessId, out var hexusChildren)) return;
 
         var liveApplications = _cpuStatisticsMap.Keys
-            .Select(name => configurationManager.Configuration.Applications.TryGetValue(name, out var app) ? app : null)
+            .Select(name => configurationManager.Configuration.Applications.GetValueOrDefault(name))
             .Where(x => x is not null)
             .Select(app => (IsRunning: processManagerService.IsApplicationRunning(app!, out var process), Application: app!, Process: process))
             .Where(tuple => tuple.IsRunning && hexusChildren.Contains(tuple.Process!.Id))
