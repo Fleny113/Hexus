@@ -1,7 +1,7 @@
 # Hexus
 
 [![.NET build status](https://github.com/Fleny113/Hexus/actions/workflows/dotnet.yml/badge.svg?branch=main&event=push)](https://github.com/Fleny113/Hexus/actions/workflows/dotnet.yml)
-![](https://img.shields.io/badge/.NET-8.0-purple)
+![](https://img.shields.io/badge/.NET-9.0-purple)
 
 Hexus is a process manager built using .NET 8 designed to work on Linux and Windows seamlessly while being nice and simple to use
 

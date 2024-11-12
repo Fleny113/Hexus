@@ -6,6 +6,8 @@
         <AssemblyName>hexus</AssemblyName>
 
         <LangVersion>preview</LangVersion>
+
+        <TargetFramework>net9.0</TargetFramework>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(SelfContained)' == 'true'">
