@@ -3,7 +3,7 @@
 [![.NET build status](https://github.com/Fleny113/Hexus/actions/workflows/dotnet.yml/badge.svg?branch=main&event=push)](https://github.com/Fleny113/Hexus/actions/workflows/dotnet.yml)
 ![](https://img.shields.io/badge/.NET-9.0-purple)
 
-Hexus is a process manager built using .NET 8 designed to work on Linux and Windows seamlessly while being nice and simple to use
+Hexus is a process manager built using .NET 9 designed to work on Linux and Windows seamlessly while being nice and simple to use
 
 ## Features
 
@@ -17,7 +17,7 @@ Hexus is a process manager built using .NET 8 designed to work on Linux and Wind
 
 ## Installation
 
-Download the binary from the latest CI release below or compile it using the [`.NET 8`](https://get.dot.net/8) SDK.
+Download the binary from the latest CI release below or compile it using the [`.NET 9`](https://get.dot.net/9) SDK.
 
 |      OS       |                                                                                                     Self-contained                                                                                                     |                                                                                            Runtime dependent                                                                                             |
 |:-------------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
@@ -30,7 +30,7 @@ Download the binary from the latest CI release below or compile it using the [`.
 
 If you want to compile the binary for yourself you need to install:
 
-- [`.NET 8`](https://get.dot.net/8) SDK
+- [`.NET 9`](https://get.dot.net/9) SDK
 - `ASP.NET Core`, usually bundled with the SDK
 
 To create a release build to use run the following command after have cloned the repo and being in the top directory
