@@ -28,22 +28,29 @@ internal static class StartupCommand
 
     static StartupCommand()
     {
-        Command.SetHandler(Handler);
+        Command.SetHandler(context => Task.FromResult(Handler(context)));
     }
 
-    private static void Handler(InvocationContext context)
+    private static int Handler(InvocationContext context)
     {
         var systemdSystem = context.ParseResult.GetValueForOption(UseSystemdSystem);
-        var executable = Process.GetCurrentProcess().MainModule?.FileName;
+        var cliExecutable = Process.GetCurrentProcess().MainModule?.FileName;
         var username = Environment.UserName;
 
-        if (executable is null)
+        if (cliExecutable is null)
         {
-            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] in getting the filename for Hexus");
-            context.ExitCode = 1;
-            return;
+            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] in getting the file location for hexus");
+            return 1;
         }
 
+        var daemonExe = $"{Path.GetDirectoryName(cliExecutable)}{Path.DirectorySeparatorChar}hexusd{Path.GetExtension(cliExecutable)}";
+
+        if (!Path.Exists(daemonExe))
+        {
+            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] in getting the file location for hexusd");
+            return 1;
+        }
+        
         var startRule = new Rule()
             .Centered()
             .RuleStyle(Color.Gold1);
@@ -58,7 +65,7 @@ internal static class StartupCommand
             var powershellCommand = $"""
             {Comment("# Use the following powershell script in a elevated powershell prompt to create the scheduled task for run hexus:")}
 
-            {Variable("$action")} {Operator("=")} {Cmdlet("New-ScheduledTaskAction")} {Operator("-Execute")} {String(executable)} {Operator("-Argument")} {String("daemon start")} {Operator("-WorkingDirectory")} {String(EnvironmentHelper.Home)}
+            {Variable("$action")} {Operator("=")} {Cmdlet("New-ScheduledTaskAction")} {Operator("-Execute")} {String(daemonExe)} {Operator("-WorkingDirectory")} {String(EnvironmentHelper.Home)}
             {Variable("$trigger")} {Operator("=")} {Cmdlet("New-ScheduledTaskTrigger")} {Operator("-AtLogon")}
             {Variable("$principal")} {Operator("=")} {Cmdlet("New-ScheduledTaskPrincipal")} {Operator("-UserId")} {String(windowsUser)} {Operator("-LogonType")} S4U {Operator("-RunLevel")} Limited
             {Variable("$settings")} {Operator("=")} {Cmdlet("New-ScheduledTaskSettingsSet")} {Operator("-Compatibility")} Win8 {Operator("-MultipleInstances")} IgnoreNew {Operator("-Hidden")}
@@ -71,7 +78,7 @@ internal static class StartupCommand
             if (Console.IsOutputRedirected)
             {
                 PrettyConsole.OutLimitlessWidth.MarkupLine(powershellCommand);
-                return;
+                return 0;
             }
 
             PrettyConsole.Out.Write(startRule);
@@ -80,7 +87,7 @@ internal static class StartupCommand
             PrettyConsole.Out.WriteLine();
             PrettyConsole.Out.Write(endRule);
 
-            return;
+            return 0;
 
             string Variable(string variable) => Console.IsOutputRedirected ? variable.EscapeMarkup() : $"[{PowershellVariableColor}]{variable.EscapeMarkup()}[/]";
             string Cmdlet(string cmdlet) => Console.IsOutputRedirected ? cmdlet.EscapeMarkup() : $"[{PowershellCmdletColor}]{cmdlet.EscapeMarkup()}[/]";
@@ -102,8 +109,7 @@ internal static class StartupCommand
             {Key("Type")}={Value("notify")}{(systemdSystem ? $"\n{Key("User")}={Value($"{username}")}" : "")}
             {Key("TasksMax")}={Value("infinity")}
             {Key("Restart")}={Value("on-failure")}
-            {Key("ExecStart")}={Value($"{executable} daemon start")}
-            {Key("ExecStop")}={Value($"{executable} daemon stop")}
+            {Key("ExecStart")}={Value(daemonExe)}
             {Key("TimeoutStopSec")}={Value("1min")}
 
             [[{Section("Install")}]]
@@ -115,7 +121,7 @@ internal static class StartupCommand
             if (Console.IsOutputRedirected)
             {
                 PrettyConsole.OutLimitlessWidth.MarkupLine(unitFile);
-                return;
+                return 0;
             }
 
             PrettyConsole.Out.Write(startRule);
@@ -147,7 +153,7 @@ internal static class StartupCommand
                  """);
             }
 
-            return;
+            return 0;
 
             string Section(string section) => Console.IsOutputRedirected ? section.EscapeMarkup() : $"[{UnitSectionColor}]{section.EscapeMarkup()}[/]";
             string Key(string key) => Console.IsOutputRedirected ? key.EscapeMarkup() : $"[{UnitKeyColor}]{key.EscapeMarkup()}[/]";
