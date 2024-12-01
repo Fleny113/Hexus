@@ -54,7 +54,7 @@ internal class HexusConfigurationManager
         }
     }
 
-    internal HexusConfigurationManager()
+    public HexusConfigurationManager()
     {
         EnvironmentHelper.EnsureDirectoriesExistence();
 

@@ -1,4 +1,6 @@
-﻿namespace Hexus.Daemon.Configuration;
+﻿using Hexus.Daemon.Interop;
+
+namespace Hexus.Daemon.Configuration;
 
 public static class EnvironmentHelper
 {
@@ -40,13 +42,14 @@ public static class EnvironmentHelper
 
     private static string CreateRuntimeDirectory()
     {
-        // For Windows we just put the runtime files in the XDG_STATE_HOME directory as we don't have many other solutions available
+        // For Windows, we just put the runtime files in the XDG_STATE_HOME directory as we don't have many other solutions available
         if (OperatingSystem.IsWindows())
         {
             return HexusStateDirectory;
         }
 
-        var dir = Directory.CreateDirectory($"{Path.GetTempPath()}/hexus-runtime", UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var uid = UnixInterop.GetUserId();
+        var dir = Directory.CreateDirectory($"{Path.GetTempPath()}/{uid}-runtime", UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
         return dir.FullName;
     }
