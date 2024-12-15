@@ -3,7 +3,7 @@ namespace Hexus.Daemon.Interop;
 internal static class ProcessSignals
 {
     // https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights
-    private const uint CreateThreadDesiredAccess = 0x0400 | 0x0008 | 0x0010 | 0x0020 | 0x0002;
+    private const uint ProcessCreateThread = 0x0002;
     // https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject#return-value
     // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55
     private const long WaitObject0 = 0x00000000;
@@ -13,16 +13,23 @@ internal static class ProcessSignals
         if (!OperatingSystem.IsWindows())
             return UnixInterop.SendSignal(pId, unixSignal);
 
-        var process = Win32Bindings.OpenProcess(CreateThreadDesiredAccess, false, (uint)pId);
+        if (Win32Bindings.CtrlRoutinePointer == IntPtr.Zero) return -1;
+        
+        var process = Win32Bindings.OpenProcess(ProcessCreateThread, bInheritHandle: false, (uint)pId);
 
+        if (process == IntPtr.Zero)
+        {
+            return -1;
+        }
+        
         var remoteThread = Win32Bindings.CreateRemoteThread(
-            process,
-            IntPtr.Zero,
-            1024 * 1024,
-            Win32Bindings.CtrlRoutinePointer,
-            (uint)windowsSignal,
-            0,
-            out _);
+            hProcess: process,
+            lpThreadAttributes: IntPtr.Zero,
+            dwStackSize: 1024 * 1024,
+            lpStartAddress: Win32Bindings.CtrlRoutinePointer,
+            lpParameter: (uint)windowsSignal,
+            dwCreationFlags: 0,
+            lpThreadId: out _);
 
         if (remoteThread == IntPtr.Zero)
         {
@@ -32,8 +39,8 @@ internal static class ProcessSignals
 
         if (Win32Bindings.WaitForSingleObject(remoteThread, 0) == WaitObject0) return 0;
 
-        Win32Bindings.CloseHandle(process);
         Win32Bindings.CloseHandle(remoteThread);
+        Win32Bindings.CloseHandle(process);
 
         return -1;
     }
