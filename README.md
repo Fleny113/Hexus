@@ -135,14 +135,14 @@ the logs for the daemon in `$XDG_STATE_HOME/hexus/daemon.log` and the logs for t
 These locations can be customized with the `XDG_CONFIG_HOME` (defaults to `~/.config`), `XDG_RUNTIME_DIR`[^XDG_RUNTIME_DIR] and `XDG_STATE_HOME` (defaults to `.local/state`) environment variables.
 On Windows setting the `XDG_RUNTIME_DIR` will not be ignored and that path will be used instead of using the `$XDG_STATE_HOME/hexus` folder.
 
-[^XDG_RUNTIME_DIR]: `XDG_RUNTIME_DIR` does not provide a clear default, however if running on Windows the value "defaults" to `$XDG_STATE_HOME/hexus`, on Unix systems a `hexus-runtime` directory will be created in the temp with the permissions `700` and the current user as the owner according to the XDG basedir specification
+[^XDG_RUNTIME_DIR]: `XDG_RUNTIME_DIR` does not provide a clear default, however if running on Windows the value "defaults" to `$XDG_STATE_HOME/hexus`, on Unix systems a `<UID>-runtime` directory, where `<UID>` is replaced with the user ID that is running hexus, will be created in the temp with the permissions `700` and the current user as the owner according to the XDG basedir specification
 
 The config file is a `.yaml` file with the following options:
 
 - `unixSocket`: Changes where the socket is located. Used for connecting to the daemon.
 - `httpPort`: The HTTP port to listen as an addition way to access the daemon to the required socket, useful for interfacing with software that cant use the socket. \[OPTIONAL\]
-- `cpuRefreshIntervalSeconds`: The interval for the refresh of CPU usage of applications. The lower the value, the more CPU Hexus will use but the more precise it will the the CPU usage of applications. Default 2.5 seconds.
-- `applications`: Object with the application name as the key as as the value the following proprieties.
+- `cpuRefreshIntervalSeconds`: The interval for the refresh of CPU usage of applications. The lower the value, the more CPU Hexus will use but the more precise it will the CPU usage of applications. Default 2.5 seconds.
+- `applications`: Object with the application name as the key as the value the following proprieties.
   - `executable`: The file to execute when spawning the application.
   - `arguments`: The arguments to give the executable, as a string. \[OPTIONAL\]
   - `workingDirectory`: The directory where the application should start.
