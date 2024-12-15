@@ -85,6 +85,7 @@ hexus logs <application name>
 
 ##### Flags
 
+- `--lines` or `-l` to specify the number of log lines to fetch from the log file, specify -1 to get all lines
 - `--no-streaming` to disable the streaming of logs to the console while the command is active
 - `--no-dates` to disable the Hexus provided timestamp of the log lines
 - `--current` or `-c` to show only the logs from the currently running for last execution of the application.
