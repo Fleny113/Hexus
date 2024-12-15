@@ -9,20 +9,25 @@ internal static partial class Win32Bindings
 {
     #region Process Children
 
-    private const int MaxSize = 260;
+    private const int StringMaxSize = 260;
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     public static partial IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessId);
 
+#pragma warning disable SYSLIB1054
+    // SYSLIB1054: Mark the method 'Process32First' with 'LibraryImportAttribute' instead of 'DllImportAttribute' to generate P/ Invoke marshalling code at compile time 
+    // ProcessEntry32 is not compatible with LibraryImport as it has a string to marshal.
+    
     [DllImport("kernel32.dll", SetLastError = true)]
-    [SuppressMessage("Interoperability", "SYSLIB1054:Use \'LibraryImportAttribute\' instead of \'DllImportAttribute\' to generate P/Invoke marshalling code at compile time", Justification = "LibraryImport with ProcessEntry32 does not work without a lot of work to make it happy and both CompileTime and RunTime")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool Process32First(IntPtr snapshot, ref ProcessEntry32 processEntry);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    [SuppressMessage("Interoperability", "SYSLIB1054:Use \'LibraryImportAttribute\' instead of \'DllImportAttribute\' to generate P/Invoke marshalling code at compile time", Justification = "LibraryImport with ProcessEntry32 does not work without a lot of work to make it happy and both CompileTime and RunTime")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool Process32Next(IntPtr snapshot, ref ProcessEntry32 processEntry);
+    
+#pragma warning restore SYSLIB1054
+
     #endregion
 
     #region Process Signals
@@ -86,24 +91,24 @@ internal static partial class Win32Bindings
 
     // https://learn.microsoft.com/en-us/windows/win32/api/tlhelp32/ns-tlhelp32-processentry32#requirements
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct ProcessEntry32
+    public struct ProcessEntry32()
     {
-        public uint dwSize;
+        public uint dwSize = (uint)Marshal.SizeOf<ProcessEntry32>();
         // Not in use. Always set to 0
         public uint cntUsage;
         public uint th32ProcessID;
         // Not in use. Always set to 0
-        public nint th32DefaultHeapID;
+        public IntPtr th32DefaultHeapID;
         // Not in use. Always set to 0
         public uint th32ModuleID;
         public uint cntThreads;
         public uint th32ParentProcessID;
         // Not in use. Always set to 0
-        public int pcPriClassBase;
+        public long pcPriClassBase;
         // Not in use. Always set to 0
         public uint dwFlags;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = MaxSize)]
-        public string szExeFile;
+        [MarshalAs(UnmanagedType.LPStr, SizeConst = StringMaxSize)]
+        public string szExeFile = string.Empty;
     }
 }
 

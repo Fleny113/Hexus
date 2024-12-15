@@ -25,10 +25,8 @@ internal static class ProcessChildren
         if (processSnap == IntPtr.Zero) yield break;
 
         var parents = new Stack<uint>();
-        var processEntity = new Win32Bindings.ProcessEntry32
-        {
-            dwSize = (uint)Marshal.SizeOf<Win32Bindings.ProcessEntry32>(),
-        };
+
+        var processEntity = new Win32Bindings.ProcessEntry32();
 
         try
         {
