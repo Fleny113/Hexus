@@ -119,9 +119,10 @@ internal static class LogsCommand
         ArgumentNullException.ThrowIfNull(timezoneOption);
         var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timezoneOption);
 
-        // Adjust to timezone the before and the after
-        var localizedBefore = showBefore is { } before ? TimeZoneInfo.ConvertTime(before, timeZoneInfo) : (DateTime?)null;
-        var localizedAfter = showAfter is { } after ? TimeZoneInfo.ConvertTime(after, timeZoneInfo) : (DateTime?)null;
+        // Convert the before/after from the timezone specified to UTC to be used to filter logs
+        //  the dates in the log file will then be converted back to the timezone provided
+        DateTime? utcBefore = showBefore is { } before ? TimeZoneInfo.ConvertTimeToUtc(before, timeZoneInfo) : null;
+        DateTime? utcAfter = showAfter is { } after ? TimeZoneInfo.ConvertTimeToUtc(after, timeZoneInfo) : null;
 
         var logFileName = $"{EnvironmentHelper.ApplicationLogsDirectory}/{name}.log";
 
@@ -150,8 +151,8 @@ internal static class LogsCommand
             }
         }
 
-        var streamedLogs = streaming ? await CreateStreamingLogs(name, localizedBefore, ct) : null;
-        var logFileLogs = GetLogsFromFileAsync(logFileName, lines, currentExecution, localizedBefore, localizedAfter, ct).Reverse();
+        var streamedLogs = streaming ? await CreateStreamingLogs(name, utcBefore, ct) : null;
+        var logFileLogs = GetLogsFromFileAsync(logFileName, lines, currentExecution, utcBefore, utcAfter, ct).Reverse();
 
         var logs = streamedLogs is not null
             ? logFileLogs.Concat(streamedLogs).Where(x => x is not null).Select(x => x!)
