@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 namespace Hexus.Daemon.Interop;
@@ -10,7 +9,7 @@ internal static class ProcessChildren
     public static IEnumerable<ProcessInfo> GetProcessChildrenInfo(int parentId)
     {
         if (OperatingSystem.IsWindows())
-            return GetChildProcessesWindows(parentId);
+            return GetChildProcessesWindows((uint)parentId);
         if (OperatingSystem.IsLinux())
             return GetChildProcessesLinux(parentId);
 
@@ -18,13 +17,13 @@ internal static class ProcessChildren
     }
 
     [SupportedOSPlatform("windows")]
-    private static IEnumerable<ProcessInfo> GetChildProcessesWindows(int parentId)
+    private static IEnumerable<ProcessInfo> GetChildProcessesWindows(uint parentId)
     {
         // While the docs says that this 0 will make the snapshot to start from the current process, since we use SnapProcess, it doesn't.
         var processSnap = Win32Bindings.CreateToolhelp32Snapshot(Th32CsSnapProcess, 0);
         if (processSnap == IntPtr.Zero) yield break;
 
-        var parents = new Stack<uint>();
+        HashSet<uint> parents = [parentId];
 
         var processEntity = new Win32Bindings.ProcessEntry32();
 
@@ -34,9 +33,9 @@ internal static class ProcessChildren
 
             do
             {
-                if (processEntity.th32ParentProcessID != parentId && !parents.Contains(processEntity.th32ParentProcessID)) continue;
+                if (!parents.Contains(processEntity.th32ParentProcessID)) continue;
 
-                parents.Push(processEntity.th32ProcessID);
+                parents.Add(processEntity.th32ProcessID);
                 yield return new ProcessInfo
                 {
                     ProcessId = (int)processEntity.th32ProcessID,
