@@ -38,13 +38,8 @@ internal static partial class Win32Bindings
     {
         if (!OperatingSystem.IsWindows()) return;
 
-        // https://www.geoffchappell.com/studies/windows/win32/kernelbase/api/index.htm?tx=50
-        // First we attempt from KernelBase.dll. KernelBase.dll has this CtrlRoutine symbol from Windows 8+ it seems.
-        CtrlRoutinePointer = GetProcAddress("KernelBase", "CtrlRoutine");
-
-        // If GetProcAddress returned a null pointer, we can try getting it from Kernel32. Kernel32.dll has this CtrlRoutine symbol from Windows 7+ it seems.
-        if (CtrlRoutinePointer == IntPtr.Zero)
-            CtrlRoutinePointer = GetProcAddress("Kernel32", "CtrlRoutine");
+        // https://www.geoffchappell.com/studies/windows/win32/kernel32/api/index.htm?tx=48
+        CtrlRoutinePointer = GetProcAddress("Kernel32", "CtrlRoutine");
     }
 
     private static IntPtr GetProcAddress(string module, string proc)
