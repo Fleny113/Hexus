@@ -14,7 +14,7 @@ internal static class ProcessChildren
         if (OperatingSystem.IsLinux())
             return GetChildProcessesLinux(parentId);
 
-        throw new NotSupportedException("Getting the child processes is only supported on Windows and Linux");
+        throw new NotSupportedException("Getting the child processes is not supported on this platform");
     }
 
     [SupportedOSPlatform("windows")]
@@ -37,7 +37,11 @@ internal static class ProcessChildren
                 if (processEntity.th32ParentProcessID != parentId && !parents.Contains(processEntity.th32ParentProcessID)) continue;
 
                 parents.Push(processEntity.th32ProcessID);
-                yield return new ProcessInfo { ProcessId = (int)processEntity.th32ProcessID, ParentProcessId = (int)processEntity.th32ParentProcessID };
+                yield return new ProcessInfo
+                {
+                    ProcessId = (int)processEntity.th32ProcessID,
+                    ParentProcessId = (int)processEntity.th32ParentProcessID,
+                };
             } while (Win32Bindings.Process32Next(processSnap, ref processEntity));
         }
         finally
@@ -53,11 +57,19 @@ internal static class ProcessChildren
         {
             if (!int.TryParse(strPId, out var processId)) continue;
 
-            yield return new ProcessInfo { ProcessId = processId, ParentProcessId = parentId };
-            foreach (var childProcessId in GetChildProcessesLinux(processId)) yield return childProcessId;
+            yield return new ProcessInfo
+            {
+                ProcessId = processId,
+                ParentProcessId = parentId,
+            };
+            
+            foreach (var childProcessId in GetChildProcessesLinux(processId))
+            {
+                yield return childProcessId;
+            }
         }
     }
 
-    internal record struct ProcessInfo(int ProcessId, int ParentProcessId);
+    public record struct ProcessInfo(int ProcessId, int ParentProcessId);
 }
 
