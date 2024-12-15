@@ -61,7 +61,7 @@ internal static class ProcessChildren
                 ProcessId = processId,
                 ParentProcessId = parentId,
             };
-            
+
             foreach (var childProcessId in GetChildProcessesLinux(processId))
             {
                 yield return childProcessId;

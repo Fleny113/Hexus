@@ -14,14 +14,14 @@ internal static class ProcessSignals
             return UnixInterop.SendSignal(pId, unixSignal);
 
         if (Win32Bindings.CtrlRoutinePointer == IntPtr.Zero) return -1;
-        
+
         var process = Win32Bindings.OpenProcess(ProcessCreateThread, bInheritHandle: false, (uint)pId);
 
         if (process == IntPtr.Zero)
         {
             return -1;
         }
-        
+
         var remoteThread = Win32Bindings.CreateRemoteThread(
             hProcess: process,
             lpThreadAttributes: IntPtr.Zero,

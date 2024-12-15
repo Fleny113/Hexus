@@ -16,7 +16,7 @@ builder.Configuration["Logging:LogLevel:Hexus.Daemon"] = Enum.GetName(builder.En
 builder.WebHost.UseKestrel((context, options) =>
 {
     var config = options.ApplicationServices.GetRequiredService<HexusConfigurationManager>();
-    
+
     // The socket could still exist, and if that is the case Kestrel will throw an exception
     if (Path.Exists(config.Configuration.UnixSocket))
         File.Delete(config.Configuration.UnixSocket);

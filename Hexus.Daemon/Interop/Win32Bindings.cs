@@ -16,7 +16,7 @@ internal static partial class Win32Bindings
 #pragma warning disable SYSLIB1054
     // SYSLIB1054: Mark the method 'Process32First' with 'LibraryImportAttribute' instead of 'DllImportAttribute' to generate P/ Invoke marshalling code at compile time 
     // ProcessEntry32 is not compatible with LibraryImport as it has a string to marshal.
-    
+
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool Process32First(IntPtr snapshot, ref ProcessEntry32 processEntry);
@@ -24,7 +24,7 @@ internal static partial class Win32Bindings
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool Process32Next(IntPtr snapshot, ref ProcessEntry32 processEntry);
-    
+
 #pragma warning restore SYSLIB1054
 
     #endregion

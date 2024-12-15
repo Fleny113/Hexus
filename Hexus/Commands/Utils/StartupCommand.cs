@@ -50,7 +50,7 @@ internal static class StartupCommand
             PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] in getting the file location for hexusd");
             return 1;
         }
-        
+
         var startRule = new Rule()
             .Centered()
             .RuleStyle(Color.Gold1);

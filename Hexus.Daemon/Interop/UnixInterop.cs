@@ -8,7 +8,7 @@ internal partial class UnixInterop
 {
     [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
     public static partial int SendSignal(int pId, UnixSignal signal);
-    
+
     [LibraryImport("libc", EntryPoint = "getuid", SetLastError = true)]
     public static partial int GetUserId();
 }
