@@ -105,7 +105,7 @@ internal static class LogsCommand
         var name = context.ParseResult.GetValueForArgument(NameArgument);
         var streaming = !context.ParseResult.GetValueForOption(DontStream);
 
-        var lines = context.ParseResult.GetValueForOption(LinesOption);
+        var linesOption = context.ParseResult.GetValueForOption(LinesOption);
         var noDates = context.ParseResult.GetValueForOption(DontShowDates);
         var timezoneOption = context.ParseResult.GetValueForOption(TimezoneOption);
 
@@ -124,6 +124,8 @@ internal static class LogsCommand
         DateTime? utcBefore = showBefore is { } before ? TimeZoneInfo.ConvertTimeToUtc(before, timeZoneInfo) : null;
         DateTime? utcAfter = showAfter is { } after ? TimeZoneInfo.ConvertTimeToUtc(after, timeZoneInfo) : null;
 
+        var lines = linesOption == -1 ? int.MaxValue : linesOption;
+        
         var logFileName = $"{EnvironmentHelper.ApplicationLogsDirectory}/{name}.log";
 
         if (!File.Exists(logFileName))
@@ -206,7 +208,6 @@ internal static class LogsCommand
         var sb = new StringBuilder();
         var lineCount = 0;
 
-        // Go to the offset location
         file.Position = Math.Max(file.Length - ReadBufferSize, 0);
 
         // The buffer may need to be resized to avoid duplicating some data
