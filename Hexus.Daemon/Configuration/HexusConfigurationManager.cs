@@ -24,7 +24,11 @@ internal class HexusConfigurationManager
 
         if (!File.Exists(EnvironmentHelper.ConfigurationFile))
         {
-            Configuration = new HexusConfiguration { UnixSocket = EnvironmentHelper.SocketFile };
+            Configuration = new HexusConfiguration
+            {
+                UnixSocket = EnvironmentHelper.SocketFile,
+                CpuRefreshIntervalSeconds = 2.5,
+            };
 
             SaveConfiguration();
             return;

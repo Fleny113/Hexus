@@ -69,9 +69,9 @@ internal static class MapperExtensions
     {
         // If we are using default values, we can omit writing them to the file
         var socket = configuration.UnixSocket != EnvironmentHelper.SocketFile ? configuration.UnixSocket : null;
-        var cpuRefresh = configuration.CpuRefreshIntervalSeconds != 2.5 ? configuration.CpuRefreshIntervalSeconds : (double?)null;
+        var cpuRefresh = Math.Abs(configuration.CpuRefreshIntervalSeconds - 2.5) > 0.1 ? configuration.CpuRefreshIntervalSeconds : (double?)null;
 
-        var applications = configuration.Applications.Select(x => new KeyValuePair<string, HexusApplication>(x.Key, new()
+        var applications = configuration.Applications.Select(x => new KeyValuePair<string, HexusApplication>(x.Key, new HexusApplication
         {
             // We don't want to serialize the name in the config file
             Name = null!,
