@@ -31,17 +31,16 @@ internal static partial class Win32Bindings
 
     #region Process Signals
 
-    public static IntPtr CtrlRoutinePointer { get; }
+    public static IntPtr CtrlRoutineProduceAddress;
 
-    static Win32Bindings()
+    public static bool InitializeCtrlRoutineProcedureAddress()
     {
-        if (!OperatingSystem.IsWindows()) return;
-
         // https://www.geoffchappell.com/studies/windows/win32/kernel32/api/index.htm?tx=48
-        CtrlRoutinePointer = GetProcAddress("Kernel32", "CtrlRoutine");
+        CtrlRoutineProduceAddress = GetProcedureAddress("kernel32", "CtrlRoutine");
+        return CtrlRoutineProduceAddress != IntPtr.Zero;
     }
-
-    private static IntPtr GetProcAddress(string module, string proc)
+    
+    private static IntPtr GetProcedureAddress(string module, string proc)
     {
         var modulePtr = GetModuleHandle(module);
 

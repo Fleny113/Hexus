@@ -7,17 +7,31 @@ using System.Text;
 
 namespace Hexus.Daemon.Services;
 
-internal partial class ProcessManagerService(
-    ILogger<ProcessManagerService> logger,
-    HexusConfigurationManager configManager,
-    ProcessLogsService processLogsService)
+internal partial class ProcessManagerService
 {
+    private readonly ILogger<ProcessManagerService> _logger;
+    private readonly HexusConfigurationManager _configurationManager;
+    private readonly ProcessLogsService _processLogsService;
     private readonly Dictionary<Process, HexusApplication> _processToApplicationMap = [];
     private readonly Dictionary<string, Process> _applicationToProcessMap = [];
 
     // We need to disable the UTF8 identifier or else applications will have a `EF BB BF` character in their stdin
     private static readonly UTF8Encoding _processEncoding = new(encoderShouldEmitUTF8Identifier: false);
 
+    public ProcessManagerService(ILoggerFactory loggerFactory, HexusConfigurationManager configManager, ProcessLogsService processLogsService)
+    {
+        _logger = loggerFactory.CreateLogger<ProcessManagerService>();
+        _configurationManager = configManager;
+        _processLogsService = processLogsService;
+
+        if (!OperatingSystem.IsWindows()) return;
+
+        if (!Win32Bindings.InitializeCtrlRoutineProcedureAddress())
+        {
+            LogFailedToGetCtrlProcedureAddress(loggerFactory.CreateLogger(typeof(Win32Bindings)));
+        }
+    }
+    
     public bool StartApplication(HexusApplication application)
     {
         if (IsApplicationRunning(application, out _))
@@ -53,7 +67,7 @@ internal partial class ProcessManagerService(
         // Enable the emitting of events (like Exited)
         process.EnableRaisingEvents = true;
 
-        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, ProcessLogsService.ApplicationStartedLog);
+        _processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, ProcessLogsService.ApplicationStartedLog);
 
         // Setup log handling 
         _ = HandleLogs(application, process, LogType.STDOUT);
@@ -64,7 +78,7 @@ internal partial class ProcessManagerService(
         process.Exited += HandleProcessRestart;
 
         application.Status = HexusApplicationStatus.Running;
-        configManager.SaveConfiguration();
+        _configurationManager.SaveConfiguration();
 
         return true;
     }
@@ -89,7 +103,7 @@ internal partial class ProcessManagerService(
 
         // If the daemon is shutting down we don't want to save, or else when the daemon is booted up again, all the applications will be marked as stopped
         if (!HexusLifecycle.IsDaemonStopped)
-            configManager.SaveConfiguration();
+            _configurationManager.SaveConfiguration();
 
         return true;
     }
@@ -160,7 +174,7 @@ internal partial class ProcessManagerService(
         }
         catch (Exception exception)
         {
-            logger.LogDebug(exception, "Error during the stop of a process");
+            LogFailedApplicationStop(_logger, exception);
 
             // If it has already exited there is no point in sending another kill
             if (process.HasExited)
@@ -187,7 +201,7 @@ internal partial class ProcessManagerService(
             var str = await streamReader.ReadLineAsync();
             if (str is null) continue;
 
-            processLogsService.ProcessApplicationLog(application, logType, str);
+            _processLogsService.ProcessApplicationLog(application, logType, str);
         }
     }
 
@@ -203,7 +217,7 @@ internal partial class ProcessManagerService(
     {
         if (!_consequentialRestarts.Remove(application.Name, out var metadata)) return false;
 
-        metadata.ClearConsenquentialRestartCancellationTokenSource?.Dispose();
+        metadata.ClearConsequentialRestartCancellationTokenSource?.Dispose();
         metadata.AbortRestartCancellationTokenSource.Cancel();
         metadata.AbortRestartCancellationTokenSource.Dispose();
 
@@ -217,12 +231,12 @@ internal partial class ProcessManagerService(
 
         var exitCode = process.ExitCode;
 
-        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
+        _processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
 
         process.Close();
         process.Dispose();
 
-        LogAcknowledgeProcessExit(logger, application.Name, exitCode);
+        LogAcknowledgeProcessExit(_logger, application.Name, exitCode);
     }
 
     private void ClearApplicationStateOnExit(object? sender, EventArgs e)
@@ -242,21 +256,21 @@ internal partial class ProcessManagerService(
         var status = _consequentialRestarts.GetValueOrDefault(application.Name, new ConsequentialRestartsMetadata());
 
         status.Count++;
-        status.ClearConsenquentialRestartCancellationTokenSource?.Dispose();
-        status.ClearConsenquentialRestartCancellationTokenSource = new CancellationTokenSource(ResetTimeWindow);
+        status.ClearConsequentialRestartCancellationTokenSource?.Dispose();
+        status.ClearConsequentialRestartCancellationTokenSource = new CancellationTokenSource(ResetTimeWindow);
 
         _consequentialRestarts[application.Name] = status;
         ClearApplicationStateOnExit(sender, e);
 
         if (status.Count > MaxRestarts)
         {
-            LogCrashedApplication(logger, application.Name, status.Count, ResetTimeWindow.TotalSeconds);
+            LogCrashedApplication(_logger, application.Name, status.Count, ResetTimeWindow.TotalSeconds);
 
-            status.ClearConsenquentialRestartCancellationTokenSource.Dispose();
+            status.ClearConsequentialRestartCancellationTokenSource.Dispose();
             _consequentialRestarts.Remove(application.Name, out _);
 
             application.Status = HexusApplicationStatus.Crashed;
-            configManager.SaveConfiguration();
+            _configurationManager.SaveConfiguration();
 
             return;
         }
@@ -264,9 +278,9 @@ internal partial class ProcessManagerService(
         application.Status = HexusApplicationStatus.Restarting;
 
         var delay = CalculateDelay(status.Count);
-        status.ClearConsenquentialRestartCancellationTokenSource.Token.Register(ClearConsequentialRestarts, application.Name);
+        status.ClearConsequentialRestartCancellationTokenSource.Token.Register(ClearConsequentialRestarts, application.Name);
 
-        LogRestartAttemptDelay(logger, application.Name, delay.TotalSeconds);
+        LogRestartAttemptDelay(_logger, application.Name, delay.TotalSeconds);
 
         Task.Delay(delay, status.AbortRestartCancellationTokenSource.Token).ContinueWith(delayTask =>
         {
@@ -274,7 +288,7 @@ internal partial class ProcessManagerService(
             if (!delayTask.IsCompletedSuccessfully) return;
 
             StartApplication(application);
-            configManager.SaveConfiguration();
+            _configurationManager.SaveConfiguration();
         });
     }
 
@@ -284,9 +298,9 @@ internal partial class ProcessManagerService(
             return;
 
         _consequentialRestarts.Remove(name, out var status);
-        status.ClearConsenquentialRestartCancellationTokenSource?.Dispose();
+        status.ClearConsequentialRestartCancellationTokenSource?.Dispose();
 
-        LogConsequentialRestartsStop(logger, status.Count, name);
+        LogConsequentialRestartsStop(_logger, status.Count, name);
     }
 
     private static TimeSpan CalculateDelay(int restart) =>
@@ -303,7 +317,7 @@ internal partial class ProcessManagerService(
 
     private record struct ConsequentialRestartsMetadata(
         int Count,
-        CancellationTokenSource? ClearConsenquentialRestartCancellationTokenSource,
+        CancellationTokenSource? ClearConsequentialRestartCancellationTokenSource,
         CancellationTokenSource AbortRestartCancellationTokenSource)
     {
         public ConsequentialRestartsMetadata() : this(0, null, new CancellationTokenSource())
@@ -313,6 +327,9 @@ internal partial class ProcessManagerService(
 
     #endregion
 
+    [LoggerMessage(LogLevel.Error, "Failed to get the CTRL Routine Procedure address, sending signals to processes will not work.")]
+    private static partial void LogFailedToGetCtrlProcedureAddress(ILogger logger);
+    
     [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed")]
     private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, double timeWindow);
 
@@ -324,4 +341,7 @@ internal partial class ProcessManagerService(
 
     [LoggerMessage(LogLevel.Debug, "Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting")]
     private static partial void LogRestartAttemptDelay(ILogger logger, string name, double seconds);
+    
+    [LoggerMessage(LogLevel.Debug, "Unable to stop process")]
+    private static partial void LogFailedApplicationStop(ILogger logger, Exception exception);
 }

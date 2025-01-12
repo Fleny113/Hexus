@@ -13,7 +13,10 @@ internal static class ProcessSignals
         if (!OperatingSystem.IsWindows())
             return UnixInterop.SendSignal(pId, unixSignal);
 
-        if (Win32Bindings.CtrlRoutinePointer == IntPtr.Zero) return -1;
+        if (Win32Bindings.CtrlRoutineProduceAddress == IntPtr.Zero)
+        {
+            return -1;
+        }
 
         var process = Win32Bindings.OpenProcess(ProcessCreateThread, bInheritHandle: false, (uint)pId);
 
@@ -26,7 +29,7 @@ internal static class ProcessSignals
             hProcess: process,
             lpThreadAttributes: IntPtr.Zero,
             dwStackSize: 1024 * 1024,
-            lpStartAddress: Win32Bindings.CtrlRoutinePointer,
+            lpStartAddress: Win32Bindings.CtrlRoutineProduceAddress,
             lpParameter: (uint)windowsSignal,
             dwCreationFlags: 0,
             lpThreadId: out _);
