@@ -11,7 +11,7 @@ public static class EnvironmentHelper
     //
     // XDG_RUNTIME_DIR does not have a default we can point to due to the requirement this folder has (being owned by the user and being the only with Read Write Execute so 0o700)
     // This mean that we need to default to a directory in the temp, on Windows we instead use the XDG_STATE_HOME
-    // as using the TEMP in Windows is unreliable as the socket file does not get locked so it is easly deleatable
+    // as using the TEMP in Windows is unreliable as the socket file does not get locked so it is easily deletable
     private static readonly string XdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? $"{Home}/.config";
     private static readonly string XdgState = Environment.GetEnvironmentVariable("XDG_STATE_HOME") ?? $"{Home}/.local/state";
     internal static readonly string? XdgRuntime = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");

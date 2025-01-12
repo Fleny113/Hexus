@@ -74,7 +74,7 @@ var hexusConfiguration = app.Services.GetRequiredService<HexusConfiguration>();
 //  - The user hasn't specified another location for the socket (so we are still using the default location)
 if (!OperatingSystem.IsWindows() && EnvironmentHelper.XdgRuntime is null && hexusConfiguration.UnixSocket == EnvironmentHelper.SocketFile)
 {
-    app.Logger.LogWarning("The XDG_RUNTIME_DIR environment is missing. Defaulting to {socket}", hexusConfiguration.UnixSocket);
+    app.Logger.LogWarning("The XDG_RUNTIME_DIR environment is missing. Defaulting socket location to {socket}", hexusConfiguration.UnixSocket);
 }
 
 app.UseExceptionHandler();
