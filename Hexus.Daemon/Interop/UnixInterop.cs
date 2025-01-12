@@ -4,7 +4,7 @@ using System.Runtime.Versioning;
 namespace Hexus.Daemon.Interop;
 
 [UnsupportedOSPlatform("windows")]
-internal partial class UnixInterop
+internal static partial class UnixInterop
 {
     [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
     public static partial int SendSignal(int pId, UnixSignal signal);
