@@ -229,6 +229,13 @@ internal static class LogsCommand
 
         while (lineCount < lines)
         {
+            // If we have read the beginning of the file, we can stop now.
+            // We are sure that there aren't new chunks since the previous interaction would have read a new chunk if that was the case.
+            if (lastNewLine == -1)
+            {
+                break;
+            }
+
             var pos = readMemory.Span[..lastNewLine].LastIndexOf("\n"u8);
 
             var line = Encoding.UTF8.GetString(readMemory.Span[(pos + 1)..lastNewLine]);
@@ -295,11 +302,6 @@ internal static class LogsCommand
 
             // We only wanted the current execution, and we found an application started notice. We should now stop.
             if (currentExecution && appLog is { LogType: LogType.SYSTEM, Text: ProcessLogsService.ApplicationStartedLog })
-            {
-                break;
-            }
-
-            if (isEntireStream && pos == -1)
             {
                 break;
             }
