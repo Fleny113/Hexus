@@ -3,7 +3,6 @@ using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Interop;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace Hexus.Daemon.Services;
 
@@ -14,9 +13,6 @@ internal partial class ProcessManagerService
     private readonly ProcessLogsService _processLogsService;
     private readonly Dictionary<Process, HexusApplication> _processToApplicationMap = [];
     private readonly Dictionary<string, Process> _applicationToProcessMap = [];
-
-    // We need to disable the UTF8 identifier or else applications will have a `EF BB BF` character in their stdin
-    private static readonly UTF8Encoding _processEncoding = new(encoderShouldEmitUTF8Identifier: false);
 
     public ProcessManagerService(ILoggerFactory loggerFactory, HexusConfigurationManager configManager, ProcessLogsService processLogsService)
     {
@@ -46,9 +42,10 @@ internal partial class ProcessManagerService
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true,
-            StandardOutputEncoding = _processEncoding,
-            StandardErrorEncoding = _processEncoding,
-            StandardInputEncoding = _processEncoding,
+            // We need to disable the UTF8 BOM or else applications will have a `EF BB BF` byte sequence at the start of the input and output
+            StandardOutputEncoding = ProcessLogsService.Utf8EncodingWithoutBom,
+            StandardErrorEncoding = ProcessLogsService.Utf8EncodingWithoutBom,
+            StandardInputEncoding = ProcessLogsService.Utf8EncodingWithoutBom,
         };
 
         processInfo.Environment.Clear();

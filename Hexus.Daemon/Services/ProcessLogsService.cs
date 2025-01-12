@@ -10,6 +10,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 {
     internal const string ApplicationStartedLog = "-- Application started --";
     internal static readonly CompositeFormat ApplicationStoppedLog = CompositeFormat.Parse("-- Application stopped [Exit code: {0}] --");
+    internal static readonly UTF8Encoding Utf8EncodingWithoutBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private readonly Dictionary<string, List<Channel<ApplicationLog>>> _logChannels = [];
 
@@ -28,9 +29,9 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         }
 
         using var logFile = File.Open($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log", FileMode.Append, FileAccess.Write, FileShare.Read);
-        using var log = new StreamWriter(logFile, Encoding.UTF8);
+        using var log = new StreamWriter(logFile, Utf8EncodingWithoutBom);
 
-        log.WriteLine($"[{applicationLog.Date.DateTime:O},{applicationLog.LogType}] {applicationLog.Text}");
+        log.Write($"[{applicationLog.Date.DateTime:O},{applicationLog.LogType}] {applicationLog.Text}\n");
     }
 
     public async IAsyncEnumerable<ApplicationLog> GetLogs(HexusApplication application, DateTimeOffset? before, [EnumeratorCancellation] CancellationToken ct)
