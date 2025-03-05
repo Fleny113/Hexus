@@ -1,0 +1,39 @@
+﻿name: .NET Release Builds
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Publish for ${{ matrix.platform }} ${{ matrix.arch }} (${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        # The runtime id will be composed based on parts of the .NET Known RIDs (https://learn.microsoft.com/en-us/dotnet/core/rid-catalog#known-rids)
+        arch: ["x64", "arm64"]
+        platform: ["win", "linux"]
+        self-contained: ["true", "false"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Restore dependencies
+        run: dotnet restore --runtime ${{ matrix.platform }}-${{ matrix.arch }}
+      - name: Publish
+        run: dotnet publish Hexus --no-restore --runtime ${{ matrix.platform }}-${{ matrix.arch }} --self-contained ${{ matrix.self-contained }}
+      - name: Prepare artifact for CI release
+        run: |
+          cd artifacts/publish/Hexus/release_${{ matrix.platform }}-${{ matrix.arch }}
+          tar -czf ../../../../${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }}.tar.gz *
+      - name: Get the release tag
+        id: get_release_tag
+        run: echo ::set-output name=tag::${GITHUB_REF#refs/tags/}
+      - name: Upload artifact to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload ${{ steps.get_release_tag.outputs.tag }} ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }}.tar.gz --clobber
+  
