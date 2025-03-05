@@ -1,4 +1,5 @@
 ﻿using Hexus.Daemon;
+using Hexus.Daemon.Contracts.Responses;
 using Microsoft.AspNetCore.Http;
 using Spectre.Console;
 using System.Diagnostics;
@@ -122,6 +123,16 @@ internal static class HttpInvocation
 
                     var problems = problemDetails.Errors.SelectMany(kvp => kvp.Value.Select(v => $"- [tan]{kvp.Key}[/]: {v}"));
                     response = $"Validation errors: \n{string.Join("\n", problems)}";
+                    break;
+                }
+            case { StatusCode: HttpStatusCode.BadRequest }:
+                {
+                    var error = await request.Content.ReadFromJsonAsync<GenericFailureResponse>(JsonSerializerOptions,
+                        ct);
+                    
+                    Debug.Assert(error is not null);
+
+                    response = error.Message;
                     break;
                 }
             case { StatusCode: HttpStatusCode.NotFound }:

@@ -14,6 +14,7 @@ namespace Hexus.Daemon;
 [JsonSerializable(typeof(NewApplicationRequest))]
 [JsonSerializable(typeof(EditApplicationRequest))]
 [JsonSerializable(typeof(SendInputRequest))]
+[JsonSerializable(typeof(GenericFailureResponse))]
 [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
 internal partial class AppJsonSerializerContext : JsonSerializerContext;
 

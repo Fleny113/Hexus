@@ -1,6 +1,7 @@
 ﻿using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Interop;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
@@ -28,10 +29,10 @@ internal partial class ProcessManagerService
         }
     }
     
-    public bool StartApplication(HexusApplication application)
+    public SpawnProcessError? StartApplication(HexusApplication application)
     {
         if (IsApplicationRunning(application, out _))
-            return true;
+            return null;
 
         var processInfo = new ProcessStartInfo
         {
@@ -53,10 +54,10 @@ internal partial class ProcessManagerService
         foreach (var (key, value) in application.EnvironmentVariables)
             processInfo.Environment.Add(key, value);
 
-        var process = Process.Start(processInfo);
+        var (process, error) = SpawnProcess(processInfo);
 
-        if (process is null or { HasExited: true })
-            return false;
+        if (process is null)
+            return error;
 
         _processToApplicationMap[process] = application;
         _applicationToProcessMap[application.Name] = process;
@@ -77,7 +78,7 @@ internal partial class ProcessManagerService
         application.Status = HexusApplicationStatus.Running;
         _configurationManager.SaveConfiguration();
 
-        return true;
+        return null;
     }
 
     public bool StopApplication(HexusApplication application, bool forceStop = false)
@@ -144,6 +145,60 @@ internal partial class ProcessManagerService
         return true;
     }
 
+    #region Start Process Internals
+
+    private static (Process?, SpawnProcessError?) SpawnProcess(ProcessStartInfo startInfo)
+    {
+        try
+        {
+            var process = Process.Start(startInfo);
+
+            return process is null or { HasExited: true }
+                ? (null, SpawnProcessError.ExitEarly)
+                : (process, null);
+        }
+        catch (Win32Exception exception)
+        {
+            // If the executable is not found, the first is the Linux error, the second the Win32 error
+            if (exception.Message.EndsWith("No such file or directory") || exception.Message.EndsWith("The system cannot find the file specified."))
+            {
+                return (null, SpawnProcessError.NotFound);
+            }
+
+            // If the executable can not be accessed, the first is the Linux error, the second the Win32 error
+            if (exception.Message.EndsWith("Permission denied") || exception.Message.EndsWith("Access is denied."))
+            {
+                return (null, SpawnProcessError.PermissionDenied);
+            }
+            
+            // If the executable is invalid, the first is the Linux error, the second the Win32 error
+            if (exception.Message.EndsWith("Exec format error") || exception.Message.EndsWith("The specified executable is not a valid application for this OS platform."))
+            {
+                return (null, SpawnProcessError.InvalidExecutable);
+            }
+            
+            // If the command is too long, the first is the Linux error for the arguments, the second one is the Linux error for the file, the third one is the Win32 error
+            if (exception.Message.EndsWith("Argument list too long") || exception.Message.EndsWith("File name too long") || exception.Message.EndsWith("The filename or extension is too long."))
+            {
+                return (null, SpawnProcessError.CommandTooLong);
+            }
+
+            return (null, SpawnProcessError.Unknown);
+        }
+    }
+
+    internal enum SpawnProcessError
+    {
+        ExitEarly,
+        NotFound,
+        PermissionDenied,
+        InvalidExecutable,
+        CommandTooLong,
+        Unknown,
+    }
+
+    #endregion
+    
     #region Stop Process Internals
 
     private void StopProcess(Process process, bool forceStop)
@@ -329,13 +384,13 @@ internal partial class ProcessManagerService
     
     [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed")]
     private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, double timeWindow);
-
+    
     [LoggerMessage(LogLevel.Debug, "Acknowledging about \"{Name}\" exiting with code: {ExitCode}")]
     private static partial void LogAcknowledgeProcessExit(ILogger logger, string name, int exitCode);
-
+    
     [LoggerMessage(LogLevel.Debug, "After {Restarts} restarts, application \"{Name}\" stopped restarting")]
     private static partial void LogConsequentialRestartsStop(ILogger logger, int restarts, string name);
-
+    
     [LoggerMessage(LogLevel.Debug, "Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting")]
     private static partial void LogRestartAttemptDelay(ILogger logger, string name, double seconds);
     

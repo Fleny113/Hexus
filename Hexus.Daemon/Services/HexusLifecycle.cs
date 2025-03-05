@@ -56,7 +56,7 @@ internal sealed class HexusLifecycle(
     internal static void StopApplications(ProcessManagerService processManagerService)
     {
         // We need to make sure where are only 1 call to this in parallel
-        // Else we might try to stop applications that exiting
+        // Else we might try to stop applications that are exiting
         lock (processManagerService)
         {
             processManagerService.StopApplications();

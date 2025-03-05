@@ -91,4 +91,18 @@ internal static class MapperExtensions
             Applications = applications.ToDictionary(),
         };
     }
+
+    public static string MapToErrorString(this ProcessManagerService.SpawnProcessError error)
+    {
+        return error switch
+        {   
+            ProcessManagerService.SpawnProcessError.ExitEarly => "The application exited early.",
+            ProcessManagerService.SpawnProcessError.NotFound => "The application executable was not found.",
+            ProcessManagerService.SpawnProcessError.PermissionDenied => "Permission denied while starting the application.",
+            ProcessManagerService.SpawnProcessError.InvalidExecutable => "The application executable is invalid.",
+            ProcessManagerService.SpawnProcessError.CommandTooLong => "The command line was too long.",
+            ProcessManagerService.SpawnProcessError.Unknown => "An unknown error occurred while starting the application.",
+            _ => throw new ArgumentOutOfRangeException(nameof(error), error, null),
+        };
+    }
 }

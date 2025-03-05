@@ -98,9 +98,10 @@ internal static class NewCommand
         // Python will not send the logs due to buffering the stdout/stderr, since this can look like a bug in Hexus we warn the user
 
         var fileName = Path.GetFileName(executable);
+
         // This check can cause false positivies it the exe is not python but starts with "py"
         // However "py" is the longest common string for all python exe(s), including the Windows python launcher, as:
-        // - On Windows you get: "py" on WINDIR, "python" on the install folder
+        // - On Windows you get: "py" on WINDIR, "python" on the installation folder
         // - On Linux you get: "python", "python3", "python3.<ver>" based on distro configuration
         var isPython = fileName.StartsWith("py");
 

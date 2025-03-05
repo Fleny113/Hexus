@@ -8,14 +8,13 @@ using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using System.Net;
 
 namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class NewApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/new")]
-    public static Results<Ok<ApplicationResponse>, ValidationProblem, StatusCodeHttpResult> Handle(
+    public static Results<Ok<ApplicationResponse>, BadRequest<GenericFailureResponse>, ValidationProblem> Handle(
         [FromBody] NewApplicationRequest request,
         [FromServices] IValidator<NewApplicationRequest> validator,
         [FromServices] HexusConfigurationManager configManager,
@@ -41,12 +40,14 @@ internal sealed class NewApplicationEndpoint : IEndpoint
         processStatisticsService.TrackApplicationUsages(application);
         processLogsService.RegisterApplication(application);
 
-        if (!processManager.StartApplication(application))
+        var startError = processManager.StartApplication(application);
+        
+        if (startError is not null)
         {
             processStatisticsService.StopTrackingApplicationUsage(application);
             processLogsService.UnregisterApplication(application);
 
-            return TypedResults.StatusCode((int)HttpStatusCode.InternalServerError);
+            return TypedResults.BadRequest(new GenericFailureResponse(startError.Value.MapToErrorString()));
         }
 
         configManager.Configuration.Applications.Add(application.Name, application);

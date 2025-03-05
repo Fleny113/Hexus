@@ -1,16 +1,17 @@
 using EndpointMapper;
 using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts.Responses;
+using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using System.Net;
 
 namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class RestartApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Patch, "/{name}/restart")]
-    public static Results<NoContent, NotFound, StatusCodeHttpResult> Handle(
+    public static Results<NoContent, NotFound, BadRequest<GenericFailureResponse>> Handle(
         [FromServices] ProcessManagerService processManager,
         [FromServices] ProcessStatisticsService processStatisticsService,
         [FromServices] HexusConfiguration configuration,
@@ -27,10 +28,12 @@ internal sealed class RestartApplicationEndpoint : IEndpoint
 
         processStatisticsService.TrackApplicationUsages(application);
 
-        if (!processManager.StartApplication(application))
+        var startError = processManager.StartApplication(application);
+        
+        if (startError is not null)
         {
             processStatisticsService.StopTrackingApplicationUsage(application);
-            return TypedResults.StatusCode((int)HttpStatusCode.InternalServerError);
+            return TypedResults.BadRequest(new GenericFailureResponse(startError.Value.MapToErrorString()));
         }
 
         return TypedResults.NoContent();
