@@ -31,7 +31,7 @@ jobs:
           tar -czf ../../../../${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }}.tar.gz *
       - name: Get the release tag
         id: get_release_tag
-        run: echo ::set-output name=tag::${GITHUB_REF#refs/tags/}
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
       - name: Upload artifact to the release
         env:
           GH_TOKEN: ${{ github.token }}
