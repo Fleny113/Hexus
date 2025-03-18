@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Hexus.Daemon/Hexus.Daemon.csproj" />
+  <Project Path="Hexus/Hexus.csproj" />
+</Solution>
