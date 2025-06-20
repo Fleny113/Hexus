@@ -12,7 +12,7 @@ internal static class PathHelper
 
         // PATH env resolver
         if (executable.Contains(Path.DirectorySeparatorChar))
-            return absolutePath;//throw new Exception("Executable cannot have slashes");
+            throw new Exception("Executable cannot have slashes");
 
         var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? throw new Exception("Cannot get PATH environment variable");
 
