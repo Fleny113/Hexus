@@ -1,30 +1,19 @@
-﻿using System.CommandLine;
-using System.CommandLine.Binding;
-using System.CommandLine.Parsing;
+﻿using System.CommandLine.Parsing;
 
 namespace Hexus.Extensions;
 
-public class DictionaryBinder(Option<Dictionary<string, string>> option) : BinderBase<Dictionary<string, string>>
+public static class DictionaryParser
 {
     private static readonly char[] StringKeyValuePair = [':', '='];
 
-    protected override Dictionary<string, string> GetBoundValue(BindingContext bindingContext)
+    public static Dictionary<string, string> Parse(ArgumentResult argumentResult)
     {
-        if (option is not Option genericOption)
-            throw new ArgumentException("Couldn't convert option to the generic variant");
+        if (argumentResult.Tokens.Count == 0)
+            return new Dictionary<string, string>();
 
-        var tokens = bindingContext.ParseResult.GetValueForOption(genericOption);
-
-        if (tokens is null)
-            return [];
-
-        if (tokens is not List<Token> tokenList)
-            throw new Exception("Couldn't parse the options as a list of tokens");
-
-        return tokenList
-            .Select(token => token.Value)
-            .Select(stringPair => stringPair.Split(StringKeyValuePair, 2))
-            .Where(pair => pair is { Length: 2 })
+        return argumentResult.Tokens
+            .Select(token => token.Value.Split(StringKeyValuePair, 2))
+            .Where(pair => pair.Length == 2)
             .Select(pair => (Key: pair[0], Value: pair[1]))
             .GroupBy(tuple => tuple.Key)
             .ToDictionary(group => group.Key, group => group.Last().Value);

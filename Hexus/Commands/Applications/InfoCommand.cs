@@ -1,9 +1,7 @@
-using Hexus.Daemon.Contracts.Responses;
 using Humanizer;
 using Humanizer.Localisation;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.Net.Http.Json;
 
@@ -11,10 +9,15 @@ namespace Hexus.Commands.Applications;
 
 internal static class InfoCommand
 {
-    private static readonly Argument<string> NameArgument = new("name", "The name(s) of the application(s) to get the info for");
+    private static readonly Argument<string> NameArgument = new("name")
+    {
+        Description = "The name(s) of the application(s) to get the info for",
+    };
 
-    private static readonly Option<bool> ShowEnvironmentVariables =
-        new(["-e", "--show-environment"], "Show the environment variables the application has set");
+    private static readonly Option<bool> ShowEnvironmentVariables = new("--show-environment", "-e")
+    {
+        Description = "Show the environment variables the application has set"
+    };
 
     public static readonly Command Command = new("info", "Get the information for an application")
     {
@@ -24,20 +27,18 @@ internal static class InfoCommand
 
     static InfoCommand()
     {
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var name = context.ParseResult.GetValueForArgument(NameArgument);
-        var showEnv = context.ParseResult.GetValueForOption(ShowEnvironmentVariables);
-        var ct = context.GetCancellationToken();
+        var name = parseResult.GetRequiredValue(NameArgument);
+        var showEnv = parseResult.GetValue(ShowEnvironmentVariables);
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         var infoRequest = await HttpInvocation.GetAsync("Gathering information", $"/{name}", ct);
@@ -45,11 +46,10 @@ internal static class InfoCommand
         if (!infoRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(infoRequest, ct);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
-        var application = await infoRequest.Content.ReadFromJsonAsync<ApplicationResponse>(HttpInvocation.JsonSerializerContext.ApplicationResponse, ct);
+        var application = await infoRequest.Content.ReadFromJsonAsync(HttpInvocation.JsonSerializerContext.ApplicationResponse, ct);
 
         Debug.Assert(application is not null);
 
@@ -74,5 +74,7 @@ internal static class InfoCommand
             - [lightslateblue]CPU Usage[/]: {(isStopped ? "N/A" : $"{application.CpuUsage}%")}
             - [skyblue1]Memory Usage[/]: {(isStopped ? "N/A" : application.MemoryUsage.Bytes().Humanize())}
             """);
+
+        return 0;
     }
 }

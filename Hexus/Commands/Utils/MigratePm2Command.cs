@@ -1,7 +1,6 @@
 using Hexus.Daemon.Configuration;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -52,7 +51,11 @@ internal static partial class MigratePm2Command
         "exit_code",
     ];
 
-    private static readonly Option<string> Pm2DumpFile = new("--pm2-dump", "The pm2 dump file");
+    private static readonly Option<string> Pm2DumpFile = new("--pm2-dump")
+    {
+        Description = "The pm2 dump file",
+        DefaultValueFactory = _ => Path.GetFullPath($"{EnvironmentHelper.Home}/.pm2/dump.pm2"),
+    };
 
     public static readonly Command Command = new("migrate-pm2", "Migrate your current PM2 Config to Hexus.")
     {
@@ -61,28 +64,25 @@ internal static partial class MigratePm2Command
 
     static MigratePm2Command()
     {
-        Pm2DumpFile.SetDefaultValue(Path.GetFullPath($"{EnvironmentHelper.Home}/.pm2/dump.pm2"));
-
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var pm2Dump = context.ParseResult.GetValueForOption(Pm2DumpFile);
-        var ct = context.GetCancellationToken();
+        var pm2Dump = parseResult.GetRequiredValue(Pm2DumpFile);
 
         PrettyConsole.Error.MarkupLine("[yellow]WARNING[/]: This has been tested with PM2 5.3.0. It might not work with other versions.");
 
         if (await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine("To edit the Hexus configuration the [indianred1]daemon needs to not be running[/]. Stop it first using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.");
-            return;
+            return 1;
         }
 
         if (!File.Exists(pm2Dump))
         {
             PrettyConsole.Error.MarkupLineInterpolated($"The specified dump file [indianred1]does not exist[/]. {pm2Dump} does not exist. Try using the --pm2-dump option to change the dump file name");
-            return;
+            return 1;
         }
 
         var pm2ConfigContent = await File.ReadAllTextAsync(pm2Dump, ct);
@@ -91,7 +91,7 @@ internal static partial class MigratePm2Command
         if (pm2ConfigNode is null)
         {
             PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] reading the pm2 dump file.");
-            return;
+            return 1;
         }
 
         List<HexusApplication> parsedApplications = [];
@@ -178,6 +178,8 @@ internal static partial class MigratePm2Command
         }
 
         Configuration.HexusConfigurationManager.SaveConfiguration();
+
+        return 0;
     }
 
     [JsonSerializable(typeof(JsonNode))]

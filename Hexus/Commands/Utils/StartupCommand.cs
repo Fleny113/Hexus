@@ -1,7 +1,6 @@
 using Hexus.Daemon.Configuration;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.Security.Principal;
 
@@ -9,7 +8,10 @@ namespace Hexus.Commands.Utils;
 
 internal static class StartupCommand
 {
-    private static readonly Option<bool> UseSystemdSystem = new("--system", "Only for Linux Systemd. Generate a System Unit instead of a User Unit");
+    private static readonly Option<bool> UseSystemdSystem = new("--system")
+    {
+        Description = "Only for Linux Systemd. Generate a System Unit instead of a User Unit",
+    };
 
     public static readonly Command Command = new("startup", "Setup the hexus daemon to run on startup")
     {
@@ -28,12 +30,12 @@ internal static class StartupCommand
 
     static StartupCommand()
     {
-        Command.SetHandler(context => Task.FromResult(Handler(context)));
+        Command.SetAction(Handler);
     }
 
-    private static int Handler(InvocationContext context)
+    private static int Handler(ParseResult parseResult)
     {
-        var systemdSystem = context.ParseResult.GetValueForOption(UseSystemdSystem);
+        var systemdSystem = parseResult.GetValue(UseSystemdSystem);
         var cliExecutable = Process.GetCurrentProcess().MainModule?.FileName;
         var username = Environment.UserName;
 

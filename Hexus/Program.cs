@@ -4,8 +4,6 @@ using Hexus.Commands.Applications;
 using Hexus.Commands.Utils;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Builder;
-using System.CommandLine.Parsing;
 
 var rootCommand = new RootCommand("The Hexus management CLI")
 {
@@ -30,11 +28,19 @@ var rootCommand = new RootCommand("The Hexus management CLI")
     ShowTimezones.Command,
 };
 
-var builder = new CommandLineBuilder(rootCommand);
+// Allow "hexus [diagram] ..." to show the parse diagram
+rootCommand.Directives.Add(new DiagramDirective());
 
-builder.UseDefaults();
-builder.UseExceptionHandler((exception, _) => PrettyConsole.Error.WriteException(exception, ExceptionFormats.ShortenPaths), 1);
+var configuration = new CommandLineConfiguration(rootCommand);
 
-var app = builder.Build();
+configuration.ThrowIfInvalid();
 
-return await app.InvokeAsync(args);
+try
+{
+    return await configuration.InvokeAsync(args);
+}
+catch (Exception exception)
+{
+    PrettyConsole.Error.WriteException(exception, ExceptionFormats.ShortenPaths);
+    return 1;
+}

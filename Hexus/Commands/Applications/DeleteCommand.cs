@@ -1,16 +1,19 @@
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace Hexus.Commands.Applications;
 
 internal static class DeleteCommand
 {
-    private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to delete")
+    private static readonly Argument<string[]> NamesArgument = new("name")
     {
+        Description = "The name(s) of the application(s) to delete. You can specify multiple names separated by spaces.",
         Arity = ArgumentArity.OneOrMore,
     };
-    private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the stop of the application if it needs to be stopped");
+    private static readonly Option<bool> ForceOption = new("--force", "-f")
+    {
+        Description = "Force the stop of the application if it needs to be stopped",
+    };
 
     public static readonly Command Command = new("delete", "Stops and delete an application")
     {
@@ -20,20 +23,18 @@ internal static class DeleteCommand
 
     static DeleteCommand()
     {
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var names = context.ParseResult.GetValueForArgument(NamesArgument);
-        var force = context.ParseResult.GetValueForOption(ForceOption);
-        var ct = context.GetCancellationToken();
+        var names = parseResult.GetRequiredValue(NamesArgument);
+        var force = parseResult.GetValue(ForceOption);
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         foreach (var name in names)
@@ -43,11 +44,12 @@ internal static class DeleteCommand
             if (!stopRequest.IsSuccessStatusCode)
             {
                 await HttpInvocation.HandleFailedHttpRequestLogging(stopRequest, ct);
-                context.ExitCode = 1;
-                return;
+                return 1;
             }
 
             PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [darkred_1]deleted[/]!");
         }
+
+        return 0;
     }
 }

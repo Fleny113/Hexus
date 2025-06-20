@@ -3,36 +3,51 @@ using Hexus.Extensions;
 using Spectre.Console;
 using System.Collections;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace Hexus.Commands.Applications;
 
 internal static class NewCommand
 {
-    private static readonly Argument<string> NameArgument =
-        new("name", "The name for the application");
+    private static readonly Argument<string> NameArgument = new("name")
+    {
+        Description = "The name for the application",
+    };
 
-    private static readonly Argument<string> ExecutableArgument =
-        new("executable", "The file to execute, can resolved through the PATH env") { Arity = ArgumentArity.ExactlyOne };
+    private static readonly Argument<string> ExecutableArgument = new("executable")
+    {
+        Description = "The file to execute, can resolved through the PATH env",
+        Arity = ArgumentArity.ExactlyOne,
+    };
 
-    private static readonly Argument<string[]> ArgumentsArgument =
-        new("arguments", "The additional argument for the executable") { Arity = ArgumentArity.ZeroOrMore };
+    private static readonly Argument<string[]> ArgumentsArgument = new("arguments")
+    {
+        Description = "The additional argument for the executable",
+        Arity = ArgumentArity.ZeroOrMore,
+        DefaultValueFactory = _ => [],
+    };
 
-    private static readonly Option<string> WorkingDirectoryOption =
-        new(["-w", "--working-directory"], "Set the current working directory for the application, defaults to the current folder");
+    private static readonly Option<string> WorkingDirectoryOption = new("--working-directory", "-w")
+    {
+        Description = "Set the current working directory for the application, defaults to the current folder",
+    };
 
-    private static readonly Option<string?> NoteOption =
-        new(["-n", "--note"], "Set an optional note for this application");
+    private static readonly Option<string?> NoteOption = new("--note", "-n")
+    {
+        Description = "Set an optional note for this application",
+    };
 
-    private static readonly Option<bool> DoNotUseShellEnvironment =
-        new("--do-not-use-shell-env", "Don't use the current shell environment for the application");
+    private static readonly Option<bool> DoNotUseShellEnvironment = new("--do-not-use-shell-env")
+    {
+        Description = "Don't use the current shell environment for the application",
+    };
 
-    private static readonly Option<Dictionary<string, string>> EnvironmentVariables =
-        new(["-e", "--environment"], "Add an environment variable for the application, format: 'key:value' or 'key=value'")
-        {
-            Arity = ArgumentArity.OneOrMore,
-            AllowMultipleArgumentsPerToken = true,
-        };
+    private static readonly Option<Dictionary<string, string>> EnvironmentVariables = new("-e", "--environment")
+    {
+        Description = "Add an environment variable for the application, format: 'key:value' or 'key=value'",
+        Arity = ArgumentArity.OneOrMore,
+        AllowMultipleArgumentsPerToken = true,
+        CustomParser = DictionaryParser.Parse,
+    };
 
     public static readonly Command Command = new("new", "Create a new application")
     {
@@ -47,28 +62,23 @@ internal static class NewCommand
 
     static NewCommand()
     {
-        ArgumentsArgument.SetDefaultValue("");
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var binder = new DictionaryBinder(EnvironmentVariables);
-
-        var name = context.ParseResult.GetValueForArgument(NameArgument);
-        var executable = context.ParseResult.GetValueForArgument(ExecutableArgument);
-        var arguments = string.Join(' ', context.ParseResult.GetValueForArgument(ArgumentsArgument));
-        var note = context.ParseResult.GetValueForOption(NoteOption);
-        var workingDirectory = context.ParseResult.GetValueForOption(WorkingDirectoryOption);
-        var useShellEnv = !context.ParseResult.GetValueForOption(DoNotUseShellEnvironment);
-        var environmentVariables = context.BindingContext.GetValueForBinder(binder) ?? [];
-        var ct = context.GetCancellationToken();
+        var name = parseResult.GetRequiredValue(NameArgument);
+        var executable = parseResult.GetRequiredValue(ExecutableArgument);
+        var arguments = string.Join(' ', parseResult.GetRequiredValue(ArgumentsArgument));
+        var note = parseResult.GetValue(NoteOption);
+        var workingDirectory = parseResult.GetValue(WorkingDirectoryOption);
+        var useShellEnv = !parseResult.GetValue(DoNotUseShellEnvironment);
+        var environmentVariables = parseResult.GetValue(EnvironmentVariables) ?? [];
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         workingDirectory ??= Environment.CurrentDirectory;
@@ -140,10 +150,11 @@ internal static class NewCommand
         if (!newRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(newRequest, ct);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [palegreen3]created[/]!");
+
+        return 0;
     }
 }

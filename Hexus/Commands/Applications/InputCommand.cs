@@ -1,20 +1,26 @@
 using Hexus.Daemon.Contracts.Requests;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace Hexus.Commands.Applications;
 
 internal static class InputCommand
 {
-    private static readonly Argument<string> NameArgument = new("name", "The name of the application");
-
-    private static readonly Argument<string[]> InputArgument = new("input", "The text to send in the STDIN of the application")
+    private static readonly Argument<string> NameArgument = new("name")
     {
+        Description = "The name of the application",
+    };
+
+    private static readonly Argument<string[]> InputArgument = new("input")
+    {
+        Description = "The text to send in the STDIN of the application",
         Arity = ArgumentArity.OneOrMore,
     };
 
-    private static readonly Option<bool> DontAddNewLineOption = new(["-n", "--remove-new-line"], "Don't add a new line at the end of the text");
+    private static readonly Option<bool> DontAddNewLineOption = new("--remove-new-line", "--no-new-line", "-n")
+    {
+        Description = "Don't add a new line at the end of the text",
+    };
 
     public static readonly Command Command = new("input", "Get the information for an application")
     {
@@ -25,21 +31,19 @@ internal static class InputCommand
 
     static InputCommand()
     {
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var name = context.ParseResult.GetValueForArgument(NameArgument);
-        var text = string.Join(' ', context.ParseResult.GetValueForArgument(InputArgument));
-        var newLine = !context.ParseResult.GetValueForOption(DontAddNewLineOption);
-        var ct = context.GetCancellationToken();
+        var name = parseResult.GetRequiredValue(NameArgument);
+        var text = string.Join(' ', parseResult.GetRequiredValue(InputArgument));
+        var newLine = !parseResult.GetValue(DontAddNewLineOption);
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         var stdinRequest = await HttpInvocation.PostAsJsonAsync("Sending text to STDIN",
@@ -51,10 +55,11 @@ internal static class InputCommand
         if (!stdinRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(stdinRequest, ct);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         PrettyConsole.Out.MarkupLineInterpolated($"Sent text to the application \"{name}\".");
+
+        return 0;
     }
 }

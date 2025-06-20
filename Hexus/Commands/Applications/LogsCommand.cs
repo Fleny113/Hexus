@@ -4,7 +4,6 @@ using Hexus.Daemon.Services;
 using Spectre.Console;
 using System.Buffers;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net.Http.Json;
@@ -34,27 +33,29 @@ internal static class LogsCommand
     {
         Description = "Disable the dates of the log lines. Useful if you already have those in your log file",
     };
-    private static readonly Option<string> TimezoneOption = new(["-t", "--timezone"])
+    private static readonly Option<string> TimezoneOption = new("--timezone", "-t")
     {
         Description = "Show the log dates in a specified timezone. The timezone should be compatible with the one provided by your system.",
+        DefaultValueFactory = _ => TimeZoneInfo.Local.Id,
     };
 
     #endregion
     #region Filtering options
 
-    private static readonly Option<int> LinesOption = new(["-l", "--lines"])
+    private static readonly Option<int> LinesOption = new("--lines", "-l")
     {
         Description = "The number of lines to display",
+        DefaultValueFactory = _ => 100,
     };
-    private static readonly Option<bool> CurrentExecution = new(["-c", "--current"])
+    private static readonly Option<bool> CurrentExecution = new("--current", "-c")
     {
         Description = "Show logs only from the current or last execution",
     };
-    private static readonly Option<DateTime?> ShowLogsAfter = new(["-a", "--after"])
+    private static readonly Option<DateTime?> ShowLogsAfter = new("--after", "-a")
     {
         Description = "Show logs only after a specified date. The date is in the same timezone provided by the \"timezone\" option",
     };
-    private static readonly Option<DateTime?> ShowLogsBefore = new(["-b", "--before"])
+    private static readonly Option<DateTime?> ShowLogsBefore = new("--before", "-b")
     {
         Description = "Show logs only before a specified date. The date is in the same timezone provided by the \"timezone\" option",
     };
@@ -75,45 +76,41 @@ internal static class LogsCommand
 
     static LogsCommand()
     {
-        TimezoneOption.SetDefaultValue(TimeZoneInfo.Local.Id);
-        TimezoneOption.AddValidator(result =>
+        TimezoneOption.Validators.Add(result =>
         {
-            var timezone = result.GetValueForOption(TimezoneOption);
+            var timezone = result.GetValue(TimezoneOption);
 
             if (timezone is null) return;
             if (TimeZoneInfo.TryFindSystemTimeZoneById(timezone, out _)) return;
 
-            result.ErrorMessage = $"The TimeZone was not found on the local computer: {timezone}";
+            result.AddError($"The TimeZone was not found on the local computer: {timezone}");
         });
 
-        LinesOption.SetDefaultValue(100);
-        LinesOption.AddValidator(result =>
+        LinesOption.Validators.Add(result =>
         {
-            var lines = result.GetValueForOption(LinesOption);
+            var lines = result.GetValue(LinesOption);
 
             if (lines is >= 0 or -1) return;
 
-            result.ErrorMessage = "The number of lines should be more or equal to 0 or -1 to disable the limit.";
+            result.AddError("The number of lines should be more or equal to 0 or -1 to disable the limit.");
         });
 
-        Command.AddAlias("log");
-        Command.SetHandler(Handler);
+        Command.Aliases.Add("log");
+        Command.SetAction(Handler);
     }
 
-    private static async Task<int> Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var name = context.ParseResult.GetValueForArgument(NameArgument);
-        var streaming = !context.ParseResult.GetValueForOption(DontStream);
+        var name = parseResult.GetRequiredValue(NameArgument);
+        var streaming = !parseResult.GetValue(DontStream);
 
-        var linesOption = context.ParseResult.GetValueForOption(LinesOption);
-        var noDates = context.ParseResult.GetValueForOption(DontShowDates);
-        var timezoneOption = context.ParseResult.GetValueForOption(TimezoneOption);
+        var linesOption = parseResult.GetValue(LinesOption);
+        var noDates = parseResult.GetValue(DontShowDates);
+        var timezoneOption = parseResult.GetValue(TimezoneOption);
 
-        var currentExecution = context.ParseResult.GetValueForOption(CurrentExecution);
-        var showAfter = context.ParseResult.GetValueForOption(ShowLogsAfter);
-        var showBefore = context.ParseResult.GetValueForOption(ShowLogsBefore);
-
-        var ct = context.GetCancellationToken();
+        var currentExecution = parseResult.GetValue(CurrentExecution);
+        var showAfter = parseResult.GetValue(ShowLogsAfter);
+        var showBefore = parseResult.GetValue(ShowLogsBefore);
 
         // Time zone validation
         ArgumentNullException.ThrowIfNull(timezoneOption);

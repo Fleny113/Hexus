@@ -1,7 +1,6 @@
 using Octokit;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Reflection;
@@ -11,7 +10,10 @@ namespace Hexus.Commands.Utils;
 
 internal static class UpdateCommand
 {
-    private static readonly Option<bool> CiBuildOption = new("--ci", "Use a build from CI");
+    private static readonly Option<bool> CiBuildOption = new("--ci")
+    {
+        Description = "Use a build from CI",
+    };
 
     public static readonly Command Command = new("update", "Update hexus to the latest version")
     {
@@ -26,13 +28,12 @@ internal static class UpdateCommand
 
     static UpdateCommand()
     {
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static async Task<int> Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var ci = context.ParseResult.GetValueForOption(CiBuildOption);
-        var ct = context.GetCancellationToken();
+        var ci = parseResult.GetValue(CiBuildOption);
 
         var update = await CheckForUpdate(ci);
 
@@ -118,7 +119,7 @@ internal static class UpdateCommand
     {
         if (ci)
         {
-            // As fair as i known, there isn't a way to use [MaybeNullWhen] with tuples
+            // As fair as I know, there isn't a way to use [MaybeNullWhen] with tuples
             return (false, null!);
         }
 

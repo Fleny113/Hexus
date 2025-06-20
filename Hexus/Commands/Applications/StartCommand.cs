@@ -1,13 +1,13 @@
 ﻿using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace Hexus.Commands.Applications;
 
 internal static class StartCommand
 {
-    private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to start")
+    private static readonly Argument<string[]> NamesArgument = new("name")
     {
+        Description = "The name(s) of the application(s) to start",
         Arity = ArgumentArity.OneOrMore,
     };
 
@@ -18,20 +18,20 @@ internal static class StartCommand
 
     static StartCommand()
     {
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var names = context.ParseResult.GetValueForArgument(NamesArgument);
-        var ct = context.GetCancellationToken();
+        var names = parseResult.GetRequiredValue(NamesArgument);
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
+
+        var exitCode = 0;
 
         foreach (var name in names)
         {
@@ -40,11 +40,13 @@ internal static class StartCommand
             if (!startRequest.IsSuccessStatusCode)
             {
                 await HttpInvocation.HandleFailedHttpRequestLogging(startRequest, ct);
-                context.ExitCode = 1;
+                exitCode = 1;
                 continue;
             }
 
             PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [darkseagreen1_1]started[/]!");
         }
+
+        return exitCode;
     }
 }

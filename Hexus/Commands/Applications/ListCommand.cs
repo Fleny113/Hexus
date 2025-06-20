@@ -4,7 +4,6 @@ using Humanizer;
 using Humanizer.Localisation;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.Net.Http.Json;
 
@@ -16,18 +15,15 @@ internal static class ListCommand
 
     static ListCommand()
     {
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var ct = context.GetCancellationToken();
-
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         var listRequest = await HttpInvocation.GetAsync("Getting application list", "/list", ct);
@@ -35,8 +31,7 @@ internal static class ListCommand
         if (!listRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(listRequest, ct);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         var applications = await listRequest.Content.ReadFromJsonAsync<IEnumerable<ApplicationResponse>>(HttpInvocation.JsonSerializerContext.IEnumerableApplicationResponse, ct);
@@ -78,6 +73,8 @@ internal static class ListCommand
         }
 
         PrettyConsole.Out.Write(table);
+
+        return 0;
     }
 
     internal static Color GetStatusColor(HexusApplicationStatus status) => status switch

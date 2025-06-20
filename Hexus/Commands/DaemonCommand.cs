@@ -1,12 +1,14 @@
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace Hexus.Commands;
 
 internal static class DaemonCommand
 {
-    private static readonly Option<bool> ShowSocketPath = new("--socket", "Show the socket file being used. Useful for debugging");
+    private static readonly Option<bool> ShowSocketPath = new("--socket")
+    {
+        Description = "Show the socket file being used. Useful for debugging",
+    };
 
     private static readonly Command StopSubCommand = new("stop", "Stop the currently running Hexus daemon");
     private static readonly Command StatusSubCommand = new("status", "Gets the current status of the Hexus daemon") { ShowSocketPath };
@@ -19,14 +21,12 @@ internal static class DaemonCommand
 
     static DaemonCommand()
     {
-        StopSubCommand.SetHandler(StopSubCommandHandler);
-        StatusSubCommand.SetHandler(StatusSubCommandHandler);
+        StopSubCommand.SetAction(StopSubCommandHandler);
+        StatusSubCommand.SetAction(StatusSubCommandHandler);
     }
 
-    private static async Task StopSubCommandHandler(InvocationContext context)
+    private static async Task StopSubCommandHandler(ParseResult parseResult, CancellationToken ct)
     {
-        var ct = context.GetCancellationToken();
-
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
@@ -44,10 +44,9 @@ internal static class DaemonCommand
         PrettyConsole.Out.MarkupLine("[indianred1]Daemon[/] stopped.");
     }
 
-    private static async Task StatusSubCommandHandler(InvocationContext context)
+    private static async Task StatusSubCommandHandler(ParseResult parseResult, CancellationToken ct)
     {
-        var showSocket = context.ParseResult.GetValueForOption(ShowSocketPath);
-        var ct = context.GetCancellationToken();
+        var showSocket = parseResult.GetValue(ShowSocketPath);
 
         var isRunning = await HttpInvocation.CheckForRunningDaemon(ct);
 

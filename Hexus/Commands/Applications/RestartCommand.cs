@@ -1,16 +1,19 @@
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace Hexus.Commands.Applications;
 
 internal static class RestartCommand
 {
-    private static readonly Argument<string[]> NamesArgument = new("name", "The name(s) of the application(s) to restart")
+    private static readonly Argument<string[]> NamesArgument = new("name")
     {
+        Description = "The name(s) of the application(s) to restart",
         Arity = ArgumentArity.OneOrMore,
     };
-    private static readonly Option<bool> ForceOption = new(["--force", "-f"], "Force the restart of the application");
+    private static readonly Option<bool> ForceOption = new("--force", "-f")
+    {
+        Description = "Force the restart of the application",
+    };
 
     public static readonly Command Command = new("restart", "Restart an application")
     {
@@ -20,21 +23,21 @@ internal static class RestartCommand
 
     static RestartCommand()
     {
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var names = context.ParseResult.GetValueForArgument(NamesArgument);
-        var force = context.ParseResult.GetValueForOption(ForceOption);
-        var ct = context.GetCancellationToken();
+        var names = parseResult.GetRequiredValue(NamesArgument);
+        var force = parseResult.GetValue(ForceOption);
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
+
+        var exitCode = 0;
 
         foreach (var name in names)
         {
@@ -43,11 +46,13 @@ internal static class RestartCommand
             if (!restartRequest.IsSuccessStatusCode)
             {
                 await HttpInvocation.HandleFailedHttpRequestLogging(restartRequest, ct);
-                context.ExitCode = 1;
+                exitCode = 1;
                 continue;
             }
 
             PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [darkolivegreen1]restarted[/]!");
         }
+
+        return exitCode;
     }
 }

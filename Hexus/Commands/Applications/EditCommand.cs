@@ -3,43 +3,60 @@ using Hexus.Extensions;
 using Spectre.Console;
 using System.Collections;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace Hexus.Commands.Applications;
 
 internal static class EditCommand
 {
-    private static readonly Argument<string> NameArgument = new("name", "The name(s) of the application(s) to edit");
-    private static readonly Option<string> NameOption = new(["-n", "--name"], "The new name for the application");
-    private static readonly Option<string> ExecutableOptions = new(["-x", "--executable"], "The new executable for the application");
-
-    private static readonly Option<string[]> ArgumentsOption = new(["-a", "--arguments"], "The new arguments for the application")
+    private static readonly Argument<string> NameArgument = new("name")
     {
+        Description = "The name(s) of the application(s) to edit"
+    };
+    private static readonly Option<string> NameOption = new("--name", "-n")
+    {
+        Description = "The new name for the application"
+    };
+    private static readonly Option<string> ExecutableOptions = new("--executable", "-x")
+    {
+        Description = "The new executable for the application"
+    };
+
+    private static readonly Option<string[]> ArgumentsOption = new("--arguments", "-a")
+    {
+        Description = "The new arguments for the application",
         Arity = ArgumentArity.ZeroOrMore,
         AllowMultipleArgumentsPerToken = true,
     };
 
-    private static readonly Option<string> WorkingDirectoryOption =
-        new(["-w", "--working-directory"], "The new working directory for the application");
+    private static readonly Option<string> WorkingDirectoryOption = new("--working-directory", "-w")
+    {
+        Description = "The new working directory for the application",
+    };
 
-    private static readonly Option<string> NoteOption = new(["-t", "--note"], "The new note for the application");
+    private static readonly Option<string> NoteOption = new("--note", "-t")
+    {
+        Description = "The new note for the application",
+    };
 
-    private static readonly Option<bool> ReloadFromShell =
-        new("--reload-from-shell", "Use the current shell environment for the application");
+    private static readonly Option<bool> ReloadFromShell = new("--reload-from-shell")
+    {
+        Description = "Use the current shell environment for the application.",
+    };
 
-    private static readonly Option<Dictionary<string, string>> AddEnvironmentVariables =
-        new(["-e", "--environment"], "Add an environment variable for the application, format: 'key:value' or 'key=value'")
-        {
-            Arity = ArgumentArity.OneOrMore,
-            AllowMultipleArgumentsPerToken = true,
-        };
+    private static readonly Option<Dictionary<string, string>> AddEnvironmentVariables = new("--environment", "-e")
+    {
+        Description = "Add an environment variable for the application, format: 'key:value' or 'key=value'",
+        Arity = ArgumentArity.OneOrMore,
+        AllowMultipleArgumentsPerToken = true,
+        CustomParser = DictionaryParser.Parse,
+    };
 
-    private static readonly Option<string[]> RemoveEnvironmentVariables =
-        new(["-r", "--remove-environment"], "Remove an environment variable for the application")
-        {
-            Arity = ArgumentArity.OneOrMore,
-            AllowMultipleArgumentsPerToken = true,
-        };
+    private static readonly Option<string[]> RemoveEnvironmentVariables = new("--remove-environment", "-r")
+    {
+        Description = "Remove an environment variable for the application",
+        Arity = ArgumentArity.OneOrMore,
+        AllowMultipleArgumentsPerToken = true,
+    };
 
     public static readonly Command Command = new("edit", "Edit an exiting application")
     {
@@ -56,31 +73,29 @@ internal static class EditCommand
 
     static EditCommand()
     {
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static async Task Handler(InvocationContext context)
+    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        var binder = new DictionaryBinder(AddEnvironmentVariables);
+        // var binder = new DictionaryBinder(AddEnvironmentVariables);
 
-        var name = context.ParseResult.GetValueForArgument(NameArgument);
-        var newName = context.ParseResult.GetValueForOption(NameOption);
-        var newExecutable = context.ParseResult.GetValueForOption(ExecutableOptions);
-        var newArgumentsOptionValue = context.ParseResult.GetValueForOption(ArgumentsOption);
-        var newWorkingDirectory = context.ParseResult.GetValueForOption(WorkingDirectoryOption);
-        var newNote = context.ParseResult.GetValueForOption(NoteOption);
-        var addEnv = context.BindingContext.GetValueForBinder(binder);
-        var remove = context.ParseResult.GetValueForOption(RemoveEnvironmentVariables);
-        var reloadEnv = context.ParseResult.GetValueForOption(ReloadFromShell);
-        var ct = context.GetCancellationToken();
+        var name = parseResult.GetRequiredValue(NameArgument);
+        var newName = parseResult.GetValue(NameOption);
+        var newExecutable = parseResult.GetValue(ExecutableOptions);
+        var newArgumentsOptionValue = parseResult.GetValue(ArgumentsOption);
+        var newWorkingDirectory = parseResult.GetValue(WorkingDirectoryOption);
+        var newNote = parseResult.GetValue(NoteOption);
+        var addEnv = parseResult.GetValue(AddEnvironmentVariables);
+        var remove = parseResult.GetValue(RemoveEnvironmentVariables);
+        var reloadEnv = parseResult.GetValue(ReloadFromShell);
 
         var newArguments = string.Join(' ', newArgumentsOptionValue ?? []);
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
             PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         if (newWorkingDirectory is not null)
@@ -132,12 +147,13 @@ internal static class EditCommand
         if (!editRequest.IsSuccessStatusCode)
         {
             await HttpInvocation.HandleFailedHttpRequestLogging(editRequest, ct);
-            context.ExitCode = 1;
-            return;
+            return 1;
         }
 
         PrettyConsole.Out.MarkupLineInterpolated(
             $"Application \"{name}\" [plum2]edited[/]. You can now run it with the '[darkcyan]start[/] [cornflowerblue]{newName ?? name}[/]' command"
         );
+
+        return 0;
     }
 }

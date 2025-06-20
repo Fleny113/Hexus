@@ -3,7 +3,6 @@ using Humanizer;
 using Humanizer.Localisation;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace Hexus.Commands.Utils;
 internal static class ShowTimezones
@@ -12,10 +11,10 @@ internal static class ShowTimezones
 
     static ShowTimezones()
     {
-        Command.SetHandler(Handler);
+        Command.SetAction(Handler);
     }
 
-    private static void Handler(InvocationContext context)
+    private static void Handler(ParseResult parseResult)
     {
         var timezones = TimeZoneInfo.GetSystemTimeZones();
         var localTimezone = TimeZoneInfo.Local;
