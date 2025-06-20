@@ -78,8 +78,6 @@ internal static class EditCommand
 
     private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        // var binder = new DictionaryBinder(AddEnvironmentVariables);
-
         var name = parseResult.GetRequiredValue(NameArgument);
         var newName = parseResult.GetValue(NameOption);
         var newExecutable = parseResult.GetValue(ExecutableOptions);
