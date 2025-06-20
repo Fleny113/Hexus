@@ -33,10 +33,22 @@ internal static class LogsCommand
     {
         Description = "Disable the dates of the log lines. Useful if you already have those in your log file",
     };
-    private static readonly Option<string> TimezoneOption = new("--timezone", "-t")
+    private static readonly Option<TimeZoneInfo> TimezoneOption = new("--timezone", "-t")
     {
         Description = "Show the log dates in a specified timezone. The timezone should be compatible with the one provided by your system.",
-        DefaultValueFactory = _ => TimeZoneInfo.Local.Id,
+        DefaultValueFactory = _ => TimeZoneInfo.Local,
+        CustomParser = result =>
+        {
+            var timezoneId = string.Join(" ", result.Tokens.Select(x => x.Value));
+
+            if (TimeZoneInfo.TryFindSystemTimeZoneById(timezoneId, out var timezone))
+            {
+                return timezone;
+            }
+
+            result.AddError("The TimeZone was not found on the local computer. Please provide a valid timezone ID.");
+            return null;
+        },
     };
 
     #endregion
@@ -76,16 +88,6 @@ internal static class LogsCommand
 
     static LogsCommand()
     {
-        TimezoneOption.Validators.Add(result =>
-        {
-            var timezone = result.GetValue(TimezoneOption);
-
-            if (timezone is null) return;
-            if (TimeZoneInfo.TryFindSystemTimeZoneById(timezone, out _)) return;
-
-            result.AddError($"The TimeZone was not found on the local computer: {timezone}");
-        });
-
         LinesOption.Validators.Add(result =>
         {
             var lines = result.GetValue(LinesOption);
@@ -106,15 +108,11 @@ internal static class LogsCommand
 
         var linesOption = parseResult.GetValue(LinesOption);
         var noDates = parseResult.GetValue(DontShowDates);
-        var timezoneOption = parseResult.GetValue(TimezoneOption);
+        var timeZoneInfo = parseResult.GetRequiredValue(TimezoneOption);
 
         var currentExecution = parseResult.GetValue(CurrentExecution);
         var showAfter = parseResult.GetValue(ShowLogsAfter);
         var showBefore = parseResult.GetValue(ShowLogsBefore);
-
-        // Time zone validation
-        ArgumentNullException.ThrowIfNull(timezoneOption);
-        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timezoneOption);
 
         // Convert the before/after from the timezone specified to UTC to be used to filter logs
         //  the dates in the log file will then be converted back to the timezone provided
