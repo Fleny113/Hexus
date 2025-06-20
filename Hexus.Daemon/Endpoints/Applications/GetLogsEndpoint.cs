@@ -16,7 +16,7 @@ internal sealed class GetLogsEndpoint : IEndpoint
         [FromServices] HexusConfiguration configuration,
         [FromServices] ProcessLogsService processLogsService,
         HttpContext context,
-        [FromServices] IOptions<JsonOptions> jsonOptions,
+        [FromServices] IOptions<AppJsonSerializerContext> jsonSerializerContext,
         [FromRoute] string name,
         [FromQuery] DateTimeOffset? before = null,
         CancellationToken ct = default)
@@ -39,7 +39,7 @@ internal sealed class GetLogsEndpoint : IEndpoint
 
         await foreach (var item in logs)
         {
-            await context.Response.WriteAsync(JsonSerializer.Serialize(item, jsonOptions.Value.JsonSerializerOptions), cancellationToken: ct);
+            await context.Response.WriteAsync(JsonSerializer.Serialize(item, jsonSerializerContext.Value.ApplicationLog), cancellationToken: ct);
             await context.Response.WriteAsync(",", ct);
             await context.Response.Body.FlushAsync(ct);
         }

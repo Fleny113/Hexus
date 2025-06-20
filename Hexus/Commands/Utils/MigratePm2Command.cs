@@ -4,10 +4,11 @@ using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace Hexus.Commands.Utils;
 
-internal static class MigratePm2Command
+internal static partial class MigratePm2Command
 {
     private static readonly string[] Pm2KnownConfig = [
         "versioning",
@@ -85,7 +86,7 @@ internal static class MigratePm2Command
         }
 
         var pm2ConfigContent = await File.ReadAllTextAsync(pm2Dump, ct);
-        var pm2ConfigNode = JsonSerializer.Deserialize<JsonNode>(pm2ConfigContent);
+        var pm2ConfigNode = JsonSerializer.Deserialize<JsonNode>(pm2ConfigContent, Pm2SerializerContext.Default.JsonNode);
 
         if (pm2ConfigNode is null)
         {
@@ -178,4 +179,8 @@ internal static class MigratePm2Command
 
         Configuration.HexusConfigurationManager.SaveConfiguration();
     }
+
+    [JsonSerializable(typeof(JsonNode))]
+    [JsonSourceGenerationOptions]
+    internal partial class Pm2SerializerContext : JsonSerializerContext;
 }

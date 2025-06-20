@@ -41,7 +41,7 @@ internal sealed class NewApplicationEndpoint : IEndpoint
         processLogsService.RegisterApplication(application);
 
         var startError = processManager.StartApplication(application);
-        
+
         if (startError is not null)
         {
             processStatisticsService.StopTrackingApplicationUsage(application);

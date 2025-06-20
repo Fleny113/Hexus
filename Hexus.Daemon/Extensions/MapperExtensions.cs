@@ -95,7 +95,7 @@ internal static class MapperExtensions
     public static string MapToErrorString(this ProcessManagerService.SpawnProcessError error)
     {
         return error switch
-        {   
+        {
             ProcessManagerService.SpawnProcessError.ExitEarly => "The application exited early.",
             ProcessManagerService.SpawnProcessError.NotFound => "The application executable was not found.",
             ProcessManagerService.SpawnProcessError.PermissionDenied => "Permission denied while starting the application.",

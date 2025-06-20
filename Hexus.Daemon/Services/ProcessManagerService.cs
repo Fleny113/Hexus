@@ -28,7 +28,7 @@ internal partial class ProcessManagerService
             LogFailedToGetCtrlProcedureAddress(loggerFactory.CreateLogger(typeof(Win32Bindings)));
         }
     }
-    
+
     public SpawnProcessError? StartApplication(HexusApplication application)
     {
         if (IsApplicationRunning(application, out _))
@@ -170,13 +170,13 @@ internal partial class ProcessManagerService
             {
                 return (null, SpawnProcessError.PermissionDenied);
             }
-            
+
             // If the executable is invalid, the first is the Linux error, the second the Win32 error
             if (exception.Message.EndsWith("Exec format error") || exception.Message.EndsWith("The specified executable is not a valid application for this OS platform."))
             {
                 return (null, SpawnProcessError.InvalidExecutable);
             }
-            
+
             // If the command is too long, the first is the Linux error for the arguments, the second one is the Linux error for the file, the third one is the Win32 error
             if (exception.Message.EndsWith("Argument list too long") || exception.Message.EndsWith("File name too long") || exception.Message.EndsWith("The filename or extension is too long."))
             {
@@ -198,7 +198,7 @@ internal partial class ProcessManagerService
     }
 
     #endregion
-    
+
     #region Stop Process Internals
 
     private void StopProcess(Process process, bool forceStop)
@@ -381,19 +381,19 @@ internal partial class ProcessManagerService
 
     [LoggerMessage(LogLevel.Error, "Failed to get the CTRL Routine Procedure address, sending signals to processes will not work.")]
     private static partial void LogFailedToGetCtrlProcedureAddress(ILogger logger);
-    
+
     [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed")]
     private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, double timeWindow);
-    
+
     [LoggerMessage(LogLevel.Debug, "Acknowledging about \"{Name}\" exiting with code: {ExitCode}")]
     private static partial void LogAcknowledgeProcessExit(ILogger logger, string name, int exitCode);
-    
+
     [LoggerMessage(LogLevel.Debug, "After {Restarts} restarts, application \"{Name}\" stopped restarting")]
     private static partial void LogConsequentialRestartsStop(ILogger logger, int restarts, string name);
-    
+
     [LoggerMessage(LogLevel.Debug, "Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting")]
     private static partial void LogRestartAttemptDelay(ILogger logger, string name, double seconds);
-    
+
     [LoggerMessage(LogLevel.Debug, "Unable to stop process")]
     private static partial void LogFailedApplicationStop(ILogger logger, Exception exception);
 }

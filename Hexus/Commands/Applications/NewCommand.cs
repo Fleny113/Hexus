@@ -133,7 +133,7 @@ internal static class NewCommand
                 note ?? "",
                 environmentVariables
             ),
-            HttpInvocation.JsonSerializerOptions,
+            HttpInvocation.JsonSerializerContext,
             ct
         );
 

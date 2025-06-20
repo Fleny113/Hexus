@@ -125,7 +125,7 @@ internal static class LogsCommand
         DateTime? utcAfter = showAfter is { } after ? TimeZoneInfo.ConvertTimeToUtc(after, timeZoneInfo) : null;
 
         var lines = linesOption == -1 ? int.MaxValue : linesOption;
-        
+
         var logFileName = $"{EnvironmentHelper.ApplicationLogsDirectory}/{name}.log";
 
         if (!File.Exists(logFileName))
@@ -369,7 +369,7 @@ internal static class LogsCommand
 
         if (logsRequest.IsSuccessStatusCode)
         {
-            return logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerOptions, ct);
+            return logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerContext.ApplicationLog, ct);
         }
 
         PrettyConsole.Out.MarkupLine("""

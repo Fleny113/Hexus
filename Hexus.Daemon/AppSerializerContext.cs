@@ -9,6 +9,7 @@ namespace Hexus.Daemon;
 
 [JsonSerializable(typeof(HttpValidationProblemDetails))]
 [JsonSerializable(typeof(ApplicationResponse))]
+[JsonSerializable(typeof(ApplicationLog))]
 [JsonSerializable(typeof(IEnumerable<ApplicationResponse>))]
 [JsonSerializable(typeof(IAsyncEnumerable<ApplicationLog>))]
 [JsonSerializable(typeof(NewApplicationRequest))]

@@ -45,7 +45,7 @@ internal static class InputCommand
         var stdinRequest = await HttpInvocation.PostAsJsonAsync("Sending text to STDIN",
             $"/{name}/stdin",
             new SendInputRequest(text, newLine),
-            HttpInvocation.JsonSerializerOptions,
+            HttpInvocation.JsonSerializerContext,
             ct);
 
         if (!stdinRequest.IsSuccessStatusCode)

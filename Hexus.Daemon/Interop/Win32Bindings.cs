@@ -39,7 +39,7 @@ internal static partial class Win32Bindings
         CtrlRoutineProduceAddress = GetProcedureAddress("kernel32", "CtrlRoutine");
         return CtrlRoutineProduceAddress != IntPtr.Zero;
     }
-    
+
     private static IntPtr GetProcedureAddress(string module, string proc)
     {
         var modulePtr = GetModuleHandle(module);

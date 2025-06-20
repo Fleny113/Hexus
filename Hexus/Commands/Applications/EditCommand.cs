@@ -125,7 +125,7 @@ internal static class EditCommand
                 RemoveEnvironmentVariables: remove,
                 IsReloadingEnvironmentVariables: reloadEnv
             ),
-            HttpInvocation.JsonSerializerOptions,
+            HttpInvocation.JsonSerializerContext,
             ct
         );
 

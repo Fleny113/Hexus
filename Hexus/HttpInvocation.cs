@@ -8,6 +8,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Hexus;
 
@@ -31,12 +33,14 @@ internal static class HttpInvocation
         BaseAddress = new Uri("http://hexus-socket"),
     };
 
-    public static JsonSerializerOptions JsonSerializerOptions { get; } = new()
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         TypeInfoResolverChain = { AppJsonSerializerContext.Default },
     };
+
+    public static AppJsonSerializerContext JsonSerializerContext { get; } = new(JsonSerializerOptions);
 
     #region Status wrappers
 
@@ -75,12 +79,19 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.PostAsync(url, content, ct));
     }
 
-    public static async Task<HttpResponseMessage> PostAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content, JsonSerializerOptions jsonOptions, CancellationToken ct)
+    public static async Task<HttpResponseMessage> PostAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content, JsonSerializerContext context, CancellationToken ct)
     {
+        var typeInfo = context.GetTypeInfo(typeof(T));
+
+        if (typeInfo is not JsonTypeInfo<T?> jsonTypeInfo)
+        {
+            throw new ArgumentException("The provided context is not of the correct type.", nameof(context));
+        }
+
         return await PrettyConsole.Out.Status()
             .Spinner(PrettyConsole.Spinner)
             .SpinnerStyle(PrettyConsole.SpinnerStyle)
-            .StartAsync(status, _ => HttpClient.PostAsJsonAsync(url, content, jsonOptions, ct));
+            .StartAsync(status, _ => HttpClient.PostAsJsonAsync(url, content, jsonTypeInfo, ct));
     }
 
     public static async Task<HttpResponseMessage> PatchAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content, CancellationToken ct)
@@ -91,12 +102,19 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.PatchAsync(url, content, ct));
     }
 
-    public static async Task<HttpResponseMessage> PatchAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content, JsonSerializerOptions jsonOptions, CancellationToken ct)
+    public static async Task<HttpResponseMessage> PatchAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content, JsonSerializerContext context, CancellationToken ct)
     {
+        var typeInfo = context.GetTypeInfo(typeof(T));
+
+        if (typeInfo is not JsonTypeInfo<T?> jsonTypeInfo)
+        {
+            throw new ArgumentException("The provided context is not of the correct type.", nameof(context));
+        }
+
         return await PrettyConsole.Out.Status()
             .Spinner(PrettyConsole.Spinner)
             .SpinnerStyle(PrettyConsole.SpinnerStyle)
-            .StartAsync(status, _ => HttpClient.PatchAsJsonAsync(url, content, jsonOptions, ct));
+            .StartAsync(status, _ => HttpClient.PatchAsJsonAsync(url, content, jsonTypeInfo, ct));
     }
 
     public static async Task<HttpResponseMessage> DeleteAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, CancellationToken ct)
@@ -117,7 +135,7 @@ internal static class HttpInvocation
         {
             case { StatusCode: HttpStatusCode.BadRequest, Content.Headers.ContentType.MediaType: "application/problem+json" }:
                 {
-                    var problemDetails = await request.Content.ReadFromJsonAsync<HttpValidationProblemDetails>(JsonSerializerOptions, ct);
+                    var problemDetails = await request.Content.ReadFromJsonAsync<HttpValidationProblemDetails>(JsonSerializerContext.HttpValidationProblemDetails, ct);
 
                     Debug.Assert(problemDetails is not null);
 
@@ -127,9 +145,8 @@ internal static class HttpInvocation
                 }
             case { StatusCode: HttpStatusCode.BadRequest }:
                 {
-                    var error = await request.Content.ReadFromJsonAsync<GenericFailureResponse>(JsonSerializerOptions,
-                        ct);
-                    
+                    var error = await request.Content.ReadFromJsonAsync<GenericFailureResponse>(JsonSerializerContext.GenericFailureResponse, ct);
+
                     Debug.Assert(error is not null);
 
                     response = error.Message;
