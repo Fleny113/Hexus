@@ -7,11 +7,17 @@ using Hexus.Daemon.Services;
 using Hexus.Daemon.Validators;
 using NReco.Logging.File;
 
+// This has to be done before the call to CreateSlimBuilder, otherwise it will configure appsettings.json to reload on file change
+Environment.SetEnvironmentVariable("ASPNETCORE_hostBuilder__reloadConfigOnChange", false.ToString());
+
 var builder = WebApplication.CreateSlimBuilder(args);
 
-builder.Configuration["Logging:LogLevel:Default"] = Enum.GetName(LogLevel.Information);
-builder.Configuration["Logging:LogLevel:Microsoft.AspNetCore"] = Enum.GetName(LogLevel.Warning);
-builder.Configuration["Logging:LogLevel:Hexus.Daemon"] = Enum.GetName(builder.Environment.IsDevelopment() ? LogLevel.Trace : LogLevel.Information);
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+{
+    {"Logging:LogLevel:Default", Enum.GetName(LogLevel.Information) },
+    {"Logging:LogLevel:Microsoft.AspNetCore", Enum.GetName(LogLevel.Warning) },
+    {"Logging:LogLevel:Hexus.Daemon", Enum.GetName(builder.Environment.IsDevelopment() ? LogLevel.Trace : LogLevel.Information) },
+});
 
 builder.WebHost.UseKestrel((context, options) =>
 {
@@ -30,11 +36,22 @@ builder.WebHost.UseKestrel((context, options) =>
         options.ListenLocalhost(5104);
 });
 
+builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+builder.Logging.AddSimpleConsole();
+builder.Logging.Configure(options =>
+{
+    options.ActivityTrackingOptions =
+        ActivityTrackingOptions.SpanId |
+        ActivityTrackingOptions.TraceId |
+        ActivityTrackingOptions.ParentId;
+});
 builder.Logging.AddFile(EnvironmentHelper.LogFile, x =>
 {
     x.Append = true;
     x.UseUtcTimestamp = true;
 });
+
+builder.Services.AddRouting();
 
 // If we are running as a systemd service this will handle the Type=notify requirements
 builder.Services.AddSystemd();
