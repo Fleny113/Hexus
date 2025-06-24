@@ -36,22 +36,11 @@ builder.WebHost.UseKestrel((context, options) =>
         options.ListenLocalhost(5104);
 });
 
-builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
-builder.Logging.AddSimpleConsole();
-builder.Logging.Configure(options =>
-{
-    options.ActivityTrackingOptions =
-        ActivityTrackingOptions.SpanId |
-        ActivityTrackingOptions.TraceId |
-        ActivityTrackingOptions.ParentId;
-});
 builder.Logging.AddFile(EnvironmentHelper.LogFile, x =>
 {
     x.Append = true;
     x.UseUtcTimestamp = true;
 });
-
-builder.Services.AddRouting();
 
 // If we are running as a systemd service this will handle the Type=notify requirements
 builder.Services.AddSystemd();
