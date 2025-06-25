@@ -12,6 +12,10 @@
         <PackageReference Include="EndpointMapper" Version="2.0.0" />
         <PackageReference Include="FluentValidation" Version="12.0.0" />
         <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="9.0.6" />
+        <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.183">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
         <PackageReference Include="NReco.Logging.File" Version="1.2.2" />
         <PackageReference Include="System.Linq.Async" Version="6.0.3" />
         <PackageReference Include="System.Text.Json" Version="9.0.6" />

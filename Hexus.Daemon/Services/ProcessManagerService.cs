@@ -4,30 +4,18 @@ using Hexus.Daemon.Interop;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Windows.Win32.System.Console;
 
 namespace Hexus.Daemon.Services;
 
-internal partial class ProcessManagerService
+internal partial class ProcessManagerService(
+    ILoggerFactory loggerFactory,
+    HexusConfigurationManager configManager,
+    ProcessLogsService processLogsService)
 {
-    private readonly ILogger<ProcessManagerService> _logger;
-    private readonly HexusConfigurationManager _configurationManager;
-    private readonly ProcessLogsService _processLogsService;
+    private readonly ILogger<ProcessManagerService> _logger = loggerFactory.CreateLogger<ProcessManagerService>();
     private readonly Dictionary<Process, HexusApplication> _processToApplicationMap = [];
     private readonly Dictionary<string, Process> _applicationToProcessMap = [];
-
-    public ProcessManagerService(ILoggerFactory loggerFactory, HexusConfigurationManager configManager, ProcessLogsService processLogsService)
-    {
-        _logger = loggerFactory.CreateLogger<ProcessManagerService>();
-        _configurationManager = configManager;
-        _processLogsService = processLogsService;
-
-        if (!OperatingSystem.IsWindows()) return;
-
-        if (!Win32Bindings.InitializeCtrlRoutineProcedureAddress())
-        {
-            LogFailedToGetCtrlProcedureAddress(loggerFactory.CreateLogger(typeof(Win32Bindings)));
-        }
-    }
 
     public SpawnProcessError? StartApplication(HexusApplication application)
     {
@@ -65,7 +53,7 @@ internal partial class ProcessManagerService
         // Enable the emitting of events (like Exited)
         process.EnableRaisingEvents = true;
 
-        _processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, ProcessLogsService.ApplicationStartedLog);
+        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, ProcessLogsService.ApplicationStartedLog);
 
         // Setup log handling 
         _ = HandleLogs(application, process, LogType.STDOUT);
@@ -76,7 +64,7 @@ internal partial class ProcessManagerService
         process.Exited += HandleProcessRestart;
 
         application.Status = HexusApplicationStatus.Running;
-        _configurationManager.SaveConfiguration();
+        configManager.SaveConfiguration();
 
         return null;
     }
@@ -101,7 +89,7 @@ internal partial class ProcessManagerService
 
         // If the daemon is shutting down we don't want to save, or else when the daemon is booted up again, all the applications will be marked as stopped
         if (!HexusLifecycle.IsDaemonStopped)
-            _configurationManager.SaveConfiguration();
+            configManager.SaveConfiguration();
 
         return true;
     }
@@ -209,8 +197,8 @@ internal partial class ProcessManagerService
             return;
         }
 
-        // NativeSendSignal can send -1 if the UNIX kill call returns an error or if the windows interop errors out at any point
-        var code = ProcessSignals.NativeSendSignal(process.Id, WindowsCtrlType.CtrlC, UnixSignal.SigInt);
+        // SendSignal can send -1 if the UNIX kill call returns an error or if the windows interop errors out at any point
+        var code = ProcessSignals.SendSignal(process.Id, WindowsCtrlType.CtrlC, UnixSignal.SigInt);
 
         try
         {
@@ -253,7 +241,7 @@ internal partial class ProcessManagerService
             var str = await streamReader.ReadLineAsync();
             if (str is null) continue;
 
-            _processLogsService.ProcessApplicationLog(application, logType, str);
+            processLogsService.ProcessApplicationLog(application, logType, str);
         }
     }
 
@@ -283,7 +271,7 @@ internal partial class ProcessManagerService
 
         var exitCode = process.ExitCode;
 
-        _processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
+        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
 
         process.Close();
         process.Dispose();
@@ -322,7 +310,7 @@ internal partial class ProcessManagerService
             _consequentialRestarts.Remove(application.Name, out _);
 
             application.Status = HexusApplicationStatus.Crashed;
-            _configurationManager.SaveConfiguration();
+            configManager.SaveConfiguration();
 
             return;
         }
@@ -340,7 +328,7 @@ internal partial class ProcessManagerService
             if (!delayTask.IsCompletedSuccessfully) return;
 
             StartApplication(application);
-            _configurationManager.SaveConfiguration();
+            configManager.SaveConfiguration();
         });
     }
 
