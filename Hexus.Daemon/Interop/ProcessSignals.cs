@@ -1,50 +1,59 @@
+using Windows.Win32.System.Console;
+using Windows.Win32.System.Threading;
+using Win32 = Windows.Win32;
+
 namespace Hexus.Daemon.Interop;
 
 internal static class ProcessSignals
 {
-    // https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights
-    private const uint ProcessCreateThread = 0x0002;
-    // https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject#return-value
-    // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55
-    private const long WaitObject0 = 0x00000000;
-
-    public static int NativeSendSignal(int pId, WindowsCtrlType windowsSignal, UnixSignal unixSignal)
+    public static int SendSignal(int pId, WindowsCtrlType windowsSignal, UnixSignal unixSignal)
     {
         if (!OperatingSystem.IsWindows())
             return UnixInterop.SendSignal(pId, unixSignal);
 
-        if (Win32Bindings.CtrlRoutineProduceAddress == IntPtr.Zero)
+        // We only support sending signals on Windows 7 and later, as the CtrlRoutine procedure is not available on earlier versions.
+        if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
         {
             return -1;
         }
 
-        var process = Win32Bindings.OpenProcess(ProcessCreateThread, bInheritHandle: false, (uint)pId);
-
-        if (process == IntPtr.Zero)
+        if (Win32.CtrlRoutine.ProcedureAddress.IsNull)
         {
             return -1;
         }
 
-        var remoteThread = Win32Bindings.CreateRemoteThread(
-            hProcess: process,
-            lpThreadAttributes: IntPtr.Zero,
-            dwStackSize: 1024 * 1024,
-            lpStartAddress: Win32Bindings.CtrlRoutineProduceAddress,
-            lpParameter: (uint)windowsSignal,
-            dwCreationFlags: 0,
-            lpThreadId: out _);
+        using var process = Win32.PInvoke.OpenProcess_SafeHandle(
+            dwDesiredAccess: PROCESS_ACCESS_RIGHTS.PROCESS_CREATE_THREAD,
+            bInheritHandle: false,
+            dwProcessId: (uint)pId);
 
-        if (remoteThread == IntPtr.Zero)
+        if (process.IsInvalid)
         {
-            Win32Bindings.CloseHandle(process);
             return -1;
         }
 
-        if (Win32Bindings.WaitForSingleObject(remoteThread, 0) == WaitObject0) return 0;
+        // Microsoft.Windows.CsWin32 creates CreateRemoteThread with pointer parameters, so we need to use unsafe
+        unsafe
+        {
+            var lpStartRoutine = Win32.CtrlRoutine.ProcedureAddress.CreateDelegate<LPTHREAD_START_ROUTINE>();
+            var lpParameter = (void*)(uint)windowsSignal;
 
-        Win32Bindings.CloseHandle(remoteThread);
-        Win32Bindings.CloseHandle(process);
+            using var remoteThread = Win32.PInvoke.CreateRemoteThread(
+                hProcess: process,
+                lpThreadAttributes: null,
+                dwStackSize: 0,
+                lpStartAddress: lpStartRoutine,
+                lpParameter: lpParameter,
+                dwCreationFlags: 0,
+                lpThreadId: null);
 
-        return -1;
+            if (remoteThread.IsInvalid)
+                return -1;
+
+            if (Win32.PInvoke.WaitForSingleObject(remoteThread, 0) != Win32.Foundation.WAIT_EVENT.WAIT_OBJECT_0)
+                return -1;
+        }
+
+        return 0;
     }
 }

@@ -1,52 +1,58 @@
 using System.Runtime.Versioning;
+using Windows.Win32.System.Diagnostics.ToolHelp;
+using Win32 = Windows.Win32;
 
 namespace Hexus.Daemon.Interop;
 
 internal static class ProcessChildren
 {
-    private const int Th32CsSnapProcess = 0x00000002;
-
     public static IEnumerable<ProcessInfo> GetProcessChildrenInfo(int parentId)
     {
-        if (OperatingSystem.IsWindows())
+        // Windows 5.1.2600 is Windows XP, which is the first version that supports Toolhelp32Snapshot
+        //  while we could simply use Windows 10 for these checks,
+        //  it does make sense to use the same versions as Microsoft.Windows.CsWin32 defines
+        if (OperatingSystem.IsWindowsVersionAtLeast(5, 1, 2600))
             return GetChildProcessesWindows((uint)parentId);
+
         if (OperatingSystem.IsLinux())
             return GetChildProcessesLinux(parentId);
 
         throw new NotSupportedException("Getting the child processes is not supported on this platform");
     }
 
-    [SupportedOSPlatform("windows")]
+    [SupportedOSPlatform("windows5.1.2600")]
     private static IEnumerable<ProcessInfo> GetChildProcessesWindows(uint parentId)
     {
         // While the docs says that this 0 will make the snapshot to start from the current process, since we use SnapProcess, it doesn't.
-        var processSnap = Win32Bindings.CreateToolhelp32Snapshot(Th32CsSnapProcess, 0);
-        if (processSnap == IntPtr.Zero) yield break;
+        using var processSnap = Win32.PInvoke.CreateToolhelp32Snapshot_SafeHandle(CREATE_TOOLHELP_SNAPSHOT_FLAGS.TH32CS_SNAPPROCESS, 0);
+
+        if (processSnap.IsInvalid)
+            yield break;
 
         HashSet<uint> parents = [parentId];
 
-        var processEntity = new Win32Bindings.ProcessEntry32();
-
-        try
+        var processEntity = new PROCESSENTRY32();
+        unsafe
         {
-            if (!Win32Bindings.Process32First(processSnap, ref processEntity)) yield break;
+            processEntity.dwSize = (uint)sizeof(PROCESSENTRY32);
+        }
 
-            do
+        if (!Win32.PInvoke.Process32First(processSnap, ref processEntity))
+            yield break;
+
+        do
+        {
+            if (!parents.Contains(processEntity.th32ParentProcessID))
+                continue;
+
+            parents.Add(processEntity.th32ProcessID);
+
+            yield return new ProcessInfo
             {
-                if (!parents.Contains(processEntity.th32ParentProcessID)) continue;
-
-                parents.Add(processEntity.th32ProcessID);
-                yield return new ProcessInfo
-                {
-                    ProcessId = (int)processEntity.th32ProcessID,
-                    ParentProcessId = (int)processEntity.th32ParentProcessID,
-                };
-            } while (Win32Bindings.Process32Next(processSnap, ref processEntity));
-        }
-        finally
-        {
-            Win32Bindings.CloseHandle(processSnap);
-        }
+                ProcessId = (int)processEntity.th32ProcessID,
+                ParentProcessId = (int)processEntity.th32ParentProcessID,
+            };
+        } while (Win32.PInvoke.Process32Next(processSnap, ref processEntity));
     }
 
     [SupportedOSPlatform("linux")]
