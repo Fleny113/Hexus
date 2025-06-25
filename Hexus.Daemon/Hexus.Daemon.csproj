@@ -6,8 +6,6 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
         <AssemblyName>hexusd</AssemblyName>
-
-        <TargetFramework>net9.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
