@@ -13,14 +13,10 @@ internal static class ProcessSignals
 
         // We only support sending signals on Windows 7 and later, as the CtrlRoutine procedure is not available on earlier versions.
         if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
-        {
             return -1;
-        }
 
         if (Win32.CtrlRoutine.ProcedureAddress.IsNull)
-        {
             return -1;
-        }
 
         using var process = Win32.PInvoke.OpenProcess_SafeHandle(
             dwDesiredAccess: PROCESS_ACCESS_RIGHTS.PROCESS_CREATE_THREAD,
@@ -28,9 +24,7 @@ internal static class ProcessSignals
             dwProcessId: (uint)pId);
 
         if (process.IsInvalid)
-        {
             return -1;
-        }
 
         // Microsoft.Windows.CsWin32 creates CreateRemoteThread with pointer parameters, so we need to use unsafe
         unsafe
