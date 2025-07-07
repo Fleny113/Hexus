@@ -6,8 +6,7 @@ Process32Next
 // Used for sending signals
 OpenProcess
 CreateRemoteThread
-WaitForSingleObject
 
-// Used to retrieve the CtrlRoutine from the kernel32.dll, it isn't documented so we need to use GetProcAddress, but it is exported
+// Used to retrieve the CtrlRoutine from the kernel32.dll
 GetModuleHandle
 GetProcAddress

@@ -43,9 +43,6 @@ internal static class ProcessSignals
 
             if (remoteThread.IsInvalid)
                 return -1;
-
-            if (Win32.PInvoke.WaitForSingleObject(remoteThread, 0) != Win32.Foundation.WAIT_EVENT.WAIT_OBJECT_0)
-                return -1;
         }
 
         return 0;
