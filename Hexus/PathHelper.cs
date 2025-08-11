@@ -25,7 +25,8 @@ internal static class PathHelper
                 var file = Path.Combine(path, executable);
 
                 // On windows we want to check for either .exe, .com, .bat or .cmd files
-                if (OperatingSystem.IsWindows()) return [$"{file}.exe", $"{file}.com", $"{file}.bat", $"{file}.cmd"];
+                // We also check for the file itself in case the user already specified the extension or a extension-less file exists in the path
+                if (OperatingSystem.IsWindows()) return [file, $"{file}.exe", $"{file}.com", $"{file}.bat", $"{file}.cmd"];
 
                 return [file];
             })
