@@ -9,7 +9,7 @@ internal static class MapperExtensions
 {
     public static HexusApplication MapToApplication(this NewApplicationRequest request)
     {
-        return new()
+        return new HexusApplication
         {
             Name = request.Name,
             Executable = Path.GetFullPath(request.Executable),
@@ -55,13 +55,19 @@ internal static class MapperExtensions
             Status = x.Value.Status,
             Note = x.Value.Note,
             EnvironmentVariables = x.Value.EnvironmentVariables,
+            MemoryLimit = x.Value.MemoryLimit,
         }));
+
+        var totalMemory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        var defaultMemoryLimit = (uint)(totalMemory * 0.5);
 
         return new HexusConfiguration
         {
             UnixSocket = configurationFile.UnixSocket ?? EnvironmentHelper.SocketFile,
             HttpPort = configurationFile.HttpPort,
             CpuRefreshIntervalSeconds = configurationFile.CpuRefreshIntervalSeconds ?? 2.5,
+            MemoryLimitCheckIntervalSeconds = configurationFile.MemoryLimitCheckIntervalSeconds ?? 30.0,
+            MemoryLimit = configurationFile.MemoryLimit ?? defaultMemoryLimit,
             Applications = applications?.ToDictionary() ?? [],
         };
     }
@@ -70,6 +76,12 @@ internal static class MapperExtensions
         // If we are using default values, we can omit writing them to the file
         var socket = configuration.UnixSocket != EnvironmentHelper.SocketFile ? configuration.UnixSocket : null;
         var cpuRefresh = Math.Abs(configuration.CpuRefreshIntervalSeconds - 2.5) > 0.1 ? configuration.CpuRefreshIntervalSeconds : (double?)null;
+        var memRefresh = Math.Abs(configuration.MemoryLimitCheckIntervalSeconds - 30.0) > 0.1 ? configuration.MemoryLimitCheckIntervalSeconds : (double?)null;
+
+        var totalMemory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        var defaultMemoryLimit = (uint)(totalMemory * 0.5);
+
+        var memoryLimit = configuration.MemoryLimit != defaultMemoryLimit ? configuration.MemoryLimit : (uint?)null;
 
         var applications = configuration.Applications.Select(x => new KeyValuePair<string, HexusApplication>(x.Key, new HexusApplication
         {
@@ -81,6 +93,7 @@ internal static class MapperExtensions
             Status = x.Value.Status,
             Note = x.Value.Note,
             EnvironmentVariables = x.Value.EnvironmentVariables,
+            MemoryLimit = x.Value.MemoryLimit,
         }));
 
         return new HexusConfigurationFile()
@@ -88,6 +101,8 @@ internal static class MapperExtensions
             UnixSocket = socket,
             HttpPort = configuration.HttpPort,
             CpuRefreshIntervalSeconds = cpuRefresh,
+            MemoryLimitCheckIntervalSeconds = memRefresh,
+            MemoryLimit = memoryLimit,
             Applications = applications.ToDictionary(),
         };
     }

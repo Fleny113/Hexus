@@ -5,6 +5,7 @@ using Spectre.Console;
 using System.CommandLine;
 
 namespace Hexus.Commands.Utils;
+
 internal static class ShowTimezones
 {
     public static readonly Command Command = new("show-timezones", "Show timezones found in the system. The ID value can be used in the Timezone option for the logs command.");

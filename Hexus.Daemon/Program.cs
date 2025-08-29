@@ -65,6 +65,7 @@ builder.Services.AddTransient<HexusConfiguration>(sp => sp.GetRequiredService<He
 // Services & HostedServices
 builder.Services.AddHostedService<HexusLifecycle>();
 builder.Services.AddHostedService<PerformanceTrackingService>();
+builder.Services.AddHostedService<MemoryLimiterService>();
 
 builder.Services.AddSingleton<ProcessStatisticsService>();
 builder.Services.AddSingleton<ProcessLogsService>();

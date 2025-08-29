@@ -133,6 +133,28 @@ internal partial class ProcessManagerService(
         return true;
     }
 
+    /// <summary>
+    /// This is a hard kill of the application and will not prevent restarts, use StopApplication to gracefully stop an application
+    /// </summary>
+    internal void KillApplication(HexusApplication application)
+    {
+        if (!IsApplicationRunning(application, out var process))
+            return;
+
+        try
+        {
+            process.Kill(true);
+        }
+        catch (InvalidOperationException exception) when (exception.Message == "No process is associated with this object.")
+        {
+            // We don't want to do anything. The application is already killed so nothing to do
+        }
+        catch (Exception exception)
+        {
+            LogFailedApplicationStop(_logger, exception);
+        }
+    }
+
     #region Start Process Internals
 
     private static (Process?, SpawnProcessError?) SpawnProcess(ProcessStartInfo startInfo)

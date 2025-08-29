@@ -62,7 +62,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         }
     }
 
-    private long GetMemoryUsage(HexusApplication application)
+    internal long GetMemoryUsage(HexusApplication application)
     {
         if (!processManagerService.IsApplicationRunning(application, out _))
             return 0;
