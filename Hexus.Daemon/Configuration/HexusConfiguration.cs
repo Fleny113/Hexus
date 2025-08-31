@@ -6,7 +6,7 @@ public sealed record HexusConfiguration
     public int? HttpPort { get; init; }
     public double CpuRefreshIntervalSeconds { get; init; }
     public double MemoryLimitCheckIntervalSeconds { get; init; }
-    public uint MemoryLimit { get; init; }
+    public ulong MemoryLimit { get; init; }
     public Dictionary<string, HexusApplication> Applications { get; init; } = [];
 }
 
@@ -17,6 +17,6 @@ internal sealed record HexusConfigurationFile
     public int? HttpPort { get; set; }
     public double? CpuRefreshIntervalSeconds { get; set; }
     public double? MemoryLimitCheckIntervalSeconds { get; set; }
-    public uint? MemoryLimit { get; set; }
+    public ulong? MemoryLimit { get; set; }
     public Dictionary<string, HexusApplication>? Applications { get; set; }
 }

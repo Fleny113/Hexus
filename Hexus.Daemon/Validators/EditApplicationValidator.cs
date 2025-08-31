@@ -16,5 +16,6 @@ internal class EditApplicationValidator : AbstractValidator<EditApplicationReque
         RuleFor(r => r.NewEnvironmentVariables).NotNull();
         RuleFor(r => r.RemoveEnvironmentVariables).NotNull();
         RuleFor(r => r.IsReloadingEnvironmentVariables).NotNull();
+        RuleFor(r => r.MemoryLimit).GreaterThan(-1);
     }
 }

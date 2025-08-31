@@ -48,6 +48,11 @@ internal static class NewCommand
         AllowMultipleArgumentsPerToken = true,
         CustomParser = DictionaryParser.Parse,
     };
+    
+    private static readonly Option<ulong?> MemoryLimit = new("-m", "--memory-limit")
+    {
+        Description = "Set a memory limit for the application in bytes, if the application exceeds this limit it will be restarted",
+    };
 
     public static readonly Command Command = new("new", "Create a new application")
     {
@@ -58,6 +63,7 @@ internal static class NewCommand
         WorkingDirectoryOption,
         DoNotUseShellEnvironment,
         EnvironmentVariables,
+        MemoryLimit,
     };
 
     static NewCommand()
@@ -74,6 +80,7 @@ internal static class NewCommand
         var workingDirectory = parseResult.GetValue(WorkingDirectoryOption);
         var useShellEnv = !parseResult.GetValue(DoNotUseShellEnvironment);
         var environmentVariables = parseResult.GetValue(EnvironmentVariables) ?? [];
+        var memoryLimit = parseResult.GetValue(MemoryLimit);
 
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {
@@ -141,7 +148,8 @@ internal static class NewCommand
                 arguments,
                 workingDirectory,
                 note ?? "",
-                environmentVariables
+                environmentVariables,
+                memoryLimit
             ),
             HttpInvocation.JsonSerializerContext,
             ct

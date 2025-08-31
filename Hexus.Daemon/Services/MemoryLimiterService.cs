@@ -12,11 +12,11 @@ internal sealed partial class MemoryLimiterService(
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        var interval = TimeSpan.FromSeconds(configuration.MemoryLimit);
+        var interval = TimeSpan.FromSeconds(configuration.MemoryLimitCheckIntervalSeconds);
 
         if (interval.TotalMilliseconds is <= 0 or >= uint.MaxValue)
         {
-            LogDisableMemoryLimiter(logger, configuration.CpuRefreshIntervalSeconds);
+            LogDisableMemoryLimiter(logger, configuration.MemoryLimitCheckIntervalSeconds);
             return;
         }
 
@@ -49,7 +49,7 @@ internal sealed partial class MemoryLimiterService(
                 return;
             }
 
-            var memoryUsage = processStatisticsService.GetMemoryUsage(application);
+            var memoryUsage = (ulong)processStatisticsService.GetMemoryUsage(application);
 
             if (memoryUsage < memoryLimit)
             {

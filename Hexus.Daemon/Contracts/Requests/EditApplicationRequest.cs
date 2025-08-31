@@ -8,5 +8,6 @@ public sealed record EditApplicationRequest(
     string? Note = null,
     Dictionary<string, string>? NewEnvironmentVariables = null,
     string[]? RemoveEnvironmentVariables = null,
-    bool? IsReloadingEnvironmentVariables = null
+    bool? IsReloadingEnvironmentVariables = null,
+    long? MemoryLimit = null
 );

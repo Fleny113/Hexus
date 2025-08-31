@@ -57,6 +57,11 @@ internal static class EditCommand
         Arity = ArgumentArity.OneOrMore,
         AllowMultipleArgumentsPerToken = true,
     };
+    
+    private static readonly Option<long?> MemoryLimit = new("-m", "--memory-limit")
+    {
+        Description = "Set a memory limit for the application in bytes, if the application exceeds this limit it will be restarted. Use 0 to remove the limit and -1 to use the global limit.",
+    };
 
     public static readonly Command Command = new("edit", "Edit an exiting application")
     {
@@ -69,6 +74,7 @@ internal static class EditCommand
         ReloadFromShell,
         AddEnvironmentVariables,
         RemoveEnvironmentVariables,
+        MemoryLimit,
     };
 
     static EditCommand()
@@ -87,6 +93,7 @@ internal static class EditCommand
         var addEnv = parseResult.GetValue(AddEnvironmentVariables);
         var remove = parseResult.GetValue(RemoveEnvironmentVariables);
         var reloadEnv = parseResult.GetValue(ReloadFromShell);
+        var memoryLimit = parseResult.GetValue(MemoryLimit);
 
         var newArguments = string.Join(' ', newArgumentsOptionValue ?? []);
 
@@ -136,7 +143,8 @@ internal static class EditCommand
                 Note: newNote,
                 NewEnvironmentVariables: addEnv,
                 RemoveEnvironmentVariables: remove,
-                IsReloadingEnvironmentVariables: reloadEnv
+                IsReloadingEnvironmentVariables: reloadEnv,
+                MemoryLimit: memoryLimit
             ),
             HttpInvocation.JsonSerializerContext,
             ct

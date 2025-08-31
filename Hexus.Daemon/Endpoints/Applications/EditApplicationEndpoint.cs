@@ -30,7 +30,7 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         if (request.Name is not null && configurationManager.Configuration.Applications.TryGetValue(request.Name, out _))
             return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyExists);
 
-        // FIlle the rest of the request with the data from the application to edit
+        // Fill the rest of the request with the data from the application to edit
         request = new EditApplicationRequest(
             Name: request.Name ?? application.Name,
             Executable: Path.GetFullPath(request.Executable ?? application.Executable),
@@ -41,6 +41,13 @@ internal sealed class EditApplicationEndpoint : IEndpoint
             RemoveEnvironmentVariables: request.RemoveEnvironmentVariables ?? [],
             IsReloadingEnvironmentVariables: request.IsReloadingEnvironmentVariables ?? false
         );
+
+        var memoryLimit = request.MemoryLimit switch
+        {
+            null => application.MemoryLimit,
+            -1 => null,
+            _ => (ulong)request.MemoryLimit,
+        };
 
         if (!validator.Validate(request, out var validationResult))
             return TypedResults.ValidationProblem(validationResult.ToDictionary());
@@ -90,6 +97,7 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         application.Note = request.Note;
         application.WorkingDirectory = request.WorkingDirectory;
         application.EnvironmentVariables = newEnvironmentVariables;
+        application.MemoryLimit = memoryLimit;
 
         configurationManager.SaveConfiguration();
 
