@@ -54,7 +54,6 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         // With the ?? on the EditApplicationRequest it should never get to a state where these are null
         Debug.Assert(request.Name is not null);
         Debug.Assert(request.Executable is not null);
-        Debug.Assert(request.Arguments is not null);
         Debug.Assert(request.Note is not null);
         Debug.Assert(request.WorkingDirectory is not null);
         Debug.Assert(request.NewEnvironmentVariables is not null);

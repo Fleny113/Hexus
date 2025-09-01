@@ -10,7 +10,6 @@ internal class EditApplicationValidator : AbstractValidator<EditApplicationReque
     {
         RuleFor(r => r.Name).NotEmpty();
         RuleFor(r => r.Executable).NotEmpty().IsAbsolutePath();
-        RuleFor(r => r.Arguments).NotNull();
         RuleFor(r => r.WorkingDirectory).NotEmpty().IsAbsolutePath();
         RuleFor(r => r.Note).NotNull();
         RuleFor(r => r.NewEnvironmentVariables).NotNull();
