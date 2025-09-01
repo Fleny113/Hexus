@@ -73,7 +73,9 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
             {
                 proc.Refresh();
 
-                return proc.WorkingSet64;
+                return OperatingSystem.IsWindows()
+                   ? proc.PrivateMemorySize64
+                   : proc.WorkingSet64;
             })
             .Sum();
     }
