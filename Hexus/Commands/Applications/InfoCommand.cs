@@ -60,7 +60,7 @@ internal static class InfoCommand
 
         var isGlobalMemoryLimit = application.MemoryLimit is null;
         var memoryLimit = (long?)application.MemoryLimit ?? (long)Configuration.HexusConfiguration.MemoryLimit;
-        
+
         PrettyConsole.OutLimitlessWidth.MarkupLine($"""
             Application configuration:
             - [cornflowerblue]Name[/]: {application.Name.EscapeMarkup()}

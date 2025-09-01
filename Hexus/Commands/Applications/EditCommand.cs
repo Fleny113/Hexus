@@ -57,7 +57,7 @@ internal static class EditCommand
         Arity = ArgumentArity.OneOrMore,
         AllowMultipleArgumentsPerToken = true,
     };
-    
+
     private static readonly Option<long?> MemoryLimit = new("-m", "--memory-limit")
     {
         Description = "Set a memory limit for the application in bytes, if the application exceeds this limit it will be restarted. Use 0 to remove the limit and -1 to use the global limit.",
