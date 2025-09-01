@@ -142,7 +142,7 @@ The config file is a `.yaml` file with the following options:
 - `unixSocket`: Changes where the socket is located. Used for connecting to the daemon.
 - `httpPort`: The HTTP port to listen as an addition way to access the daemon to the required socket, useful for interfacing with software that cant use the socket. \[OPTIONAL\]
 - `cpuRefreshIntervalSeconds`: The interval for the refresh of CPU usage of applications. The lower the value, the more CPU Hexus will use but the more precise it will the CPU usage of applications. Default 2.5 seconds.
-- `memoryLimitCheckIntervalSeconds`: The interval for the check of the application memory limit. Default 30 seconds.
+- `memoryLimitCheckIntervalSeconds`: The interval for the check of the application memory limit. Default 10 seconds.
 - `memoryLimit`: The max memory usage, in bytes, for a process, can be 0 to disable the feature. Defaults to 25% of the installed RAM.
 - `applications`: Object with the application name as the key as the value the following proprieties.
   - `executable`: The file to execute when spawning the application.
