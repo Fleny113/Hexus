@@ -49,7 +49,7 @@ internal static class NewCommand
         CustomParser = DictionaryParser.Parse,
     };
     
-    private static readonly Option<ulong?> MemoryLimit = new("-m", "--memory-limit")
+    private static readonly Option<long?> MemoryLimit = new("-m", "--memory-limit")
     {
         Description = "Set a memory limit for the application in bytes, if the application exceeds this limit it will be restarted",
     };

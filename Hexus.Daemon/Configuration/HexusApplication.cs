@@ -15,5 +15,5 @@ public sealed record HexusApplication
 
     public Dictionary<string, string> EnvironmentVariables { get; set; } = [];
 
-    public ulong? MemoryLimit { get; set; }
+    public long? MemoryLimit { get; set; }
 }

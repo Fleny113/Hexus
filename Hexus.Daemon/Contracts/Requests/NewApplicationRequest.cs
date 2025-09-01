@@ -7,5 +7,5 @@ public sealed record NewApplicationRequest(
     string? WorkingDirectory = null,
     string Note = "",
     Dictionary<string, string>? EnvironmentVariables = null,
-    ulong? MemoryLimit = null
+    long? MemoryLimit = null
 );

@@ -14,5 +14,5 @@ public sealed record ApplicationResponse(
     long ProcessId,
     double CpuUsage,
     long MemoryUsage,
-    ulong? MemoryLimit
+    long? MemoryLimit
 );

@@ -61,7 +61,7 @@ internal static class MapperExtensions
         }));
 
         var totalMemory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
-        var defaultMemoryLimit = (ulong)(totalMemory * 0.25);
+        var defaultMemoryLimit = (long)(totalMemory * 0.25);
 
         return new HexusConfiguration
         {
@@ -81,9 +81,9 @@ internal static class MapperExtensions
         var memRefresh = Math.Abs(configuration.MemoryLimitCheckIntervalSeconds - 10.0) > 0.1 ? configuration.MemoryLimitCheckIntervalSeconds : (double?)null;
 
         var totalMemory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
-        var defaultMemoryLimit = (ulong)(totalMemory * 0.25);
+        var defaultMemoryLimit = (long)(totalMemory * 0.25);
 
-        var memoryLimit = configuration.MemoryLimit != defaultMemoryLimit ? configuration.MemoryLimit : (ulong?)null;
+        var memoryLimit = configuration.MemoryLimit != defaultMemoryLimit ? configuration.MemoryLimit : (long?)null;
 
         var applications = configuration.Applications.Select(x => new KeyValuePair<string, HexusApplication>(x.Key, new HexusApplication
         {

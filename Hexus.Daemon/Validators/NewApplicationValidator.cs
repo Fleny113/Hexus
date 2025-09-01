@@ -14,5 +14,6 @@ internal class NewApplicationValidator : AbstractValidator<NewApplicationRequest
         RuleFor(r => r.WorkingDirectory).NotEmpty().IsAbsolutePath();
         RuleFor(r => r.Note).NotNull();
         RuleFor(r => r.EnvironmentVariables).NotNull();
+        RuleFor(r => r.MemoryLimit).GreaterThan(0);
     }
 }

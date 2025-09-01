@@ -39,15 +39,14 @@ internal sealed class EditApplicationEndpoint : IEndpoint
             WorkingDirectory: Path.GetFullPath(request.WorkingDirectory ?? application.WorkingDirectory),
             NewEnvironmentVariables: request.NewEnvironmentVariables ?? [],
             RemoveEnvironmentVariables: request.RemoveEnvironmentVariables ?? [],
-            IsReloadingEnvironmentVariables: request.IsReloadingEnvironmentVariables ?? false
+            IsReloadingEnvironmentVariables: request.IsReloadingEnvironmentVariables ?? false,
+            MemoryLimit: request.MemoryLimit switch
+            {
+                null => application.MemoryLimit,
+                -1 => null,
+                _ => request.MemoryLimit,
+            }
         );
-
-        var memoryLimit = request.MemoryLimit switch
-        {
-            null => application.MemoryLimit,
-            -1 => null,
-            _ => (ulong)request.MemoryLimit,
-        };
 
         if (!validator.Validate(request, out var validationResult))
             return TypedResults.ValidationProblem(validationResult.ToDictionary());
@@ -97,7 +96,7 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         application.Note = request.Note;
         application.WorkingDirectory = request.WorkingDirectory;
         application.EnvironmentVariables = newEnvironmentVariables;
-        application.MemoryLimit = memoryLimit;
+        application.MemoryLimit = request.MemoryLimit;
 
         configurationManager.SaveConfiguration();
 

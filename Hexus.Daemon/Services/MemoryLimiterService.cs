@@ -49,7 +49,7 @@ internal sealed partial class MemoryLimiterService(
                 return;
             }
 
-            var memoryUsage = (ulong)processStatisticsService.GetMemoryUsage(application);
+            var memoryUsage = processStatisticsService.GetMemoryUsage(application);
 
             if (memoryUsage < memoryLimit)
             {
