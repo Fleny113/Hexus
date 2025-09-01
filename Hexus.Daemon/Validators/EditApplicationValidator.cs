@@ -15,6 +15,9 @@ internal class EditApplicationValidator : AbstractValidator<EditApplicationReque
         RuleFor(r => r.NewEnvironmentVariables).NotNull();
         RuleFor(r => r.RemoveEnvironmentVariables).NotNull();
         RuleFor(r => r.IsReloadingEnvironmentVariables).NotNull();
-        RuleFor(r => r.MemoryLimit).GreaterThan(-1);
+        // This is validated after the transform the value to handle -1, so the validation message does look out of place
+        RuleFor(r => r.MemoryLimit)
+            .Must(x => x is null or >= 0)
+            .WithMessage("Memory limit must be -1 or greater when specified");
     }
 }
