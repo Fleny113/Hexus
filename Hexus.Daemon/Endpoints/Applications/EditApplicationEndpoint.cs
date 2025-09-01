@@ -30,7 +30,7 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         if (request.Name is not null && configurationManager.Configuration.Applications.TryGetValue(request.Name, out _))
             return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyExists);
 
-        // FIlle the rest of the request with the data from the application to edit
+        // Fill the rest of the request with the data from the application to edit
         request = new EditApplicationRequest(
             Name: request.Name ?? application.Name,
             Executable: Path.GetFullPath(request.Executable ?? application.Executable),
@@ -39,7 +39,13 @@ internal sealed class EditApplicationEndpoint : IEndpoint
             WorkingDirectory: Path.GetFullPath(request.WorkingDirectory ?? application.WorkingDirectory),
             NewEnvironmentVariables: request.NewEnvironmentVariables ?? [],
             RemoveEnvironmentVariables: request.RemoveEnvironmentVariables ?? [],
-            IsReloadingEnvironmentVariables: request.IsReloadingEnvironmentVariables ?? false
+            IsReloadingEnvironmentVariables: request.IsReloadingEnvironmentVariables ?? false,
+            MemoryLimit: request.MemoryLimit switch
+            {
+                null => application.MemoryLimit,
+                -1 => null,
+                _ => request.MemoryLimit,
+            }
         );
 
         if (!validator.Validate(request, out var validationResult))
@@ -48,7 +54,6 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         // With the ?? on the EditApplicationRequest it should never get to a state where these are null
         Debug.Assert(request.Name is not null);
         Debug.Assert(request.Executable is not null);
-        Debug.Assert(request.Arguments is not null);
         Debug.Assert(request.Note is not null);
         Debug.Assert(request.WorkingDirectory is not null);
         Debug.Assert(request.NewEnvironmentVariables is not null);
@@ -90,6 +95,7 @@ internal sealed class EditApplicationEndpoint : IEndpoint
         application.Note = request.Note;
         application.WorkingDirectory = request.WorkingDirectory;
         application.EnvironmentVariables = newEnvironmentVariables;
+        application.MemoryLimit = request.MemoryLimit;
 
         configurationManager.SaveConfiguration();
 

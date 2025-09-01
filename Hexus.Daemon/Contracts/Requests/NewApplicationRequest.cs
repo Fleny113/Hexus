@@ -6,5 +6,6 @@ public sealed record NewApplicationRequest(
     string Arguments = "",
     string? WorkingDirectory = null,
     string Note = "",
-    Dictionary<string, string>? EnvironmentVariables = null
+    Dictionary<string, string>? EnvironmentVariables = null,
+    long? MemoryLimit = null
 );

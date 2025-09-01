@@ -13,5 +13,6 @@ public sealed record ApplicationResponse(
     TimeSpan ProcessUptime,
     long ProcessId,
     double CpuUsage,
-    long MemoryUsage
+    long MemoryUsage,
+    long? MemoryLimit
 );

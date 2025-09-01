@@ -62,7 +62,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         }
     }
 
-    private long GetMemoryUsage(HexusApplication application)
+    internal long GetMemoryUsage(HexusApplication application)
     {
         if (!processManagerService.IsApplicationRunning(application, out _))
             return 0;
@@ -73,7 +73,9 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
             {
                 proc.Refresh();
 
-                return proc.WorkingSet64;
+                return OperatingSystem.IsWindows()
+                   ? proc.PrivateMemorySize64
+                   : proc.WorkingSet64;
             })
             .Sum();
     }

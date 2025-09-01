@@ -14,4 +14,6 @@ public sealed record HexusApplication
     public string? Note { get; set; }
 
     public Dictionary<string, string> EnvironmentVariables { get; set; } = [];
+
+    public long? MemoryLimit { get; set; }
 }
