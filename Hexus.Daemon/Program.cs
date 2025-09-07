@@ -7,10 +7,14 @@ using Hexus.Daemon.Services;
 using Hexus.Daemon.Validators;
 using NReco.Logging.File;
 
+const string reloadConfigOnChangeEnvVar = "ASPNETCORE_hostBuilder__reloadConfigOnChange";
+
 // This has to be done before the call to CreateSlimBuilder, otherwise it will configure appsettings.json to reload on file change
-Environment.SetEnvironmentVariable("ASPNETCORE_hostBuilder__reloadConfigOnChange", false.ToString());
+Environment.SetEnvironmentVariable(reloadConfigOnChangeEnvVar, false.ToString());
 
 var builder = WebApplication.CreateSlimBuilder(args);
+
+Environment.SetEnvironmentVariable(reloadConfigOnChangeEnvVar, null);
 
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
