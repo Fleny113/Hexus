@@ -48,6 +48,8 @@ builder.Logging.AddFile(EnvironmentHelper.LogFile, x =>
 
 // If we are running as a systemd service this will handle the Type=notify requirements
 builder.Services.AddSystemd();
+// If we are running as a Windows service this will handle the service lifecycle
+builder.Services.AddWindowsService();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
