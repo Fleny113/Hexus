@@ -31,7 +31,7 @@ jobs:
             cd artifacts/publish/Hexus/release_${{ matrix.platform }}-${{ matrix.arch }}
             tar -czf ../../../../${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }}.tar.gz *
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           path: ./${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }}.tar.gz
           name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }}.tar.gz
