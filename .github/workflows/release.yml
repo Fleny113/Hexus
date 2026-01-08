@@ -1,4 +1,4 @@
-﻿name: .NET Release Builds
+name: .NET Release Builds
 on:
   release:
     types: [published]
@@ -16,7 +16,7 @@ jobs:
         platform: ["win", "linux"]
         self-contained: ["true", "false"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
