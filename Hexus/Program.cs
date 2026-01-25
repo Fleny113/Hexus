@@ -31,13 +31,9 @@ var rootCommand = new RootCommand("The Hexus management CLI")
 // Allow "hexus [diagram] ..." to show the parse diagram
 rootCommand.Directives.Add(new DiagramDirective());
 
-var configuration = new CommandLineConfiguration(rootCommand);
-
-configuration.ThrowIfInvalid();
-
 try
 {
-    return await configuration.InvokeAsync(args);
+    return await rootCommand.Parse(args).InvokeAsync();
 }
 catch (Exception exception)
 {

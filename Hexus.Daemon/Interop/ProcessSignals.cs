@@ -39,7 +39,7 @@ internal static class ProcessSignals
                 lpStartAddress: lpStartRoutine,
                 lpParameter: lpParameter,
                 dwCreationFlags: 0,
-                lpThreadId: null);
+                lpThreadId: out _);
 
             if (remoteThread.IsInvalid)
                 return -1;

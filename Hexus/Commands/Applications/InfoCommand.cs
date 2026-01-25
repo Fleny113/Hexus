@@ -1,5 +1,4 @@
 using Humanizer;
-using Humanizer.Localisation;
 using Spectre.Console;
 using System.CommandLine;
 using System.Diagnostics;

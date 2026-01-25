@@ -1,7 +1,6 @@
 using Hexus.Daemon.Configuration;
 using Hexus.Daemon.Contracts.Responses;
 using Humanizer;
-using Humanizer.Localisation;
 using Spectre.Console;
 using System.CommandLine;
 using System.Diagnostics;
