@@ -45,7 +45,7 @@ Optionally you can add `--self-contained` to remove the need for the .NET Runtim
 
 #### Start the daemon
 
-Hexus requires you to start the daemon manually before you can start using it. To start the daemon run the command `hexus daemon start` and if you want to stop it without sending a CTRL + C or a kill signal to the process you can use the `hexus daemon stop` command.
+Hexus requires you to start the daemon manually before you can start using it. To start the daemon run the command `hexusd` and if you want to stop it without sending a CTRL + C or a kill signal to the process you can use the `hexus daemon stop` command.
 
 If you want to add the Hexus daemon to the startup you can use the `hexus startup` command that will detect what platform you are on and give you a powershell script for the windows task scheduler when run under windows and a systemd unit service file when running under Linux to quickly set up the startup process.
 
