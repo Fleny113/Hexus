@@ -41,7 +41,7 @@ internal static class StartupCommand
 
         if (cliExecutable is null)
         {
-            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] in getting the file location for hexus");
+            PrettyConsole.Error.MarkupLine("[indianred1]An error occurred[/] while getting the file location for hexus");
             return 1;
         }
 
@@ -49,7 +49,7 @@ internal static class StartupCommand
 
         if (!Path.Exists(daemonExe))
         {
-            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] in getting the file location for hexusd");
+            PrettyConsole.Error.MarkupLine("[indianred1]An error occurred[/] while getting the file location for hexusd");
             return 1;
         }
 
@@ -65,7 +65,7 @@ internal static class StartupCommand
             var windowsUser = WindowsIdentity.GetCurrent().Name;
             var description = $"Hexus process manager daemon for user {username}";
             var powershellCommand = $"""
-            {Comment("# Use the following powershell script in a elevated powershell prompt to create the scheduled task for run hexus:")}
+            {Comment("# Use the following powershell script in a elevated powershell prompt to create the scheduled task to run hexus:")}
 
             {Variable("$action")} {Operator("=")} {Cmdlet("New-ScheduledTaskAction")} {Operator("-Execute")} {String(daemonExe)} {Operator("-WorkingDirectory")} {String(EnvironmentHelper.Home)}
             {Variable("$trigger")} {Operator("=")} {Cmdlet("New-ScheduledTaskTrigger")} {Operator("-AtLogon")}

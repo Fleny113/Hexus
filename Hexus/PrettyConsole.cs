@@ -5,7 +5,7 @@ namespace Hexus;
 public static class PrettyConsole
 {
     public const string DaemonNotRunningError =
-        "There [indianred1]isn't the daemon running[/]. Start it using the '[indianred1]daemon[/] [darkcyan]start[/]' command.";
+        "The [indianred1]daemon isn't running[/]. Start it using the '[indianred1]hexusd[/]' command.";
 
     public const string DaemonAlreadyRunningError =
         "The [indianred1]daemon is already running[/]. Stop it first to run a new instance using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.";

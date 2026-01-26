@@ -12,7 +12,7 @@ internal static class StopCommand
     };
     private static readonly Option<bool> ForceOption = new("--force", "-f")
     {
-        Description = "Force the stop of the application",
+        Description = "Force stop the application",
     };
 
     public static readonly Command Command = new("stop", "Stop an application")

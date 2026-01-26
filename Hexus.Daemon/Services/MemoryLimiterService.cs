@@ -71,9 +71,9 @@ internal sealed partial class MemoryLimiterService(
     [LoggerMessage(LogLevel.Debug, "The memory limiter was disabled in the config file.")]
     private static partial void LogConfigDisabledMemoryLimiter(ILogger logger);
 
-    [LoggerMessage(LogLevel.Warning, "Disabling the memory limiter. An invalid interval ({interval}s) was passed in.")]
+    [LoggerMessage(LogLevel.Warning, "Disabling the memory limiter. An invalid interval ({interval}s) was passed.")]
     private static partial void LogDisableMemoryLimiter(ILogger logger, double interval);
 
-    [LoggerMessage(LogLevel.Error, "There was an error with application {name} memory limit check/enforcement")]
+    [LoggerMessage(LogLevel.Error, "An error occurred with application {name} memory limit check/enforcement")]
     private static partial void LogFailedCheck(ILogger logger, Exception ex, string name);
 }

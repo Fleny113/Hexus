@@ -21,7 +21,7 @@ internal static class NewCommand
 
     private static readonly Argument<string[]> ArgumentsArgument = new("arguments")
     {
-        Description = "The additional argument for the executable",
+        Description = "The additional arguments for the executable",
         Arity = ArgumentArity.ZeroOrMore,
         DefaultValueFactory = _ => [],
     };
@@ -51,7 +51,7 @@ internal static class NewCommand
 
     private static readonly Option<long?> MemoryLimit = new("-m", "--memory-limit")
     {
-        Description = "Set a memory limit for the application in bytes, if the application exceeds this limit it will be restarted",
+        Description = "Set a memory limit for the application in bytes. If the application exceeds this limit, it will be restarted",
     };
 
     public static readonly Command Command = new("new", "Create a new application")
@@ -128,11 +128,11 @@ internal static class NewCommand
         if (isPython && !isPyStdoutUnbuffered)
         {
             PrettyConsole.Error.MarkupLine("""
-                [yellow1]Warning[/]: A python executable was detected. Hexus will not be able to get the output of the program without the '-u' flag or 'PTYHONUNBUFFERED' environment variable. If you are actually running Python, consider using either solutions.
+                [yellow1]Warning[/]: A python executable was detected. Hexus will not be able to get the output of the program without the '-u' flag or 'PTYHONUNBUFFERED' environment variable. If you are actually running Python, consider using either solution.
 
                 Python documentation for those options: [link]https://docs.python.org/3/using/cmdline.html#cmdoption-u[/]
 
-                [italic]Due to limitations, if you are using the '-u' flag, Hexus will still show this warning, you can ignore it if you are using the '-u' flag.[/]
+                [italic]Due to limitations, if you are using the '-u' flag, Hexus will still show this warning. You can ignore it if you are using the '-u' flag.[/]
 
                 If you are not using Python, you can ignore this warning.
 

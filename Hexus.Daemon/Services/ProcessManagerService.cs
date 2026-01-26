@@ -392,18 +392,18 @@ internal partial class ProcessManagerService(
     [LoggerMessage(LogLevel.Error, "Failed to get the CTRL Routine Procedure address, sending signals to processes will not work.")]
     private static partial void LogFailedToGetCtrlProcedureAddress(ILogger logger);
 
-    [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed")]
+    [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed.")]
     private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, double timeWindow);
 
     [LoggerMessage(LogLevel.Debug, "Acknowledging about \"{Name}\" exiting with code: {ExitCode}")]
     private static partial void LogAcknowledgeProcessExit(ILogger logger, string name, int exitCode);
 
-    [LoggerMessage(LogLevel.Debug, "After {Restarts} restarts, application \"{Name}\" stopped restarting")]
+    [LoggerMessage(LogLevel.Debug, "After {Restarts} restarts, application \"{Name}\" stopped restarting.")]
     private static partial void LogConsequentialRestartsStop(ILogger logger, int restarts, string name);
 
-    [LoggerMessage(LogLevel.Debug, "Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting")]
+    [LoggerMessage(LogLevel.Debug, "Attempting to restart application \"{Name}\", waiting for {Seconds} seconds before restarting.")]
     private static partial void LogRestartAttemptDelay(ILogger logger, string name, double seconds);
 
-    [LoggerMessage(LogLevel.Debug, "Unable to stop process")]
+    [LoggerMessage(LogLevel.Debug, "Unable to stop process!")]
     private static partial void LogFailedApplicationStop(ILogger logger, Exception exception);
 }

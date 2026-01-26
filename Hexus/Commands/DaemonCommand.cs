@@ -37,7 +37,7 @@ internal static class DaemonCommand
 
         if (!req.IsSuccessStatusCode)
         {
-            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] stopping the [indianred1]daemon[/].");
+            PrettyConsole.Error.MarkupLine("[indianred1]An error occurred[/] stopping the [indianred1]daemon[/].");
             return;
         }
 
