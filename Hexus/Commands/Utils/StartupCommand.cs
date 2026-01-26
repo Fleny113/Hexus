@@ -118,7 +118,7 @@ internal static class StartupCommand
             {Key("WantedBy")}={Value(systemdSystem ? "multi-user.target" : "default.target")}
             """;
 
-            startRule.RuleTitle($"[white]Starting up {(systemdSystem ? "system" : "user")} systemd service[/]");
+            startRule.RuleTitle($"[white]Startup {(systemdSystem ? "system" : "user")} systemd service[/]");
 
             if (Console.IsOutputRedirected)
             {
