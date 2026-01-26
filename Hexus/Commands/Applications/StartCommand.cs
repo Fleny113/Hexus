@@ -11,7 +11,7 @@ internal static class StartCommand
         Arity = ArgumentArity.OneOrMore,
     };
 
-    public static readonly Command Command = new("start", "Start an exiting application")
+    public static readonly Command Command = new("start", "Start an existing application")
     {
         NamesArgument,
     };

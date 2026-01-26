@@ -12,7 +12,7 @@ internal static class RestartCommand
     };
     private static readonly Option<bool> ForceOption = new("--force", "-f")
     {
-        Description = "Force the restart of the application",
+        Description = "Force restart the application",
     };
 
     public static readonly Command Command = new("restart", "Restart an application")

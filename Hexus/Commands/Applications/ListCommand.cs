@@ -10,7 +10,7 @@ namespace Hexus.Commands.Applications;
 
 internal static class ListCommand
 {
-    public static readonly Command Command = new("list", "List application running under Hexus");
+    public static readonly Command Command = new("list", "List applications running under Hexus");
 
     static ListCommand()
     {
@@ -68,7 +68,7 @@ internal static class ListCommand
         if (table.Rows.Count == 0)
         {
             table.AddEmptyRow();
-            table.Caption("[italic grey39]it's quiet here...\nAdd a new application using the new command[/]");
+            table.Caption("[italic grey39]It's quiet here...\nAdd a new application using the new command[/]");
         }
 
         PrettyConsole.Out.Write(table);

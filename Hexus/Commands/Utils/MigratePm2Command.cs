@@ -75,13 +75,13 @@ internal static partial class MigratePm2Command
 
         if (await HttpInvocation.CheckForRunningDaemon(ct))
         {
-            PrettyConsole.Error.MarkupLine("To edit the Hexus configuration the [indianred1]daemon needs to not be running[/]. Stop it first using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.");
+            PrettyConsole.Error.MarkupLine("To edit the Hexus configuration the [indianred1]daemon needs to be stopped[/]. Stop it first using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.");
             return 1;
         }
 
         if (!File.Exists(pm2Dump))
         {
-            PrettyConsole.Error.MarkupLineInterpolated($"The specified dump file [indianred1]does not exist[/]. {pm2Dump} does not exist. Try using the --pm2-dump option to change the dump file name");
+            PrettyConsole.Error.MarkupLineInterpolated($"The specified dump file [indianred1]does not exist[/] ({pm2Dump}). Try using the --pm2-dump option to change the dump file name");
             return 1;
         }
 
@@ -90,7 +90,7 @@ internal static partial class MigratePm2Command
 
         if (pm2ConfigNode is null)
         {
-            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] reading the pm2 dump file.");
+            PrettyConsole.Error.MarkupLine("[indianred1]An error occurred[/] reading the pm2 dump file.");
             return 1;
         }
 
@@ -160,7 +160,7 @@ internal static partial class MigratePm2Command
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException("There was an error parsing the pm2 dump config, see inner exception for details", ex);
+            throw new InvalidOperationException("An error occurred parsing the pm2 dump config, see inner exception for details", ex);
         }
 
         foreach (var application in parsedApplications)
@@ -173,7 +173,7 @@ internal static partial class MigratePm2Command
 
             if (!Configuration.HexusConfiguration.Applications.TryAdd(application.Name, application))
             {
-                PrettyConsole.Error.MarkupLineInterpolated($"[indianred1]Unable to add application[/] {application.Name} due to conflicts with already exiting applications");
+                PrettyConsole.Error.MarkupLineInterpolated($"[indianred1]Unable to add application[/] {application.Name} due to conflicts with already existing applications");
             }
         }
 

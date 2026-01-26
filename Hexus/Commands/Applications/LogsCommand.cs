@@ -23,7 +23,7 @@ internal static class LogsCommand
 
     private static readonly Option<bool> DontStream = new("--no-streaming")
     {
-        Description = "Disable the streaming of new logs. It will only fetch from the log file",
+        Description = "Disable the streaming of new logs. The command will only fetch from the log file",
     };
 
     #endregion
@@ -31,7 +31,7 @@ internal static class LogsCommand
 
     private static readonly Option<bool> DontShowDates = new("--no-dates")
     {
-        Description = "Disable the dates of the log lines. Useful if you already have those in your log file",
+        Description = "Disable the dates of log lines. Useful if you already have those in your log file",
     };
     private static readonly Option<TimeZoneInfo> TimezoneOption = new("--timezone", "-t")
     {
@@ -46,7 +46,7 @@ internal static class LogsCommand
                 return timezone;
             }
 
-            result.AddError("The TimeZone was not found on the local computer. Please provide a valid timezone ID.");
+            result.AddError("The timezone was not found on this computer. Please provide a valid timezone ID.");
             return null;
         },
     };
@@ -94,7 +94,7 @@ internal static class LogsCommand
 
             if (lines is >= 0 or -1) return;
 
-            result.AddError("The number of lines should be more or equal to 0 or -1 to disable the limit.");
+            result.AddError("The number of lines must be greater than or equal to 0, or -1 to disable the limit.");
         });
 
         Command.Aliases.Add("log");
@@ -125,7 +125,7 @@ internal static class LogsCommand
 
         if (!File.Exists(logFileName))
         {
-            PrettyConsole.Error.MarkupLine("The request [indianred1]application does not have a log file[/]. Does the application exist?");
+            PrettyConsole.Error.MarkupLine("The requested [indianred1]application does not have a log file[/]. Does the application exist?");
             return 1;
         }
 

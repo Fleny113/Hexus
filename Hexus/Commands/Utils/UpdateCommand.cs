@@ -41,7 +41,7 @@ internal static class UpdateCommand
         {
             if (!update.NeedsUpdate)
             {
-                PrettyConsole.Out.MarkupLine("There is [mediumspringgreen]no update[/] available. Your are already up to date");
+                PrettyConsole.Out.MarkupLine("There are [mediumspringgreen]no updates[/] available. Your are already up to date");
                 return 0;
             }
 
@@ -63,7 +63,7 @@ internal static class UpdateCommand
 
         if (currentPath is null || currentDir is null)
         {
-            PrettyConsole.Error.MarkupLine("There [indianred1]was an error[/] fetching the Hexus files path.");
+            PrettyConsole.Error.MarkupLine("[indianred1]An error occurred[/] while fetching the Hexus files path.");
             return 1;
         }
 
@@ -81,7 +81,7 @@ internal static class UpdateCommand
         if (!request.IsSuccessStatusCode)
         {
             var body = await request.Content.ReadAsStringAsync(ct);
-            PrettyConsole.Error.MarkupLineInterpolated($"There [indianred1]was an error[/] fetching the update. HTTP status code: {request.StatusCode}, body: \"{body}\"");
+            PrettyConsole.Error.MarkupLineInterpolated($"[indianred1]An error occurred[/] while fetching the update. HTTP status code: {request.StatusCode}, body: \"{body}\"");
             return 1;
         }
 
@@ -110,7 +110,7 @@ internal static class UpdateCommand
             return 0;
         }
 
-        PrettyConsole.Out.MarkupLine("Update [springgreen1]done[/].");
+        PrettyConsole.Out.MarkupLine("Update [springgreen1]completed[/].");
 
         return 0;
     }

@@ -117,7 +117,7 @@ internal static class MapperExtensions
             ProcessManagerService.SpawnProcessError.NotFound => "The application executable was not found.",
             ProcessManagerService.SpawnProcessError.PermissionDenied => "Permission denied while starting the application.",
             ProcessManagerService.SpawnProcessError.InvalidExecutable => "The application executable is invalid.",
-            ProcessManagerService.SpawnProcessError.CommandTooLong => "The command line was too long.",
+            ProcessManagerService.SpawnProcessError.CommandTooLong => "The command was too long.",
             ProcessManagerService.SpawnProcessError.Unknown => "An unknown error occurred while starting the application.",
             _ => throw new ArgumentOutOfRangeException(nameof(error), error, null),
         };

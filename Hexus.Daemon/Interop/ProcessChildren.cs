@@ -17,7 +17,7 @@ internal static class ProcessChildren
         if (OperatingSystem.IsLinux())
             return GetChildProcessesLinux(parentId);
 
-        throw new NotSupportedException("Getting the child processes is not supported on this platform");
+        throw new NotSupportedException("Retrieving child processes is not supported on this platform.");
     }
 
     [SupportedOSPlatform("windows5.1.2600")]

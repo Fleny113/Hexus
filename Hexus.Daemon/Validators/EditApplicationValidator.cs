@@ -18,6 +18,6 @@ internal class EditApplicationValidator : AbstractValidator<EditApplicationReque
         // This is validated after the transform the value to handle -1, so the validation message does look out of place
         RuleFor(r => r.MemoryLimit)
             .Must(x => x is null or >= 0)
-            .WithMessage("Memory limit must be -1 or greater when specified");
+            .WithMessage("Memory limit must be -1 or greater when specified.");
     }
 }

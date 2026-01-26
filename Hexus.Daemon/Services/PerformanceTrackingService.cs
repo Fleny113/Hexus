@@ -32,9 +32,9 @@ internal partial class PerformanceTrackingService(
         }
     }
 
-    [LoggerMessage(LogLevel.Warning, "Disabling the CPU performance tracking. An invalid interval ({interval}s) was passed in.")]
+    [LoggerMessage(LogLevel.Warning, "Disabling the CPU performance tracking. An invalid interval ({interval}s) was passed.")]
     private static partial void LogDisablePerformanceTracking(ILogger logger, double interval);
 
-    [LoggerMessage(LogLevel.Error, "There was an error getting the updated CPU usage")]
+    [LoggerMessage(LogLevel.Error, "An error occurred getting the updated CPU usage")]
     private static partial void LogFailedRefresh(ILogger logger, Exception ex);
 }

@@ -16,6 +16,6 @@ internal class NewApplicationValidator : AbstractValidator<NewApplicationRequest
         RuleFor(r => r.EnvironmentVariables).NotNull();
         RuleFor(r => r.MemoryLimit)
             .Must(x => x is null or > 0)
-            .WithMessage("Memory limit must be greater than 0 when specified");
+            .WithMessage("Memory limit must be greater than 0 when specified.");
     }
 }

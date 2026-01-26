@@ -174,7 +174,7 @@ internal static class HttpInvocation
                 }
         }
 
-        PrettyConsole.Error.MarkupLine($"There [indianred1]was an error[/] in handling the request: {response}");
+        PrettyConsole.Error.MarkupLine($"[indianred1]An error occurred[/] in handling the request: {response}");
     }
 
     private static async Task<bool> CheckForRunningDaemonCore(CancellationToken ct)
