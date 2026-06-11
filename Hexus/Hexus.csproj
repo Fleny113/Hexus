@@ -13,7 +13,7 @@
     <ItemGroup>
         <PackageReference Include="Humanizer.Core" Version="3.0.10" />
         <PackageReference Include="Octokit" Version="14.0.0" />
-        <PackageReference Include="Spectre.Console" Version="0.56.0" />
+        <PackageReference Include="Spectre.Console" Version="0.57.0" />
         <PackageReference Include="Spectre.Console.Analyzer" Version="1.0.0">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
