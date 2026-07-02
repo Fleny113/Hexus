@@ -258,10 +258,10 @@ internal partial class ProcessManagerService(
             _ => throw new ArgumentException("An invalid LogType was passed in", nameof(logType)),
         };
 
-        while (!process.HasExited)
+        while (true)
         {
             var str = await streamReader.ReadLineAsync();
-            if (str is null) continue;
+            if (str is null) break;
 
             processLogsService.ProcessApplicationLog(application, logType, str);
         }
