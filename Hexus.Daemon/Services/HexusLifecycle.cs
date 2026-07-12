@@ -8,10 +8,6 @@ internal sealed class HexusLifecycle(
     ProcessLogsService processLogsService,
     ProcessStatisticsService processStatisticsService) : IHostedLifecycleService
 {
-    internal static readonly CancellationTokenSource DaemonStoppingTokenSource = new();
-    public static CancellationToken DaemonStoppingToken => DaemonStoppingTokenSource.Token;
-    public static bool IsDaemonStopped => DaemonStoppingTokenSource.IsCancellationRequested;
-
     public Task StartedAsync(CancellationToken cancellationToken)
     {
         foreach (var application in configManager.Configuration.Applications.Values)
@@ -30,8 +26,6 @@ internal sealed class HexusLifecycle(
 
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
-        File.Delete(configManager.Configuration.UnixSocket);
-
         StopApplications(processManager);
         foreach (var application in configManager.Configuration.Applications.Values)
         {
@@ -43,12 +37,7 @@ internal sealed class HexusLifecycle(
 
     public Task StartingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    public Task StoppingAsync(CancellationToken cancellationToken)
-    {
-        DaemonStoppingTokenSource.Cancel();
-
-        return Task.CompletedTask;
-    }
+    public Task StoppingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

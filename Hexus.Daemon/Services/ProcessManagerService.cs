@@ -11,7 +11,8 @@ namespace Hexus.Daemon.Services;
 internal partial class ProcessManagerService(
     ILoggerFactory loggerFactory,
     HexusConfigurationManager configManager,
-    ProcessLogsService processLogsService)
+    ProcessLogsService processLogsService,
+    IHostApplicationLifetime hostLifetime)
 {
     private readonly ILogger<ProcessManagerService> _logger = loggerFactory.CreateLogger<ProcessManagerService>();
     private readonly Dictionary<Process, HexusApplication> _processToApplicationMap = [];
@@ -88,7 +89,7 @@ internal partial class ProcessManagerService(
         _applicationToProcessMap.Remove(application.Name, out _);
 
         // If the daemon is shutting down we don't want to save, or else when the daemon is booted up again, all the applications will be marked as stopped
-        if (!HexusLifecycle.IsDaemonStopped)
+        if (!hostLifetime.ApplicationStopping.IsCancellationRequested)
             configManager.SaveConfiguration();
 
         return true;

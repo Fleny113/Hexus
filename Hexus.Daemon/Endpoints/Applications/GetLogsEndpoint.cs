@@ -17,6 +17,7 @@ internal sealed class GetLogsEndpoint : IEndpoint
         [FromServices] ProcessLogsService processLogsService,
         HttpContext context,
         [FromServices] IOptions<AppJsonSerializerContext> jsonSerializerContext,
+        [FromServices] IHostApplicationLifetime hostLifetime,
         [FromRoute] string name,
         [FromQuery] DateTimeOffset? before = null,
         CancellationToken ct = default)
@@ -25,7 +26,7 @@ internal sealed class GetLogsEndpoint : IEndpoint
             return TypedResults.NotFound();
 
         // When the aspnet or the hexus cancellation token get cancelled it cancels this as well
-        var combinedCtSource = CancellationTokenSource.CreateLinkedTokenSource(ct, HexusLifecycle.DaemonStoppingToken);
+        var combinedCtSource = CancellationTokenSource.CreateLinkedTokenSource(ct, hostLifetime.ApplicationStopping);
 
         var logs = processLogsService.GetLogs(application, before, combinedCtSource.Token);
 
