@@ -1,5 +1,5 @@
 using EndpointMapper;
-using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts.Responses;
 using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Services;
@@ -14,7 +14,7 @@ internal sealed class RestartApplicationEndpoint : IEndpoint
     public static Results<NoContent, NotFound, BadRequest<GenericFailureResponse>> Handle(
         [FromServices] ProcessManagerService processManager,
         [FromServices] ProcessStatisticsService processStatisticsService,
-        [FromServices] HexusConfiguration configuration,
+        [FromServices] HexusConfigurationManager configuration,
         [FromRoute] string name,
         [FromQuery] bool forceStop = false)
     {

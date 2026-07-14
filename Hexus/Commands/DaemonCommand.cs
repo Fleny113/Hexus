@@ -52,7 +52,7 @@ internal static class DaemonCommand
 
         if (showSocket)
         {
-            PrettyConsole.Out.MarkupLineInterpolated($"[gray]Socket being used: [link italic]{Configuration.HexusConfiguration.UnixSocket}[/][/]");
+            PrettyConsole.Out.MarkupLineInterpolated($"[gray]Socket being used: [link italic]{HttpInvocation.UnixSocketPath}[/][/]");
         }
 
         PrettyConsole.Out.MarkupLine($"The daemon is {(isRunning ? "[springgreen1]running[/]" : "[indianred1]not running[/]")}.");

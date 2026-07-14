@@ -1,4 +1,4 @@
-﻿using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Interop;
 using System.ComponentModel;
@@ -10,17 +10,17 @@ namespace Hexus.Daemon.Services;
 
 internal partial class ProcessManagerService(
     ILoggerFactory loggerFactory,
-    HexusConfigurationManager configManager,
-    ProcessLogsService processLogsService,
-    IHostApplicationLifetime hostLifetime)
+    // HexusConfigurationManager configManager,
+    ProcessLogsService processLogsService/*,
+    IHostApplicationLifetime hostLifetime*/)
 {
     private readonly ILogger<ProcessManagerService> _logger = loggerFactory.CreateLogger<ProcessManagerService>();
-    private readonly Dictionary<Process, HexusApplication> _processToApplicationMap = [];
+    private readonly Dictionary<Process, ApplicationConfiguration> _processToApplicationMap = [];
     private readonly Dictionary<string, Process> _applicationToProcessMap = [];
 
-    public SpawnProcessError? StartApplication(HexusApplication application)
+    public SpawnProcessError? StartApplication(ApplicationConfiguration application)
     {
-        if (IsApplicationRunning(application, out _))
+        if (IsApplicationProcessRunning(application, out _))
             return null;
 
         var processInfo = new ProcessStartInfo
@@ -64,18 +64,18 @@ internal partial class ProcessManagerService(
         process.Exited += AcknowledgeProcessExit;
         process.Exited += HandleProcessRestart;
 
-        application.Status = HexusApplicationStatus.Running;
-        configManager.SaveConfiguration();
+        // application.Status = HexusApplicationStatus.Running;
+        // configManager.SaveConfiguration();
 
         return null;
     }
 
-    public bool StopApplication(HexusApplication application, bool forceStop = false)
+    public bool StopApplication(ApplicationConfiguration application, bool forceStop = false)
     {
-        if (!IsApplicationRunning(application, out var process))
+        if (!IsApplicationProcessRunning(application, out var process))
             return false;
 
-        application.Status = HexusApplicationStatus.Stopping;
+        // application.Status = HexusApplicationStatus.Stopping;
 
         // Remove the restart event handler, or else it will restart the process as soon as it stops
         process.Exited -= HandleProcessRestart;
@@ -83,14 +83,14 @@ internal partial class ProcessManagerService(
 
         StopProcess(process, forceStop);
 
-        application.Status = HexusApplicationStatus.Exited;
+        // application.Status = HexusApplicationStatus.Exited;
 
         _processToApplicationMap.Remove(process, out _);
         _applicationToProcessMap.Remove(application.Name, out _);
 
         // If the daemon is shutting down we don't want to save, or else when the daemon is booted up again, all the applications will be marked as stopped
-        if (!hostLifetime.ApplicationStopping.IsCancellationRequested)
-            configManager.SaveConfiguration();
+        // if (!hostLifetime.ApplicationStopping.IsCancellationRequested)
+        //     configManager.SaveConfiguration();
 
         return true;
     }
@@ -100,7 +100,26 @@ internal partial class ProcessManagerService(
         Parallel.ForEach(_processToApplicationMap, tuple => StopApplication(tuple.Value));
     }
 
-    public bool IsApplicationRunning(HexusApplication application, [NotNullWhen(true)] out Process? process)
+    public bool IsApplicationProcessRunning(ApplicationConfiguration application, [NotNullWhen(true)] out Process? process)
+    {
+        if (!_applicationToProcessMap.TryGetValue(application.Name, out process)) return false;
+
+        try
+        {
+            return process is { HasExited: false };
+        }
+        catch (InvalidOperationException exception) when (exception.Message == "No process is associated with this object.")
+        {
+            // The process does not exist. So it isn't running
+            _applicationToProcessMap.Remove(application.Name, out _);
+            _processToApplicationMap.Remove(process, out _);
+
+            return false;
+        }
+    }
+
+    [Obsolete]
+    public bool IsApplicationRunning(ApplicationConfiguration application, [NotNullWhen(true)] out Process? process)
     {
         if (!_applicationToProcessMap.TryGetValue(application.Name, out process))
         {
@@ -109,7 +128,7 @@ internal partial class ProcessManagerService(
 
         try
         {
-            return application is { Status: HexusApplicationStatus.Running } && process is { HasExited: false };
+            return application is { /*Status: HexusApplicationStatus.Running*/ } && process is { HasExited: false };
         }
         catch (InvalidOperationException exception) when (exception.Message == "No process is associated with this object.")
         {
@@ -121,9 +140,9 @@ internal partial class ProcessManagerService(
         }
     }
 
-    public bool SendToApplication(HexusApplication application, ReadOnlySpan<char> text, bool newLine = true)
+    public bool SendToApplication(ApplicationConfiguration application, ReadOnlySpan<char> text, bool newLine = true)
     {
-        if (!IsApplicationRunning(application, out var process))
+        if (!IsApplicationProcessRunning(application, out var process))
             return false;
 
         if (newLine)
@@ -137,9 +156,9 @@ internal partial class ProcessManagerService(
     /// <summary>
     /// This is a hard kill of the application and will not prevent restarts, use StopApplication to gracefully stop an application
     /// </summary>
-    internal void KillApplication(HexusApplication application)
+    internal void KillApplication(ApplicationConfiguration application)
     {
-        if (!IsApplicationRunning(application, out var process))
+        if (!IsApplicationProcessRunning(application, out var process))
             return;
 
         try
@@ -250,7 +269,7 @@ internal partial class ProcessManagerService(
 
     #endregion
 
-    private async Task HandleLogs(HexusApplication application, Process process, LogType logType)
+    private async Task HandleLogs(ApplicationConfiguration application, Process process, LogType logType)
     {
         var streamReader = logType switch
         {
@@ -276,7 +295,7 @@ internal partial class ProcessManagerService(
 
     private readonly Dictionary<string, ConsequentialRestartsMetadata> _consequentialRestarts = [];
 
-    public bool AbortProcessRestart(HexusApplication application)
+    public bool AbortProcessRestart(ApplicationConfiguration application)
     {
         if (!_consequentialRestarts.Remove(application.Name, out var metadata)) return false;
 
@@ -332,13 +351,15 @@ internal partial class ProcessManagerService(
             status.ClearConsequentialRestartCancellationTokenSource.Dispose();
             _consequentialRestarts.Remove(application.Name, out _);
 
-            application.Status = HexusApplicationStatus.Crashed;
-            configManager.SaveConfiguration();
+            // TODO: save the crashed state
+            // application.Status = HexusApplicationStatus.Crashed;
+            // configManager.SaveConfiguration();
 
             return;
         }
 
-        application.Status = HexusApplicationStatus.Restarting;
+        // TODO: save the restarting state
+        // application.Status = HexusApplicationStatus.Restarting;
 
         var delay = CalculateDelay(status.Count);
         status.ClearConsequentialRestartCancellationTokenSource.Token.Register(ClearConsequentialRestarts, application.Name);
@@ -351,7 +372,7 @@ internal partial class ProcessManagerService(
             if (!delayTask.IsCompletedSuccessfully) return;
 
             StartApplication(application);
-            configManager.SaveConfiguration();
+            // configManager.SaveConfiguration();
         });
     }
 

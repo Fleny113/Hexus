@@ -1,5 +1,6 @@
-﻿namespace Hexus.Daemon.Configuration;
+namespace Hexus.Daemon.Configuration;
 
+[Obsolete]
 public enum HexusApplicationStatus
 {
     Crashed = -2,

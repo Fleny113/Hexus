@@ -1,4 +1,4 @@
-using Hexus.Daemon.Configuration;
+// using Hexus.Daemon.Configuration;
 
 namespace Hexus.Daemon.Contracts.Responses;
 
@@ -9,7 +9,8 @@ public sealed record ApplicationResponse(
     string WorkingDirectory,
     string? Note,
     Dictionary<string, string> EnvironmentVariables,
-    HexusApplicationStatus Status,
+    // TODO: enum for the new status values
+    int Status,
     TimeSpan ProcessUptime,
     long ProcessId,
     double CpuUsage,

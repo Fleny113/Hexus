@@ -1,4 +1,4 @@
-﻿using EndpointMapper;
+using EndpointMapper;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;

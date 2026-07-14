@@ -1,5 +1,6 @@
 namespace Hexus.Daemon.Contracts.Requests;
 
+[Obsolete]
 public sealed record EditApplicationRequest(
     string? Name = null,
     string? Executable = null,

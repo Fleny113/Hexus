@@ -1,4 +1,4 @@
-﻿using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 
 namespace Hexus.Daemon.Services;
 
@@ -10,12 +10,11 @@ internal sealed class HexusLifecycle(
 {
     public Task StartedAsync(CancellationToken cancellationToken)
     {
-        foreach (var application in configManager.Configuration.Applications.Values)
+        foreach (var application in configManager.Applications.Values)
         {
             processLogsService.RegisterApplication(application);
 
-            // If the application was Running or Restarting we want to start it
-            if (application.Status is not (HexusApplicationStatus.Running or HexusApplicationStatus.Restarting)) continue;
+            if (!application.Enabled) continue;
 
             processStatisticsService.TrackApplicationUsages(application);
             processManager.StartApplication(application);
@@ -27,7 +26,7 @@ internal sealed class HexusLifecycle(
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
         StopApplications(processManager);
-        foreach (var application in configManager.Configuration.Applications.Values)
+        foreach (var application in configManager.Applications.Values)
         {
             processStatisticsService.StopTrackingApplicationUsage(application);
         }

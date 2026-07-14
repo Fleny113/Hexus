@@ -1,26 +1,26 @@
-﻿using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
 
 namespace Hexus.Daemon.Services;
 
 internal sealed partial class MemoryLimiterService(
     ILogger<MemoryLimiterService> logger,
-    HexusConfiguration configuration,
+    HexusConfigurationManager configuration,
     ProcessStatisticsService processStatisticsService,
     ProcessLogsService processLogsService,
     ProcessManagerService processManagerService) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        var interval = TimeSpan.FromSeconds(configuration.MemoryLimitCheckIntervalSeconds);
+        var interval = configuration.DaemonConfiguration.MemoryPollingInterval;
 
         if (interval.TotalMilliseconds is <= 0 or >= uint.MaxValue)
         {
-            LogDisableMemoryLimiter(logger, configuration.MemoryLimitCheckIntervalSeconds);
+            LogDisableMemoryLimiter(logger, configuration.DaemonConfiguration.MemoryPollingInterval);
             return;
         }
 
-        if (configuration.MemoryLimit == 0)
+        if (configuration.DaemonConfiguration.MemoryLimit == 0)
         {
             LogConfigDisabledMemoryLimiter(logger);
             return;
@@ -37,11 +37,11 @@ internal sealed partial class MemoryLimiterService(
         }
     }
 
-    private void CheckApplicationMemoryUsage(HexusApplication application)
+    private void CheckApplicationMemoryUsage(ApplicationConfiguration application)
     {
         try
         {
-            var memoryLimit = application.MemoryLimit ?? configuration.MemoryLimit;
+            var memoryLimit = application.MemoryLimit;
 
             // A memory limit of 0 means no limit
             if (memoryLimit == 0)
@@ -71,8 +71,8 @@ internal sealed partial class MemoryLimiterService(
     [LoggerMessage(LogLevel.Debug, "The memory limiter was disabled in the config file.")]
     private static partial void LogConfigDisabledMemoryLimiter(ILogger logger);
 
-    [LoggerMessage(LogLevel.Warning, "Disabling the memory limiter. An invalid interval ({interval}s) was passed.")]
-    private static partial void LogDisableMemoryLimiter(ILogger logger, double interval);
+    [LoggerMessage(LogLevel.Warning, "Disabling the memory limiter. An invalid interval ({interval}) was passed.")]
+    private static partial void LogDisableMemoryLimiter(ILogger logger, TimeSpan interval);
 
     [LoggerMessage(LogLevel.Error, "An error occurred with application {name} memory limit check/enforcement")]
     private static partial void LogFailedCheck(ILogger logger, Exception ex, string name);

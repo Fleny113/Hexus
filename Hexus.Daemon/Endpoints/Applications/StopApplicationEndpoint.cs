@@ -1,7 +1,7 @@
-﻿using EndpointMapper;
-using Hexus.Daemon.Configuration;
-using Hexus.Daemon.Contracts;
-using Hexus.Daemon.Services;
+using EndpointMapper;
+// using Hexus.Configuration;
+// using Hexus.Daemon.Contracts;
+// using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,30 +11,32 @@ internal sealed class StopApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Delete, "/{name}")]
     public static Results<NoContent, NotFound, ValidationProblem> Handle(
-        [FromServices] ProcessManagerService processManager,
-        [FromServices] ProcessStatisticsService processStatisticsService,
-        [FromServices] HexusConfigurationManager configurationManager,
+        // [FromServices] ProcessManagerService processManager,
+        // [FromServices] ProcessStatisticsService processStatisticsService,
+        // [FromServices] HexusConfigurationManager configurationManager,
         [FromRoute] string name,
         [FromQuery] bool forceStop = false)
     {
-        if (!configurationManager.Configuration.Applications.TryGetValue(name, out var application))
-            return TypedResults.NotFound();
+        throw new InvalidOperationException("This endpoint is no longer supported.");
 
-        var stop = processManager.StopApplication(application, forceStop);
-        var abort = processManager.AbortProcessRestart(application);
+        // if (!configurationManager.Applications.TryGetValue(name, out var application))
+        //     return TypedResults.NotFound();
 
-        if (stop)
-            processStatisticsService.StopTrackingApplicationUsage(application);
+        // var stop = processManager.StopApplication(application, forceStop);
+        // var abort = processManager.AbortProcessRestart(application);
 
-        if (!stop && !abort)
-            return TypedResults.ValidationProblem(ErrorResponses.ApplicationNotRunning);
+        // if (stop)
+        //     processStatisticsService.StopTrackingApplicationUsage(application);
 
-        if (!stop && abort)
-        {
-            application.Status = HexusApplicationStatus.Exited;
-            configurationManager.SaveConfiguration();
-        }
+        // if (!stop && !abort)
+        //     return TypedResults.ValidationProblem(ErrorResponses.ApplicationNotRunning);
 
-        return TypedResults.NoContent();
+        // if (!stop && abort)
+        // {
+        //     // application.Status = HexusApplicationStatus.Exited;
+        //     // configurationManager.SaveConfiguration();
+        // }
+
+        // return TypedResults.NoContent();
     }
 }

@@ -1,5 +1,5 @@
 using EndpointMapper;
-using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -11,9 +11,10 @@ namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class GetLogsEndpoint : IEndpoint
 {
+    // TODO: can we make this endpoint return a stream instead of writing to the response body directly?
     [HttpMap(HttpMapMethod.Get, "/{name}/logs")]
     public static async Task<NotFound?> Handle(
-        [FromServices] HexusConfiguration configuration,
+        [FromServices] HexusConfigurationManager configuration,
         [FromServices] ProcessLogsService processLogsService,
         HttpContext context,
         [FromServices] IOptions<AppJsonSerializerContext> jsonSerializerContext,

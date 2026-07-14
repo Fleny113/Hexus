@@ -1,5 +1,6 @@
-﻿namespace Hexus.Daemon.Configuration;
+namespace Hexus.Daemon.Configuration;
 
+[Obsolete]
 public sealed record HexusConfiguration
 {
     public required string UnixSocket { get; init; }
@@ -11,6 +12,7 @@ public sealed record HexusConfiguration
 }
 
 // Used for the YAML File serialization
+[Obsolete]
 internal sealed record HexusConfigurationFile
 {
     public string? UnixSocket { get; set; }

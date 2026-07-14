@@ -6,6 +6,9 @@ using System.CommandLine;
 
 namespace Hexus.Commands.Applications;
 
+// TODO: The cli is going to be taking responsability for editing configs, so this command is to rewrite.
+// This is put off until the daemon is functional on the new config system.
+[Obsolete]
 internal static class NewCommand
 {
     private static readonly Argument<string> NameArgument = new("name")

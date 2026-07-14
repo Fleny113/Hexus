@@ -1,4 +1,4 @@
-using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -6,15 +6,15 @@ using System.Threading.Channels;
 
 namespace Hexus.Daemon.Services;
 
-internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
+public partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 {
-    internal const string ApplicationStartedLog = "-- Application started --";
-    internal static readonly CompositeFormat ApplicationStoppedLog = CompositeFormat.Parse("-- Application stopped [Exit code: {0}] --");
+    public const string ApplicationStartedLog = "-- Application started --";
+    public static readonly CompositeFormat ApplicationStoppedLog = CompositeFormat.Parse("-- Application stopped [Exit code: {0}] --");
     internal static readonly UTF8Encoding Utf8EncodingWithoutBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private readonly Dictionary<string, List<Channel<ApplicationLog>>> _logChannels = [];
 
-    internal void ProcessApplicationLog(HexusApplication application, LogType logType, string message)
+    internal void ProcessApplicationLog(ApplicationConfiguration application, LogType logType, string message)
     {
         lock (application)
         {
@@ -37,7 +37,7 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         }
     }
 
-    public async IAsyncEnumerable<ApplicationLog> GetLogs(HexusApplication application, DateTimeOffset? before, [EnumeratorCancellation] CancellationToken ct)
+    public async IAsyncEnumerable<ApplicationLog> GetLogs(ApplicationConfiguration application, DateTimeOffset? before, [EnumeratorCancellation] CancellationToken ct)
     {
         if (!_logChannels.TryGetValue(application.Name, out var channels))
         {
@@ -64,19 +64,19 @@ internal partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         }
     }
 
-    public void RegisterApplication(HexusApplication application)
+    public void RegisterApplication(ApplicationConfiguration application)
     {
         LogRegisteringApplication(logger, application.Name);
         _logChannels[application.Name] = [];
     }
 
-    public bool UnregisterApplication(HexusApplication application)
+    public bool UnregisterApplication(ApplicationConfiguration application)
     {
         LogUnregisteringApplication(logger, application.Name);
         return _logChannels.Remove(application.Name, out _);
     }
 
-    public void DeleteApplication(HexusApplication application)
+    public void DeleteApplication(ApplicationConfiguration application)
     {
         UnregisterApplication(application);
         File.Delete($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log");

@@ -1,5 +1,5 @@
 using EndpointMapper;
-using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts.Responses;
 using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Services;
@@ -13,7 +13,7 @@ internal sealed class GetApplicationEndpoint : IEndpoint
     [HttpMap(HttpMapMethod.Get, "/{name}")]
     public static Results<Ok<ApplicationResponse>, NotFound> Handle(
         [FromRoute] string name,
-        [FromServices] HexusConfiguration configuration,
+        [FromServices] HexusConfigurationManager configuration,
         [FromServices] ProcessStatisticsService processStatisticsService)
     {
         if (!configuration.Applications.TryGetValue(name, out var application))

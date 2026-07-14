@@ -1,4 +1,4 @@
-﻿using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Contracts.Responses;
 using Hexus.Daemon.Services;
@@ -7,9 +7,10 @@ namespace Hexus.Daemon.Extensions;
 
 internal static class MapperExtensions
 {
-    public static HexusApplication MapToApplication(this NewApplicationRequest request)
+    [Obsolete]
+    public static Configuration.HexusApplication MapToApplication(this NewApplicationRequest request)
     {
-        return new HexusApplication
+        return new Configuration.HexusApplication
         {
             Name = request.Name,
             Executable = Path.GetFullPath(request.Executable),
@@ -21,7 +22,7 @@ internal static class MapperExtensions
         };
     }
 
-    public static ApplicationResponse MapToResponse(this HexusApplication application, ApplicationStatistics applicationStatisticsResponse)
+    public static ApplicationResponse MapToResponse(this ApplicationConfiguration application, ApplicationStatistics applicationStatisticsResponse)
     {
         return new ApplicationResponse(
             Name: application.Name,
@@ -30,7 +31,8 @@ internal static class MapperExtensions
             WorkingDirectory: Path.GetFullPath(application.WorkingDirectory),
             Note: application.Note,
             EnvironmentVariables: application.EnvironmentVariables,
-            Status: application.Status,
+            // TODO: This is a temporary solution until we can get the actual status from the process manager
+            Status: -1,
             ProcessUptime: applicationStatisticsResponse.ProcessUptime,
             ProcessId: applicationStatisticsResponse.ProcessId,
             CpuUsage: applicationStatisticsResponse.CpuUsage,
@@ -40,15 +42,16 @@ internal static class MapperExtensions
     }
 
 
-    public static IEnumerable<ApplicationResponse> MapToResponse(this IEnumerable<HexusApplication> applications,
-        Func<HexusApplication, ApplicationStatistics> getApplicationStats)
+    public static IEnumerable<ApplicationResponse> MapToResponse(this IEnumerable<ApplicationConfiguration> applications,
+        Func<ApplicationConfiguration, ApplicationStatistics> getApplicationStats)
     {
         return applications.Select(app => app.MapToResponse(getApplicationStats(app)));
     }
 
-    public static HexusConfiguration MapToConfig(this HexusConfigurationFile configurationFile)
+    [Obsolete]
+    public static Configuration.HexusConfiguration MapToConfig(this Configuration.HexusConfigurationFile configurationFile)
     {
-        var applications = configurationFile.Applications?.Select(x => new KeyValuePair<string, HexusApplication>(x.Key, new()
+        var applications = configurationFile.Applications?.Select(x => new KeyValuePair<string, Configuration.HexusApplication>(x.Key, new()
         {
             Name = x.Key,
             Executable = x.Value.Executable,
@@ -63,9 +66,9 @@ internal static class MapperExtensions
         var totalMemory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
         var defaultMemoryLimit = (long)(totalMemory * 0.25);
 
-        return new HexusConfiguration
+        return new Configuration.HexusConfiguration
         {
-            UnixSocket = configurationFile.UnixSocket ?? EnvironmentHelper.SocketFile,
+            UnixSocket = configurationFile.UnixSocket ?? Configuration.EnvironmentHelper.SocketFile,
             HttpPort = configurationFile.HttpPort,
             CpuRefreshIntervalSeconds = configurationFile.CpuRefreshIntervalSeconds ?? 2.5,
             MemoryLimitCheckIntervalSeconds = configurationFile.MemoryLimitCheckIntervalSeconds ?? 10.0,
@@ -73,10 +76,12 @@ internal static class MapperExtensions
             Applications = applications?.ToDictionary() ?? [],
         };
     }
-    public static HexusConfigurationFile MapToConfigFile(this HexusConfiguration configuration)
+
+    [Obsolete]
+    public static Configuration.HexusConfigurationFile MapToConfigFile(this Configuration.HexusConfiguration configuration)
     {
         // If we are using default values, we can omit writing them to the file
-        var socket = configuration.UnixSocket != EnvironmentHelper.SocketFile ? configuration.UnixSocket : null;
+        var socket = configuration.UnixSocket != Configuration.EnvironmentHelper.SocketFile ? configuration.UnixSocket : null;
         var cpuRefresh = Math.Abs(configuration.CpuRefreshIntervalSeconds - 2.5) > 0.1 ? configuration.CpuRefreshIntervalSeconds : (double?)null;
         var memRefresh = Math.Abs(configuration.MemoryLimitCheckIntervalSeconds - 10.0) > 0.1 ? configuration.MemoryLimitCheckIntervalSeconds : (double?)null;
 
@@ -85,7 +90,7 @@ internal static class MapperExtensions
 
         var memoryLimit = configuration.MemoryLimit != defaultMemoryLimit ? configuration.MemoryLimit : (long?)null;
 
-        var applications = configuration.Applications.Select(x => new KeyValuePair<string, HexusApplication>(x.Key, new HexusApplication
+        var applications = configuration.Applications.Select(x => new KeyValuePair<string, Configuration.HexusApplication>(x.Key, new Configuration.HexusApplication
         {
             // We don't want to serialize the name in the config file
             Name = null!,
@@ -98,7 +103,7 @@ internal static class MapperExtensions
             MemoryLimit = x.Value.MemoryLimit,
         }));
 
-        return new HexusConfigurationFile
+        return new Configuration.HexusConfigurationFile
         {
             UnixSocket = socket,
             HttpPort = configuration.HttpPort,

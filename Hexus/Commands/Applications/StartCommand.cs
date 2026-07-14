@@ -1,4 +1,4 @@
-﻿using Spectre.Console;
+using Spectre.Console;
 using System.CommandLine;
 
 namespace Hexus.Commands.Applications;

@@ -7,6 +7,9 @@ using System.Text.Json.Serialization;
 
 namespace Hexus.Commands.Utils;
 
+// TODO: this is to rewrite basically entirerly due to the new configuration system.
+// as such this is marked as obsolete for now, the annotation will be removed once the rewrite is complete and the command is functional again.
+[Obsolete]
 internal static partial class MigratePm2Command
 {
     private static readonly string[] Pm2KnownConfig = [
@@ -166,18 +169,18 @@ internal static partial class MigratePm2Command
         foreach (var application in parsedApplications)
         {
             // To avoid most conflicts we add a -pm2 suffix if the key already exists.
-            if (Configuration.HexusConfiguration.Applications.ContainsKey(application.Name))
-            {
-                application.Name += "-pm2";
-            }
+            // if (Configuration.HexusConfiguration.Applications.ContainsKey(application.Name))
+            // {
+            //     application.Name += "-pm2";
+            // }
 
-            if (!Configuration.HexusConfiguration.Applications.TryAdd(application.Name, application))
-            {
-                PrettyConsole.Error.MarkupLineInterpolated($"[indianred1]Unable to add application[/] {application.Name} due to conflicts with already existing applications");
-            }
+            // if (!Configuration.HexusConfiguration.Applications.TryAdd(application.Name, application))
+            // {
+            //     PrettyConsole.Error.MarkupLineInterpolated($"[indianred1]Unable to add application[/] {application.Name} due to conflicts with already existing applications");
+            // }
         }
 
-        Configuration.HexusConfigurationManager.SaveConfiguration();
+        // Configuration.HexusConfigurationManager.SaveConfiguration();
 
         return 0;
     }

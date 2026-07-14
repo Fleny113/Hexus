@@ -1,13 +1,13 @@
-﻿using EndpointMapper;
-using FluentValidation;
-using Hexus.Daemon.Configuration;
-using Hexus.Daemon.Contracts;
-using Hexus.Daemon.Contracts.Requests;
+using EndpointMapper;
+// using FluentValidation;
+// using Hexus.Daemon.Configuration;
+// using Hexus.Daemon.Contracts;
+// using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Contracts.Responses;
-using Hexus.Daemon.Extensions;
-using Hexus.Daemon.Services;
+// using Hexus.Daemon.Extensions;
+// using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
+// using Microsoft.AspNetCore.Mvc;
 
 namespace Hexus.Daemon.Endpoints.Applications;
 
@@ -15,46 +15,48 @@ internal sealed class NewApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/new")]
     public static Results<Ok<ApplicationResponse>, BadRequest<GenericFailureResponse>, ValidationProblem> Handle(
-        [FromBody] NewApplicationRequest request,
+        /*[FromBody] NewApplicationRequest request,
         [FromServices] IValidator<NewApplicationRequest> validator,
         [FromServices] HexusConfigurationManager configManager,
         [FromServices] ProcessManagerService processManager,
         [FromServices] ProcessStatisticsService processStatisticsService,
-        [FromServices] ProcessLogsService processLogsService)
+        [FromServices] ProcessLogsService processLogsService*/)
     {
-        // Fill some defaults that are not compile time constants, so they require to be filled in here.
-        request = request with
-        {
-            WorkingDirectory = request.WorkingDirectory ?? EnvironmentHelper.Home,
-            EnvironmentVariables = request.EnvironmentVariables ?? [],
-        };
+        throw new InvalidOperationException("This endpoint is no longer supported.");
 
-        if (!validator.Validate(request, out var validationResult))
-            return TypedResults.ValidationProblem(validationResult.ToDictionary());
+        // // Fill some defaults that are not compile time constants, so they require to be filled in here.
+        // request = request with
+        // {
+        //     WorkingDirectory = request.WorkingDirectory ?? EnvironmentHelper.Home,
+        //     EnvironmentVariables = request.EnvironmentVariables ?? [],
+        // };
 
-        var application = request.MapToApplication();
+        // if (!validator.Validate(request, out var validationResult))
+        //     return TypedResults.ValidationProblem(validationResult.ToDictionary());
 
-        if (configManager.Configuration.Applications.TryGetValue(application.Name, out _))
-            return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyExists);
+        // var application = request.MapToApplication();
 
-        processStatisticsService.TrackApplicationUsages(application);
-        processLogsService.RegisterApplication(application);
+        // if (configManager.Configuration.Applications.TryGetValue(application.Name, out _))
+        //     return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyExists);
 
-        var startError = processManager.StartApplication(application);
+        // processStatisticsService.TrackApplicationUsages(application);
+        // processLogsService.RegisterApplication(application);
 
-        if (startError is not null)
-        {
-            processStatisticsService.StopTrackingApplicationUsage(application);
-            processLogsService.UnregisterApplication(application);
+        // var startError = processManager.StartApplication(application);
 
-            return TypedResults.BadRequest(new GenericFailureResponse(startError.Value.MapToErrorString()));
-        }
+        // if (startError is not null)
+        // {
+        //     processStatisticsService.StopTrackingApplicationUsage(application);
+        //     processLogsService.UnregisterApplication(application);
 
-        configManager.Configuration.Applications.Add(application.Name, application);
-        configManager.SaveConfiguration();
+        //     return TypedResults.BadRequest(new GenericFailureResponse(startError.Value.MapToErrorString()));
+        // }
 
-        var stats = processStatisticsService.GetApplicationStats(application);
+        // configManager.Configuration.Applications.Add(application.Name, application);
+        // configManager.SaveConfiguration();
 
-        return TypedResults.Ok(application.MapToResponse(stats));
+        // var stats = processStatisticsService.GetApplicationStats(application);
+
+        // return TypedResults.Ok(application.MapToResponse(stats));
     }
 }

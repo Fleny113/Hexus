@@ -1,6 +1,6 @@
-﻿using EndpointMapper;
-using Hexus.Daemon.Configuration;
-using Hexus.Daemon.Services;
+using EndpointMapper;
+// using Hexus.Daemon.Configuration;
+// using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,24 +10,26 @@ internal sealed class DeleteApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Delete, "/{name}/delete")]
     public static Results<NoContent, NotFound> Handle(
-        [FromServices] HexusConfigurationManager configManager,
-        [FromServices] ProcessManagerService processManager,
-        [FromServices] ProcessStatisticsService processStatisticsService,
-        [FromServices] ProcessLogsService processLogsService,
+        // [FromServices] HexusConfigurationManager configManager,
+        // [FromServices] ProcessManagerService processManager,
+        // [FromServices] ProcessStatisticsService processStatisticsService,
+        // [FromServices] ProcessLogsService processLogsService,
         [FromRoute] string name,
         [FromQuery] bool forceStop = false)
     {
-        if (!configManager.Configuration.Applications.TryGetValue(name, out var application))
-            return TypedResults.NotFound();
+        throw new InvalidOperationException("This endpoint is no longer supported.");
 
-        processManager.StopApplication(application, forceStop);
-        processManager.AbortProcessRestart(application);
-        processStatisticsService.StopTrackingApplicationUsage(application);
-        processLogsService.DeleteApplication(application);
+        // if (!configManager.Configuration.Applications.TryGetValue(name, out var application))
+        //     return TypedResults.NotFound();
 
-        configManager.Configuration.Applications.Remove(name, out _);
-        configManager.SaveConfiguration();
+        // processManager.StopApplication(application, forceStop);
+        // processManager.AbortProcessRestart(application);
+        // processStatisticsService.StopTrackingApplicationUsage(application);
+        // processLogsService.DeleteApplication(application);
 
-        return TypedResults.NoContent();
+        // configManager.Configuration.Applications.Remove(name, out _);
+        // configManager.SaveConfiguration();
+
+        // return TypedResults.NoContent();
     }
 }

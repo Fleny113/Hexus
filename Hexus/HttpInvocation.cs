@@ -1,5 +1,6 @@
-﻿using Hexus.Daemon;
-using Hexus.Daemon.Contracts.Responses;
+using Hexus.Configuration;
+using Hexus.Daemon;
+// using Hexus.Daemon.Contracts.Responses;
 using Microsoft.AspNetCore.Http;
 using Spectre.Console;
 using System.Diagnostics;
@@ -15,12 +16,33 @@ namespace Hexus;
 
 internal static class HttpInvocation
 {
+    public static DaemonConfiguration DeamonConfig = LoadDaemonConfig();
+
+    private static DaemonConfiguration LoadDaemonConfig()
+    {
+        var daemonConfigurationResult = HexusConfigurationManager.LoadDaemonConfiguration();
+
+        foreach (var warning in daemonConfigurationResult.Warnings)
+        {
+            PrettyConsole.Out.WriteLine($"Configuration [yellow]warning[/]: {warning.EscapeMarkup()}");
+        }
+
+        foreach (var error in daemonConfigurationResult.Errors)
+        {
+            PrettyConsole.Error.WriteLine($"Configuration [red]error[/]: {error.EscapeMarkup()}");
+        }
+
+        return daemonConfigurationResult.Configuration;
+    }
+
+    internal static readonly string UnixSocketPath = DeamonConfig.UnixSocket;
+
     private static readonly HttpMessageHandler HttpClientHandler = new SocketsHttpHandler
     {
         ConnectCallback = async (_, ct) =>
         {
             var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP);
-            var endpoint = new UnixDomainSocketEndPoint(Configuration.HexusConfiguration.UnixSocket);
+            var endpoint = new UnixDomainSocketEndPoint(UnixSocketPath);
 
             await socket.ConnectAsync(endpoint, ct);
 
@@ -46,7 +68,7 @@ internal static class HttpInvocation
 
     public static async Task<bool> CheckForRunningDaemon(CancellationToken ct)
     {
-        if (!File.Exists(Configuration.HexusConfiguration.UnixSocket))
+        if (!File.Exists(UnixSocketPath))
             return false;
 
         return await PrettyConsole.Out.Status()
@@ -135,7 +157,7 @@ internal static class HttpInvocation
         {
             case { StatusCode: HttpStatusCode.BadRequest, Content.Headers.ContentType.MediaType: "application/problem+json" }:
                 {
-                    var problemDetails = await request.Content.ReadFromJsonAsync<HttpValidationProblemDetails>(JsonSerializerContext.HttpValidationProblemDetails, ct);
+                    var problemDetails = await request.Content.ReadFromJsonAsync(JsonSerializerContext.HttpValidationProblemDetails, ct);
 
                     Debug.Assert(problemDetails is not null);
 
@@ -145,7 +167,7 @@ internal static class HttpInvocation
                 }
             case { StatusCode: HttpStatusCode.BadRequest }:
                 {
-                    var error = await request.Content.ReadFromJsonAsync<GenericFailureResponse>(JsonSerializerContext.GenericFailureResponse, ct);
+                    var error = await request.Content.ReadFromJsonAsync(JsonSerializerContext.GenericFailureResponse, ct);
 
                     Debug.Assert(error is not null);
 

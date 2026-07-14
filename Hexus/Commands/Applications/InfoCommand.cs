@@ -57,9 +57,11 @@ internal static class InfoCommand
             ? $"\n{string.Join("\n", application.EnvironmentVariables.Select(kvp => $"  - [tan]{kvp.Key}[/]: {kvp.Value}"))}"
             : "[italic gray39]Use the --show-environment option to list them[/]";
 
-        var isGlobalMemoryLimit = application.MemoryLimit is null;
-        var memoryLimit = (long?)application.MemoryLimit ?? (long)Configuration.HexusConfiguration.MemoryLimit;
+        // var isGlobalMemoryLimit = application.MemoryLimit is null;
+        // TODO: remove the null on the application response
+        var memoryLimit = (long)application.MemoryLimit!;
 
+        // TODO: restore the status
         PrettyConsole.OutLimitlessWidth.MarkupLine($"""
             Application configuration:
             - [cornflowerblue]Name[/]: {application.Name.EscapeMarkup()}
@@ -68,10 +70,10 @@ internal static class InfoCommand
             - [plum2]Working Directory[/]: [link]{application.WorkingDirectory.EscapeMarkup()}[/]
             - [lightgoldenrod2_1]Note[/]: {(string.IsNullOrWhiteSpace(application.Note) ? "[italic gray39]No note added[/]" : application.Note)}
             - [aquamarine1]Environment variables[/]: {environmentVariables}
-            - [skyblue2]Memory limit[/]: {(application.MemoryLimit == 0 ? "[italic gray39]No limit set[/]" : $"{memoryLimit.Bytes().Humanize()} {(isGlobalMemoryLimit ? "[italic gray39](global limit)[/]" : "")}")}
-            
+            - [skyblue2]Memory limit[/]: {(application.MemoryLimit == 0 ? "[italic gray39]No limit set[/]" : $"{memoryLimit.Bytes().Humanize()}")}
+
             Current status:
-            - [palegreen1]Status[/]: [{ListCommand.GetStatusColor(application.Status)}]{application.Status}[/]
+            - [palegreen1]Status[/]: [{/*ListCommand.GetStatusColor(application.Status)*/"TBH"}]{/*application.Status*/"TBH"}[/]
             - [lightsalmon1]Uptime[/]: {(isStopped ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, maxUnit: TimeUnit.Week, precision: 7)}")}
             - [slateblue1]PID[/]: {(isStopped ? "N/A" : application.ProcessId)}
             - [lightslateblue]CPU Usage[/]: {(isStopped ? "N/A" : $"{application.CpuUsage}%")}

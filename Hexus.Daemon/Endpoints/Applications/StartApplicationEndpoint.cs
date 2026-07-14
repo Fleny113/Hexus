@@ -1,9 +1,9 @@
-﻿using EndpointMapper;
-using Hexus.Daemon.Configuration;
-using Hexus.Daemon.Contracts;
+using EndpointMapper;
+// using Hexus.Configuration;
+// using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Responses;
-using Hexus.Daemon.Extensions;
-using Hexus.Daemon.Services;
+// using Hexus.Daemon.Extensions;
+// using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,27 +13,29 @@ internal sealed class StartApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/{name}")]
     public static Results<NoContent, NotFound, ValidationProblem, BadRequest<GenericFailureResponse>> Handle(
-        [FromRoute] string name,
+        [FromRoute] string name/*,
         [FromServices] ProcessManagerService processManager,
         [FromServices] ProcessStatisticsService processStatisticsService,
-        [FromServices] HexusConfiguration configuration)
+        [FromServices] HexusConfigurationManager configuration*/)
     {
-        if (!configuration.Applications.TryGetValue(name, out var application))
-            return TypedResults.NotFound();
+        throw new InvalidOperationException("This endpoint is no longer supported.");
 
-        if (processManager.IsApplicationRunning(application, out _))
-            return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyRunning);
+        // if (!configuration.Applications.TryGetValue(name, out var application))
+        //     return TypedResults.NotFound();
 
-        processStatisticsService.TrackApplicationUsages(application);
+        // if (processManager.IsApplicationRunning(application, out _))
+        //     return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyRunning);
 
-        var startError = processManager.StartApplication(application);
+        // processStatisticsService.TrackApplicationUsages(application);
 
-        if (startError is not null)
-        {
-            processStatisticsService.StopTrackingApplicationUsage(application);
-            return TypedResults.BadRequest(new GenericFailureResponse(startError.Value.MapToErrorString()));
-        }
+        // var startError = processManager.StartApplication(application);
 
-        return TypedResults.NoContent();
+        // if (startError is not null)
+        // {
+        //     processStatisticsService.StopTrackingApplicationUsage(application);
+        //     return TypedResults.BadRequest(new GenericFailureResponse(startError.Value.MapToErrorString()));
+        // }
+
+        // return TypedResults.NoContent();
     }
 }

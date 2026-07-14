@@ -1,4 +1,4 @@
-﻿using Hexus;
+using Hexus;
 using Hexus.Commands;
 using Hexus.Commands.Applications;
 using Hexus.Commands.Utils;
@@ -7,7 +7,7 @@ using System.CommandLine;
 
 var rootCommand = new RootCommand("The Hexus management CLI")
 {
-    NewCommand.Command,
+    // NewCommand.Command,
 
     ListCommand.Command,
     InfoCommand.Command,
@@ -15,16 +15,16 @@ var rootCommand = new RootCommand("The Hexus management CLI")
 
     InputCommand.Command,
     StartCommand.Command,
-    EditCommand.Command,
+    // EditCommand.Command,
     StopCommand.Command,
     RestartCommand.Command,
-    DeleteCommand.Command,
+    // DeleteCommand.Command,
 
     DaemonCommand.Command,
 
     UpdateCommand.Command,
     StartupCommand.Command,
-    MigratePm2Command.Command,
+    // MigratePm2Command.Command,
     ShowTimezones.Command,
 };
 

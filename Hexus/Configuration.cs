@@ -1,9 +1,10 @@
-﻿using Hexus.Daemon.Configuration;
+// // using Hexus.Daemon.Configuration;
 
-namespace Hexus;
+// namespace Hexus;
 
-internal static class Configuration
-{
-    public static HexusConfigurationManager HexusConfigurationManager { get; } = new();
-    public static HexusConfiguration HexusConfiguration => HexusConfigurationManager.Configuration;
-}
+// [Obsolete]
+// internal static class Configuration
+// {
+//     // public static HexusConfigurationManager HexusConfigurationManager { get; } = new();
+//     // public static HexusConfiguration HexusConfiguration => HexusConfigurationManager.Configuration;
+// }

@@ -1,10 +1,10 @@
 using EndpointMapper;
-using FluentValidation;
+// using FluentValidation;
 using Hexus.Daemon;
-using Hexus.Daemon.Configuration;
-using Hexus.Daemon.Contracts.Requests;
+using Hexus.Configuration;
+// using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Services;
-using Hexus.Daemon.Validators;
+// using Hexus.Daemon.Validators;
 using NReco.Logging.File;
 
 const string reloadConfigOnChangeEnvVar = "ASPNETCORE_hostBuilder__reloadConfigOnChange";
@@ -25,7 +25,7 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 builder.WebHost.UseKestrel((context, options) =>
 {
-    var config = options.ApplicationServices.GetRequiredService<HexusConfiguration>();
+    var config = options.ApplicationServices.GetRequiredService<DaemonConfiguration>();
 
     // The socket could still exist, and if that is the case Kestrel will throw an exception
     if (Path.Exists(config.UnixSocket))
@@ -60,13 +60,13 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddProblemDetails();
 
 // Validators
-builder.Services.AddScoped<IValidator<EditApplicationRequest>, EditApplicationValidator>();
-builder.Services.AddScoped<IValidator<NewApplicationRequest>, NewApplicationValidator>();
-builder.Services.AddScoped<IValidator<SendInputRequest>, SendInputValidator>();
+// builder.Services.AddScoped<IValidator<EditApplicationRequest>, EditApplicationValidator>();
+// builder.Services.AddScoped<IValidator<NewApplicationRequest>, NewApplicationValidator>();
+// builder.Services.AddScoped<IValidator<SendInputRequest>, SendInputValidator>();
 
 // Configuration
 builder.Services.AddSingleton<HexusConfigurationManager>();
-builder.Services.AddTransient<HexusConfiguration>(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
+// builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().DaemonConfiguration);
 
 // Services & HostedServices
 builder.Services.AddHostedService<HexusLifecycle>();
@@ -79,18 +79,19 @@ builder.Services.AddSingleton<ProcessManagerService>();
 
 var app = builder.Build();
 
-var hexusConfiguration = app.Services.GetRequiredService<HexusConfiguration>();
+var hexusConfiguration = app.Services.GetRequiredService<HexusConfigurationManager>();
 
-// We only want to print this message if:
-//  - We are not on Windows, it is standard that XDG_RUNTIME_DIR does not exist on Windows
-//  - XDG_RUNTIME_DIR is not set
-//  - The user hasn't specified another location for the socket (so we are still using the default location)
-if (!OperatingSystem.IsWindows() && EnvironmentHelper.XdgRuntime is null && hexusConfiguration.UnixSocket == EnvironmentHelper.SocketFile)
+foreach (var application in hexusConfiguration.Warnings)
 {
-    app.Logger.LogWarning("The XDG_RUNTIME_DIR environment is missing. Defaulting socket location to {socket}", hexusConfiguration.UnixSocket);
+    app.Logger.LogWarning(application);
+}
+
+foreach (var application in hexusConfiguration.Errors)
+{
+    app.Logger.LogError(application);
 }
 
 app.UseExceptionHandler();
 app.MapEndpointMapperEndpoints();
 
-app.Run();
+await app.RunAsync();

@@ -1,4 +1,4 @@
-﻿namespace Hexus;
+namespace Hexus;
 
 internal static class PathHelper
 {

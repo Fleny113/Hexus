@@ -1,9 +1,8 @@
-using Hexus.Daemon.Interop;
+using System.Runtime.InteropServices;
 
-namespace Hexus.Daemon.Configuration;
+namespace Hexus.Configuration;
 
-[Obsolete]
-public static class EnvironmentHelper
+public static partial class EnvironmentHelper
 {
     private static readonly bool IsDevelopment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development";
     public static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -17,14 +16,16 @@ public static class EnvironmentHelper
     private static readonly string XdgState = Environment.GetEnvironmentVariable("XDG_STATE_HOME") ?? $"{Home}/.local/state";
     internal static readonly string? XdgRuntime = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
 
-    private static readonly string HexusStateDirectory = $"{XdgState}/hexus";
-    private static readonly string HexusRuntimeDirectory = XdgRuntime ?? CreateRuntimeDirectory();
+    private static readonly string FileSuffix = IsDevelopment ? ".dev" : "";
 
-    public static readonly string LogFile = Path.GetFullPath(IsDevelopment ? $"{HexusStateDirectory}/daemon.dev.log" : $"{HexusStateDirectory}/daemon.log");
-    public static readonly string ApplicationLogsDirectory = Path.GetFullPath($"{HexusStateDirectory}/applications");
+    internal static readonly string HexusConfigDirectory = $"{XdgConfig}/hexus{FileSuffix}";
+    private static readonly string HexusStateDirectory = $"{XdgState}/hexus{FileSuffix}";
+    private static readonly string HexusRuntimeDirectory = XdgRuntime is not null ? Path.GetFullPath($"{XdgRuntime}/hexus{FileSuffix}") : CreateRuntimeDirectory();
 
-    public static readonly string ConfigurationFile = Path.GetFullPath(IsDevelopment ? $"{XdgConfig}/hexus.dev.yaml" : $"{XdgConfig}/hexus.yaml");
-    public static readonly string SocketFile = Path.GetFullPath(IsDevelopment ? $"{HexusRuntimeDirectory}/hexus.dev.sock" : $"{HexusRuntimeDirectory}/hexus.sock");
+    public static readonly string LogFile = Path.GetFullPath($"{HexusStateDirectory}/daemon.log");
+    public static readonly string ApplicationLogsDirectory = Path.GetFullPath($"{HexusStateDirectory}/logs");
+    public static readonly string ApplicationStatesDirectory = Path.GetFullPath($"{HexusStateDirectory}/states");
+    public static readonly string DefaultSocketFile = Path.GetFullPath($"{HexusRuntimeDirectory}/daemon.sock");
 
     public static void EnsureDirectoriesExistence()
     {
@@ -39,6 +40,7 @@ public static class EnvironmentHelper
         Directory.CreateDirectory(HexusStateDirectory);
         Directory.CreateDirectory(HexusRuntimeDirectory);
         Directory.CreateDirectory(ApplicationLogsDirectory);
+        Directory.CreateDirectory(ApplicationStatesDirectory);
     }
 
     private static string CreateRuntimeDirectory()
@@ -49,9 +51,12 @@ public static class EnvironmentHelper
             return HexusStateDirectory;
         }
 
-        var uid = UnixInterop.GetUserId();
-        var dir = Directory.CreateDirectory($"{Path.GetTempPath()}/{uid}-runtime", UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var uid = GetUserId();
+        var dir = Directory.CreateDirectory($"{Path.GetTempPath()}/heuxs-{uid}{FileSuffix}", UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
         return dir.FullName;
     }
+
+    [LibraryImport("libc", EntryPoint = "getuid", SetLastError = true)]
+    private static partial int GetUserId();
 }

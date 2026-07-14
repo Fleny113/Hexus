@@ -1,4 +1,4 @@
-using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Interop;
 using System.Diagnostics;
@@ -9,9 +9,9 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 {
     private readonly Dictionary<string, ApplicationCpuStatistics> _cpuStatisticsMap = [];
 
-    public ApplicationStatistics GetApplicationStats(HexusApplication application)
+    public ApplicationStatistics GetApplicationStats(ApplicationConfiguration application)
     {
-        if (!processManagerService.IsApplicationRunning(application, out var process) ||
+        if (!processManagerService.IsApplicationProcessRunning(application, out var process) ||
             !_cpuStatisticsMap.TryGetValue(application.Name, out var cpuStatistics))
         {
             return new ApplicationStatistics(TimeSpan.Zero, 0, 0, 0);
@@ -25,12 +25,12 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         );
     }
 
-    public void TrackApplicationUsages(HexusApplication application)
+    public void TrackApplicationUsages(ApplicationConfiguration application)
     {
         _cpuStatisticsMap[application.Name] = new ApplicationCpuStatistics();
     }
 
-    public bool StopTrackingApplicationUsage(HexusApplication application)
+    public bool StopTrackingApplicationUsage(ApplicationConfiguration application)
     {
         return _cpuStatisticsMap.Remove(application.Name, out _);
     }
@@ -44,9 +44,9 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         if (!children.TryGetValue(Environment.ProcessId, out var hexusChildren)) return;
 
         var liveApplications = _cpuStatisticsMap.Keys
-            .Select(name => configurationManager.Configuration.Applications.GetValueOrDefault(name))
+            .Select(name => configurationManager.Applications.GetValueOrDefault(name))
             .Where(x => x is not null)
-            .Select(app => (IsRunning: processManagerService.IsApplicationRunning(app!, out var process), Application: app!, Process: process))
+            .Select(app => (IsRunning: processManagerService.IsApplicationProcessRunning(app!, out var process), Application: app!, Process: process))
             .Where(tuple => tuple.IsRunning && hexusChildren.Contains(tuple.Process!.Id))
             .ToDictionary(tuple => tuple.Process!.Id, t => t);
 
@@ -62,22 +62,21 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         }
     }
 
-    internal long GetMemoryUsage(HexusApplication application)
+    internal long GetMemoryUsage(ApplicationConfiguration application)
     {
-        if (!processManagerService.IsApplicationRunning(application, out _))
+        if (!processManagerService.IsApplicationProcessRunning(application, out var process))
             return 0;
 
-        return GetApplicationProcesses(application)
+        return GetApplicationProcesses(process)
             .Where(proc => proc is { HasExited: false })
-            .Select(proc =>
+            .Sum(proc =>
             {
                 proc.Refresh();
 
                 return OperatingSystem.IsWindows()
                    ? proc.PrivateMemorySize64
                    : proc.WorkingSet64;
-            })
-            .Sum();
+            });
     }
 
     #region Refresh CPU Internals
@@ -122,17 +121,11 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
     #endregion
 
-    private IEnumerable<Process> GetApplicationProcesses(HexusApplication application)
+    private IEnumerable<Process> GetApplicationProcesses(Process parent)
     {
-        // If the application has exited we can stop the enumeration
-        if (!processManagerService.IsApplicationRunning(application, out var process))
-        {
-            yield break;
-        }
+        var children = ProcessChildren.GetProcessChildrenInfo(parent.Id);
 
-        var children = ProcessChildren.GetProcessChildrenInfo(process.Id);
-
-        yield return process;
+        yield return parent;
 
         foreach (var child in children)
         {
@@ -152,7 +145,6 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         public DateTimeOffset LastTime { get; set; }
     }
 }
-
 
 internal record ApplicationStatistics(
     TimeSpan ProcessUptime,

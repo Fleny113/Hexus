@@ -44,7 +44,8 @@ internal static class ListCommand
             .BorderColor(Color.Gold1)
             .AddColumns(
                 new TableColumn("[cornflowerblue]Name[/]").Centered(),
-                new TableColumn("[palegreen1]Status[/]").Centered(),
+                // TODO: readd when migrated to the new status system
+                // new TableColumn("[palegreen1]Status[/]").Centered(),
                 new TableColumn("[lightsalmon1]Uptime[/]").Centered(),
                 new TableColumn("[slateblue1]PID[/]").Centered(),
                 new TableColumn("[lightslateblue]Cpu Usage[/]").Centered(),
@@ -57,7 +58,7 @@ internal static class ListCommand
 
             table.AddRow(
                 application.Name.EscapeMarkup(),
-                $"[{GetStatusColor(application.Status)}]{application.Status}[/]",
+                // $"[{GetStatusColor(application.Status)}]{application.Status}[/]",
                 isStopped ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, precision: 1)}",
                 isStopped ? "N/A" : $"{application.ProcessId}",
                 isStopped ? "N/A" : $"{application.CpuUsage}%",
@@ -76,6 +77,8 @@ internal static class ListCommand
         return 0;
     }
 
+    // TODO: migrate to the new status enum when implemented
+    [Obsolete]
     internal static Color GetStatusColor(HexusApplicationStatus status) => status switch
     {
         HexusApplicationStatus.Crashed => Color.LightSalmon3,

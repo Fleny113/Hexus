@@ -1,10 +1,11 @@
-﻿using YamlDotNet.Serialization;
+// using YamlDotNet.Serialization;
 
 namespace Hexus.Daemon.Configuration;
 
+[Obsolete]
 public sealed record HexusApplication
 {
-    [YamlIgnore]
+    // [YamlIgnore]
     public string Name { get; set; } = null!;
     public string Executable { get; set; } = null!;
 
