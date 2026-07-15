@@ -8,10 +8,45 @@ public sealed partial class HexusConfigurationManager
 {
     private static readonly Lock _lock = new();
 
-    public DaemonConfiguration DaemonConfiguration { get { using var _ = _lock.EnterScope(); return field; } private set; }
-    public Dictionary<string, ApplicationConfiguration> Applications { get { using var _ = _lock.EnterScope(); return field; } private set; }
-    public IEnumerable<string> Warnings { get { using var _ = _lock.EnterScope(); return field; } private set; }
-    public IEnumerable<string> Errors { get { using var _ = _lock.EnterScope(); return field; } private set; }
+    public DaemonConfiguration DaemonConfiguration
+    {
+        get
+        {
+            using var _ = _lock.EnterScope();
+            return field;
+        }
+        private set;
+    }
+
+    public Dictionary<string, ApplicationConfiguration> Applications
+    {
+        get
+        {
+            using var _ = _lock.EnterScope();
+            return field;
+        }
+        private set;
+    }
+
+    public IEnumerable<string> Warnings
+    {
+        get
+        {
+            using var _ = _lock.EnterScope();
+            return field;
+        }
+        private set;
+    }
+
+    public IEnumerable<string> Errors
+    {
+        get
+        {
+            using var _ = _lock.EnterScope();
+            return field;
+        }
+        private set;
+    }
 
     public HexusConfigurationManager()
     {
@@ -76,7 +111,7 @@ public sealed partial class HexusConfigurationManager
 
     private static ConfigurationLoadResult<DaemonConfiguration> ResolveDaemonConfig(DaemonConfiguration.DaemonConfigurationRaw? raw)
     {
-        long defaultMemoryLimit = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 4;
+        var defaultMemoryLimit = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 4;
 
         var warnings = new List<string>();
         var config = new DaemonConfiguration
@@ -85,7 +120,7 @@ public sealed partial class HexusConfigurationManager
             HttpPort = raw?.HttpPort,
             CpuPollingInterval = ResolveTimeSpan(raw?.CpuPollingInterval, TimeSpan.FromSeconds(2.5), "cpu-polling-interval", warnings),
             MemoryPollingInterval = ResolveTimeSpan(raw?.MemoryPollingInterval, TimeSpan.FromSeconds(10), "memory-polling-interval", warnings),
-            MemoryLimit = ResolveByteSize(raw?.MemoryLimit, defaultMemoryLimit, "memory-limit", warnings)
+            MemoryLimit = ResolveByteSize(raw?.MemoryLimit, defaultMemoryLimit, "memory-limit", warnings),
         };
 
         return new(config, warnings, []);
@@ -104,7 +139,7 @@ public sealed partial class HexusConfigurationManager
             Enabled = raw.Enabled,
             Note = raw.Note,
             EnvironmentVariables = raw.EnvironmentVariables ?? [],
-            MemoryLimit = ResolveByteSize(raw.MemoryLimit, DaemonConfiguration.MemoryLimit, "memory-limit", warnings)
+            MemoryLimit = ResolveByteSize(raw.MemoryLimit, DaemonConfiguration.MemoryLimit, "memory-limit", warnings),
         };
 
         return new(config, warnings, []);
@@ -195,19 +230,13 @@ public sealed partial class HexusConfigurationManager
     {
         var match = ByteSizeRegex().Match(value);
 
-        if (!match.Success)
+        if (!match.Success || !long.TryParse(match.Groups[1].Value, out var size))
         {
             result = 0;
             return false;
         }
 
-        if (!long.TryParse(match.Groups[1].Value, out var size))
-        {
-            result = 0;
-            return false;
-        }
-
-        string unit = match.Groups[2].Value.ToUpperInvariant();
+        var unit = match.Groups[2].Value.ToUpperInvariant();
 
         result = unit switch
         {

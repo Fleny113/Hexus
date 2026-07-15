@@ -126,8 +126,6 @@ internal partial class ProcessManagerService(
     {
         process = state.Process;
 
-        if (state.Process is null) return false;
-
         try
         {
             return state.Process is { HasExited: false };
@@ -351,13 +349,14 @@ internal partial class ProcessManagerService(
             return;
         }
 
+        state.AbortRestartCancellationTokenSource = null;
+
         StartApplication(application);
     }
 
     private void ClearConsequentialRestarts(ApplicationConfiguration application, ApplicationState state)
     {
         state.RestartCount = 0;
-        state.AbortRestartCancellationTokenSource = null;
 
         LogConsequentialRestartsStop(_logger, state.RestartCount, application.Name);
     }
