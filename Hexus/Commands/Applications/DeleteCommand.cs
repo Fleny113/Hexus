@@ -3,6 +3,9 @@ using System.CommandLine;
 
 namespace Hexus.Commands.Applications;
 
+// TODO: The cli is going to be taking responsability for editing configs, so this command is to rewrite.
+// This is put off until the daemon is functional on the new config system.
+[Obsolete]
 internal static class DeleteCommand
 {
     private static readonly Argument<string[]> NamesArgument = new("name")

@@ -8,38 +8,8 @@ Accept: application/json
 
 ###
 
-# Create a new application
-POST {{baseUrl}}/new
-Accept: application/json
-Content-Type: application/json
-
-{
-  "name": "{{name}}",
-  "executable": "C:/Windows/System32/cmd.exe"
-}
-
-###
-
 # Get the information for an application
 GET {{baseUrl}}/{{name}}
-Accept: application/json
-
-###
-
-# Start an application
-POST {{baseUrl}}/{{name}}
-Accept: application/json
-
-###
-
-# Stop an application
-DELETE {{baseUrl}}/{{name}}?forceStop={{forceStop}}
-Accept: application/json
-
-###
-
-# Delete an application
-DELETE {{baseUrl}}/{{name}}/delete?forceStop={{forceStop}}
 Accept: application/json
 
 ###
@@ -51,17 +21,6 @@ Content-Type: application/json
 
 {
   "text": "echo Hi world!"
-}
-
-###
-
-# Edit an application
-PATCH {{baseUrl}}/{{name}}
-Accept: application/json
-Content-Type: application/json
-
-{
-  "executable": "C:/Program Files/PowerShell/7/pwsh.exe"
 }
 
 ###
