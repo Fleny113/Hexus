@@ -23,7 +23,6 @@ internal sealed class RestartApplicationEndpoint : IEndpoint
 
         processStatisticsService.StopTrackingApplicationUsage(application);
 
-        processManager.AbortProcessRestart(application);
         processManager.StopApplication(application, forceStop);
 
         processStatisticsService.TrackApplicationUsages(application);

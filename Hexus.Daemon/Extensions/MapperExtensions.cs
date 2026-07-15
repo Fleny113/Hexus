@@ -1,4 +1,5 @@
 using Hexus.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Contracts.Responses;
 using Hexus.Daemon.Services;
@@ -31,8 +32,7 @@ internal static class MapperExtensions
             WorkingDirectory: Path.GetFullPath(application.WorkingDirectory),
             Note: application.Note,
             EnvironmentVariables: application.EnvironmentVariables,
-            // TODO: This is a temporary solution until we can get the actual status from the process manager
-            Status: -1,
+            Status: applicationStatisticsResponse.Status,
             ProcessUptime: applicationStatisticsResponse.ProcessUptime,
             ProcessId: applicationStatisticsResponse.ProcessId,
             CpuUsage: applicationStatisticsResponse.CpuUsage,

@@ -1,25 +1,29 @@
 using Hexus.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Interop;
 using System.Diagnostics;
 
 namespace Hexus.Daemon.Services;
 
-internal sealed class ProcessStatisticsService(ProcessManagerService processManagerService, HexusConfigurationManager configurationManager)
+internal sealed class ProcessStatisticsService(ProcessManagerService processManagerService)
 {
-    private readonly Dictionary<string, ApplicationCpuStatistics> _cpuStatisticsMap = [];
+    private readonly Dictionary<ApplicationConfiguration, ApplicationCpuStatistics> _cpuStatisticsMap = [];
 
     public ApplicationStatistics GetApplicationStats(ApplicationConfiguration application)
     {
-        if (!processManagerService.IsApplicationProcessRunning(application, out var process) ||
-            !_cpuStatisticsMap.TryGetValue(application.Name, out var cpuStatistics))
+        if (
+            !processManagerService.IsApplicationProcessRunning(application, out var state, out var process) ||
+            !_cpuStatisticsMap.TryGetValue(application, out var cpuStatistics)
+        )
         {
-            return new ApplicationStatistics(TimeSpan.Zero, 0, 0, 0);
+            return new ApplicationStatistics(TimeSpan.Zero, 0, ApplicationStatus.Stopped, 0, 0);
         }
 
         return new ApplicationStatistics(
             ProcessUptime: DateTime.Now - process.StartTime,
             ProcessId: process.Id,
+            Status: state.Status,
             CpuUsage: cpuStatistics.LastUsage,
             MemoryUsage: GetMemoryUsage(application)
         );
@@ -27,12 +31,12 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
     public void TrackApplicationUsages(ApplicationConfiguration application)
     {
-        _cpuStatisticsMap[application.Name] = new ApplicationCpuStatistics();
+        _cpuStatisticsMap[application] = new ApplicationCpuStatistics();
     }
 
     public bool StopTrackingApplicationUsage(ApplicationConfiguration application)
     {
-        return _cpuStatisticsMap.Remove(application.Name, out _);
+        return _cpuStatisticsMap.Remove(application, out _);
     }
 
     internal void RefreshCpuUsage()
@@ -44,17 +48,14 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         if (!children.TryGetValue(Environment.ProcessId, out var hexusChildren)) return;
 
         var liveApplications = _cpuStatisticsMap.Keys
-            .Select(name => configurationManager.Applications.GetValueOrDefault(name))
-            .Where(x => x is not null)
-            .Select(app => (IsRunning: processManagerService.IsApplicationProcessRunning(app!, out var process), Application: app!, Process: process))
+            .Select(app => (IsRunning: processManagerService.IsApplicationProcessRunning(app, out _, out var process), Application: app, Process: process))
             .Where(tuple => tuple.IsRunning && hexusChildren.Contains(tuple.Process!.Id))
-            .ToDictionary(tuple => tuple.Process!.Id, t => t);
+            .ToDictionary(tuple => tuple.Process!.Id, t => t.Application);
 
         foreach (var child in hexusChildren)
         {
-            if (!liveApplications.TryGetValue(child, out var tuple)) continue;
-
-            if (!_cpuStatisticsMap.TryGetValue(tuple.Application.Name, out var statistics)) continue;
+            if (!liveApplications.TryGetValue(child, out var application)) continue;
+            if (!_cpuStatisticsMap.TryGetValue(application, out var statistics)) continue;
 
             var processes = Traverse(child, children).ToArray();
             var cpuUsage = GetApplicationCpuUsage(statistics, processes).Sum();
@@ -64,7 +65,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
     internal long GetMemoryUsage(ApplicationConfiguration application)
     {
-        if (!processManagerService.IsApplicationProcessRunning(application, out var process))
+        if (!processManagerService.IsApplicationProcessRunning(application, out _, out var process))
             return 0;
 
         return GetApplicationProcesses(process)
@@ -149,6 +150,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 internal record ApplicationStatistics(
     TimeSpan ProcessUptime,
     long ProcessId,
+    ApplicationStatus Status,
     double CpuUsage,
     long MemoryUsage
 );

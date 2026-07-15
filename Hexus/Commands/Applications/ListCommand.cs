@@ -1,4 +1,5 @@
 using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Responses;
 using Humanizer;
 using Spectre.Console;
@@ -44,8 +45,7 @@ internal static class ListCommand
             .BorderColor(Color.Gold1)
             .AddColumns(
                 new TableColumn("[cornflowerblue]Name[/]").Centered(),
-                // TODO: readd when migrated to the new status system
-                // new TableColumn("[palegreen1]Status[/]").Centered(),
+                new TableColumn("[palegreen1]Status[/]").Centered(),
                 new TableColumn("[lightsalmon1]Uptime[/]").Centered(),
                 new TableColumn("[slateblue1]PID[/]").Centered(),
                 new TableColumn("[lightslateblue]Cpu Usage[/]").Centered(),
@@ -58,7 +58,7 @@ internal static class ListCommand
 
             table.AddRow(
                 application.Name.EscapeMarkup(),
-                // $"[{GetStatusColor(application.Status)}]{application.Status}[/]",
+                $"[{GetStatusColor(application.Status)}]{application.Status}[/]",
                 isStopped ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, precision: 1)}",
                 isStopped ? "N/A" : $"{application.ProcessId}",
                 isStopped ? "N/A" : $"{application.CpuUsage}%",
@@ -77,15 +77,13 @@ internal static class ListCommand
         return 0;
     }
 
-    // TODO: migrate to the new status enum when implemented
-    [Obsolete]
-    internal static Color GetStatusColor(HexusApplicationStatus status) => status switch
+    internal static Color GetStatusColor(ApplicationStatus status) => status switch
     {
-        HexusApplicationStatus.Crashed => Color.LightSalmon3,
-        HexusApplicationStatus.Exited => Color.OrangeRed1,
-        HexusApplicationStatus.Running => Color.Aquamarine1,
-        HexusApplicationStatus.Stopping => Color.IndianRed1,
-        HexusApplicationStatus.Restarting => Color.SkyBlue1,
+        ApplicationStatus.Running => Color.Aquamarine1,
+        ApplicationStatus.Stopping => Color.IndianRed1,
+        ApplicationStatus.Stopped => Color.OrangeRed1,
+        ApplicationStatus.Restarting => Color.SkyBlue1,
+        ApplicationStatus.Crashed => Color.LightSalmon3,
         _ => throw new ArgumentOutOfRangeException(nameof(status), "The requested status is not mapped to a color"),
     };
 }

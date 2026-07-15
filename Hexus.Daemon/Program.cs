@@ -25,7 +25,7 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 builder.WebHost.UseKestrel((context, options) =>
 {
-    var config = options.ApplicationServices.GetRequiredService<DaemonConfiguration>();
+    var config = options.ApplicationServices.GetRequiredService<HexusConfigurationManager>().DaemonConfiguration;
 
     // The socket could still exist, and if that is the case Kestrel will throw an exception
     if (Path.Exists(config.UnixSocket))
@@ -79,6 +79,7 @@ builder.Services.AddSingleton<ProcessManagerService>();
 
 var app = builder.Build();
 
+// TODO: Expose these warnings in an endpoint, and call it from the CLI to show them to the user
 var hexusConfiguration = app.Services.GetRequiredService<HexusConfigurationManager>();
 
 foreach (var application in hexusConfiguration.Warnings)

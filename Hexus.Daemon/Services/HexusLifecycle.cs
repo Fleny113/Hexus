@@ -45,6 +45,7 @@ internal sealed class HexusLifecycle(
     {
         // We need to make sure where are only 1 call to this in parallel
         // Else we might try to stop applications that are exiting
+        // TODO: Check if we can work something our in the daemon stop endpoint to avoid this lock
         lock (processManagerService)
         {
             processManagerService.StopApplications();

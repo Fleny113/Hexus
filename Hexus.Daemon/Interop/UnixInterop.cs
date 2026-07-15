@@ -9,7 +9,7 @@ internal static partial class UnixInterop
     [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
     internal static partial int SendSignal(int pId, UnixSignal signal);
 
-    [LibraryImport("libc", EntryPoint = "getuid", SetLastError = true)]
+    [Obsolete, LibraryImport("libc", EntryPoint = "getuid", SetLastError = true)]
     internal static partial int GetUserId();
 }
 
