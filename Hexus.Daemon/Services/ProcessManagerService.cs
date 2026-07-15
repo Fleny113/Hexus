@@ -382,7 +382,7 @@ internal partial class ProcessManagerService(
         public ApplicationStatus Status { get; set; } = ApplicationStatus.Stopped;
 
         // Restart data
-        public int RestartCount { get; set; } = 0;
+        public int RestartCount { get; set; }
         public Timer? ClearRestartsTimer { get; set; }
         public CancellationTokenSource? AbortRestartCancellationTokenSource { get; set; }
         // We have to cache this delegate so we can remove it in StopApplication

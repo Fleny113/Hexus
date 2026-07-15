@@ -76,6 +76,7 @@ public partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         return _logChannels.Remove(application.Name, out _);
     }
 
+    [Obsolete]
     public void DeleteApplication(ApplicationConfiguration application)
     {
         UnregisterApplication(application);

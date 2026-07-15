@@ -43,7 +43,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
     {
         var children = ProcessChildren.GetProcessChildrenInfo(Environment.ProcessId)
             .GroupBy(x => x.ParentProcessId)
-            .ToDictionary(x => x.Key, x => x.Select(inf => inf.ProcessId).ToArray());
+            .ToDictionary(x => x.Key, x => x.Select(inf => inf.ProcessId));
 
         if (!children.TryGetValue(Environment.ProcessId, out var hexusChildren)) return;
 
@@ -57,7 +57,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
             if (!liveApplications.TryGetValue(child, out var application)) continue;
             if (!_cpuStatisticsMap.TryGetValue(application, out var statistics)) continue;
 
-            var processes = Traverse(child, children).ToArray();
+            var processes = Traverse(child, children);
             var cpuUsage = GetApplicationCpuUsage(statistics, processes).Sum();
             statistics.LastUsage = Math.Clamp(Math.Round(cpuUsage, 2), 0, 100);
         }
@@ -82,7 +82,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
     #region Refresh CPU Internals
 
-    private static IEnumerable<Process> Traverse(int processId, IReadOnlyDictionary<int, int[]> processIds)
+    private static IEnumerable<Process> Traverse(int processId, IReadOnlyDictionary<int, IEnumerable<int>> processIds)
     {
         yield return Process.GetProcessById(processId);
 
@@ -97,9 +97,12 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         }
     }
 
-    private static IEnumerable<double> GetApplicationCpuUsage(ApplicationCpuStatistics statistics, Process[] processes)
+    private static IEnumerable<double> GetApplicationCpuUsage(ApplicationCpuStatistics statistics, IEnumerable<Process> processes)
     {
-        var deathChildren = statistics.ProcessCpuStatistics.Keys.Except(processes.Select(x => x.Id));
+        // We need to cache the processes into an array, because we will be iterating over them multiple times, and we don't want to re-enumerate the IEnumerable each time.
+        var enumerableProcesses = processes.ToArray();
+
+        var deathChildren = statistics.ProcessCpuStatistics.Keys.Except(enumerableProcesses.Select(x => x.Id));
 
         // For death
         foreach (var processId in deathChildren)
@@ -108,7 +111,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         }
 
         // For newly spawned children and for exiting ones
-        foreach (var process in processes)
+        foreach (var process in enumerableProcesses)
         {
             var stats = statistics.ProcessCpuStatistics.GetOrCreate(process.Id, _ => new CpuStatistics
             {

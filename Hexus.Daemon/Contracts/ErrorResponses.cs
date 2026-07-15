@@ -7,16 +7,19 @@ public static class ErrorResponses
         {"Name", ["The name refers to an application that is not running."]},
     };
 
+    [Obsolete]
     public static readonly Dictionary<string, string[]> ApplicationAlreadyRunning = new()
     {
         {"Name", ["The name refers to an application that is already running."]},
     };
 
+    [Obsolete]
     public static readonly Dictionary<string, string[]> ApplicationAlreadyExists = new()
     {
         {"Name", ["The name is being used by another application."]},
     };
 
+    [Obsolete]
     public static readonly Dictionary<string, string[]> ApplicationRunningWhileEditing = new()
     {
         {"Name", ["The name refers to an application that is running, so it can't be edited."]},
