@@ -80,7 +80,12 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
 
     private bool StopApplication(ApplicationState state, bool forceStop = false)
     {
-        AbortProcessRestart(state);
+        // If we aborted a restart we stopped the application
+        if (AbortProcessRestart(state))
+        {
+            state.Status = ApplicationStatus.Stopped;
+            return true;
+        }
 
         if (!IsApplicationProcessRunning(state, out var process))
             return false;
@@ -292,11 +297,13 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
 
     #region Exit process Internals
 
-    private void AbortProcessRestart(ApplicationState state)
+    private static bool AbortProcessRestart(ApplicationState state)
     {
         // Abort the restart if there are any, then delete the tokens
         state.AbortRestartCancellationTokenSource?.Cancel();
         state.AbortRestartCancellationTokenSource = null;
+
+        return state.Status is ApplicationStatus.Restarting;
     }
 
     private void AcknowledgeProcessExit(ApplicationState state)
@@ -361,9 +368,9 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
 
     private void ClearConsequentialRestarts(ApplicationState state)
     {
-        state.RestartCount = 0;
-
         LogConsequentialRestartsStop(_logger, state.RestartCount, state.Configuration.Name);
+
+        state.RestartCount = 0;
     }
 
     private static TimeSpan CalculateDelay(int restart) =>

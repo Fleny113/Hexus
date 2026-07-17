@@ -6,7 +6,6 @@ namespace Hexus.Daemon.Services;
 internal sealed partial class MemoryLimiterService(
     ILogger<MemoryLimiterService> logger,
     HexusConfigurationManager configuration,
-    ProcessStatisticsService processStatisticsService,
     ProcessLogsService processLogsService,
     ProcessManagerService processManagerService) : BackgroundService
 {
@@ -44,17 +43,13 @@ internal sealed partial class MemoryLimiterService(
             var memoryLimit = application.MemoryLimit;
 
             // A memory limit of 0 means no limit
-            if (memoryLimit == 0)
-            {
-                return;
-            }
+            if (memoryLimit == 0) return;
 
-            var memoryUsage = processStatisticsService.GetMemoryUsage(application);
+            if (!processManagerService.IsApplicationProcessRunning(application, out _, out var process)) return;
 
-            if (memoryUsage < memoryLimit)
-            {
-                return;
-            }
+            var memoryUsage = ProcessStatisticsService.GetMemoryUsage(process);
+
+            if (memoryUsage < memoryLimit) return;
 
             processLogsService.ProcessApplicationLog(application,
                 LogType.SYSTEM,

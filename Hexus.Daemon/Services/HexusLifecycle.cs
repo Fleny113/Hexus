@@ -6,7 +6,6 @@ internal sealed class HexusLifecycle(
     HexusConfigurationManager configManager,
     ProcessManagerService processManager,
     ProcessLogsService processLogsService,
-    ProcessStatisticsService processStatisticsService,
     StateManagerService stateManagerService) : IHostedLifecycleService
 {
     public Task StartedAsync(CancellationToken cancellationToken)
@@ -19,7 +18,6 @@ internal sealed class HexusLifecycle(
 
             if (!application.Enabled || (persistantState is not null && persistantState.Crashed)) continue;
 
-            processStatisticsService.TrackApplicationUsages(application);
             processManager.StartApplication(application);
         }
 
@@ -29,10 +27,6 @@ internal sealed class HexusLifecycle(
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
         StopApplications(processManager);
-        foreach (var application in configManager.Applications.Values)
-        {
-            processStatisticsService.StopTrackingApplicationUsage(application);
-        }
 
         return Task.CompletedTask;
     }

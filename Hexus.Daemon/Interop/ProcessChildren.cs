@@ -58,19 +58,22 @@ internal static class ProcessChildren
     [SupportedOSPlatform("linux")]
     private static IEnumerable<ProcessInfo> GetChildProcessesLinux(int parentId)
     {
-        foreach (var strPId in File.ReadAllText($"/proc/{parentId}/task/{parentId}/children").Split(' '))
+        foreach (var task in Directory.EnumerateDirectories($"/proc/{parentId}/task", "*", SearchOption.TopDirectoryOnly))
         {
-            if (!int.TryParse(strPId, out var processId)) continue;
-
-            yield return new ProcessInfo
+            foreach (var strPId in File.ReadAllText($"{task}/children").Split(' '))
             {
-                ProcessId = processId,
-                ParentProcessId = parentId,
-            };
+                if (!int.TryParse(strPId, out var processId)) continue;
 
-            foreach (var childProcessId in GetChildProcessesLinux(processId))
-            {
-                yield return childProcessId;
+                yield return new ProcessInfo
+                {
+                    ProcessId = processId,
+                    ParentProcessId = parentId,
+                };
+
+                foreach (var childProcessId in GetChildProcessesLinux(processId))
+                {
+                    yield return childProcessId;
+                }
             }
         }
     }

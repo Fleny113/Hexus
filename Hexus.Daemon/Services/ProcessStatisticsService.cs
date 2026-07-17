@@ -8,16 +8,13 @@ namespace Hexus.Daemon.Services;
 
 internal sealed class ProcessStatisticsService(ProcessManagerService processManagerService)
 {
-    private readonly Dictionary<ApplicationConfiguration, ApplicationCpuStatistics> _cpuStatisticsMap = [];
+    private readonly Dictionary<int, ApplicationCpuStatistics> _cpuStatisticsMap = [];
 
     public ApplicationStatistics GetApplicationStats(ApplicationConfiguration application)
     {
         var state = processManagerService.GetApplicationState(application);
 
-        if (
-            !ProcessManagerService.IsApplicationProcessRunning(state, out var process) ||
-            !_cpuStatisticsMap.TryGetValue(application, out var cpuStatistics)
-        )
+        if (!ProcessManagerService.IsApplicationProcessRunning(state, out var process))
         {
             return new ApplicationStatistics(
                 ProcessUptime: TimeSpan.Zero,
@@ -28,54 +25,44 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
             );
         }
 
+        // If an application is running, but doesn't have a cpu stats it means we haven't refreshed since it started
+        var cpuUsage = _cpuStatisticsMap.TryGetValue(process.Id, out var cpuStatistics) ? cpuStatistics.LastUsage : 0;
+
         return new ApplicationStatistics(
             ProcessUptime: DateTime.Now - process.StartTime,
             ProcessId: process.Id,
             Status: state.Status,
-            CpuUsage: cpuStatistics.LastUsage,
-            MemoryUsage: GetMemoryUsage(application)
+            CpuUsage: cpuUsage,
+            MemoryUsage: GetMemoryUsage(process)
         );
-    }
-
-    public void TrackApplicationUsages(ApplicationConfiguration application)
-    {
-        _cpuStatisticsMap[application] = new ApplicationCpuStatistics();
-    }
-
-    public bool StopTrackingApplicationUsage(ApplicationConfiguration application)
-    {
-        return _cpuStatisticsMap.Remove(application, out _);
     }
 
     internal void RefreshCpuUsage()
     {
         var children = ProcessChildren.GetProcessChildrenInfo(Environment.ProcessId)
             .GroupBy(x => x.ParentProcessId)
-            .ToDictionary(x => x.Key, x => x.Select(inf => inf.ProcessId));
+            .ToDictionary(x => x.Key, x => x.Select(y => y.ProcessId));
 
         if (!children.TryGetValue(Environment.ProcessId, out var hexusChildren)) return;
 
-        var liveApplications = _cpuStatisticsMap.Keys
-            .Select(app => (IsRunning: processManagerService.IsApplicationProcessRunning(app, out _, out var process), Application: app, Process: process))
-            .Where(tuple => tuple.IsRunning && hexusChildren.Contains(tuple.Process!.Id))
-            .ToDictionary(tuple => tuple.Process!.Id, t => t.Application);
+        var enumeratedHexusChilds = hexusChildren.ToArray();
 
-        foreach (var child in hexusChildren)
+        foreach (var pid in _cpuStatisticsMap.Keys.Except(enumeratedHexusChilds))
         {
-            if (!liveApplications.TryGetValue(child, out var application)) continue;
-            if (!_cpuStatisticsMap.TryGetValue(application, out var statistics)) continue;
+            _cpuStatisticsMap.Remove(pid);
+        }
 
-            var processes = Traverse(child, children);
-            var cpuUsage = GetApplicationCpuUsage(statistics, processes).Sum();
+        foreach (var child in enumeratedHexusChilds)
+        {
+            var statistics = _cpuStatisticsMap.GetOrCreate(child, _ => new ApplicationCpuStatistics());
+            var cpuUsage = GetApplicationCpuUsage(statistics, Traverse(child, children)).Sum();
+
             statistics.LastUsage = Math.Clamp(Math.Round(cpuUsage, 2), 0, 100);
         }
     }
 
-    internal long GetMemoryUsage(ApplicationConfiguration application)
+    internal static long GetMemoryUsage(Process process)
     {
-        if (!processManagerService.IsApplicationProcessRunning(application, out _, out var process))
-            return 0;
-
         return GetApplicationProcesses(process)
             .Where(proc => proc is { HasExited: false })
             .Sum(proc =>
@@ -90,11 +77,13 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
     #region Refresh CPU Internals
 
-    private static IEnumerable<Process> Traverse(int processId, IReadOnlyDictionary<int, IEnumerable<int>> processIds)
+    private static IEnumerable<Process> Traverse(int pid, IReadOnlyDictionary<int, IEnumerable<int>> processIds)
     {
-        yield return Process.GetProcessById(processId);
+        var process = Process.GetProcessById(pid);
 
-        if (!processIds.TryGetValue(processId, out var childrenIds)) yield break;
+        yield return process;
+
+        if (!processIds.TryGetValue(process.Id, out var childrenIds)) yield break;
 
         foreach (var child in childrenIds)
         {
@@ -110,10 +99,8 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         // We need to cache the processes into an array, because we will be iterating over them multiple times, and we don't want to re-enumerate the IEnumerable each time.
         var enumerableProcesses = processes.ToArray();
 
-        var deathChildren = statistics.ProcessCpuStatistics.Keys.Except(enumerableProcesses.Select(x => x.Id));
-
         // For death
-        foreach (var processId in deathChildren)
+        foreach (var processId in statistics.ProcessCpuStatistics.Keys.Except(enumerableProcesses.Select(p => p.Id)))
         {
             statistics.ProcessCpuStatistics.Remove(processId);
         }
@@ -121,8 +108,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         // For newly spawned children and for exiting ones
         foreach (var process in enumerableProcesses)
         {
-            var stats = statistics.ProcessCpuStatistics.GetOrCreate(process.Id,
-                _ => new CpuStatistics { LastTotalProcessorTime = TimeSpan.Zero, LastTime = DateTimeOffset.UtcNow, });
+            var stats = statistics.ProcessCpuStatistics.GetOrCreate(process.Id, _ => new ProcessExtensions.CpuStatistics());
 
             yield return process.GetProcessCpuUsage(stats);
         }
@@ -130,7 +116,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
     #endregion
 
-    private IEnumerable<Process> GetApplicationProcesses(Process parent)
+    private static IEnumerable<Process> GetApplicationProcesses(Process parent)
     {
         var children = ProcessChildren.GetProcessChildrenInfo(parent.Id);
 
@@ -142,16 +128,10 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         }
     }
 
-    private record ApplicationCpuStatistics
+    private class ApplicationCpuStatistics
     {
-        public Dictionary<int, CpuStatistics> ProcessCpuStatistics { get; } = [];
+        public Dictionary<int, ProcessExtensions.CpuStatistics> ProcessCpuStatistics { get; } = [];
         public double LastUsage { get; set; }
-    }
-
-    internal record CpuStatistics
-    {
-        public TimeSpan LastTotalProcessorTime { get; set; }
-        public DateTimeOffset LastTime { get; set; }
     }
 }
 

@@ -1,9 +1,9 @@
 using EndpointMapper;
-// using Hexus.Configuration;
-// using Hexus.Daemon.Contracts;
+using Hexus.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Responses;
-// using Hexus.Daemon.Extensions;
-// using Hexus.Daemon.Services;
+using Hexus.Daemon.Extensions;
+using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,29 +13,18 @@ internal sealed class StartApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/{name}")]
     public static Results<NoContent, NotFound, ValidationProblem, BadRequest<GenericFailureResponse>> Handle(
-        [FromRoute] string name/*,
         [FromServices] ProcessManagerService processManager,
-        [FromServices] ProcessStatisticsService processStatisticsService,
-        [FromServices] HexusConfigurationManager configuration*/)
+        [FromServices] HexusConfigurationManager configuration,
+        [FromRoute] string name)
     {
-        throw new InvalidOperationException("This endpoint is no longer supported.");
+        if (!configuration.Applications.TryGetValue(name, out var application)) return TypedResults.NotFound();
 
-        // if (!configuration.Applications.TryGetValue(name, out var application))
-        //     return TypedResults.NotFound();
+        if (processManager.IsApplicationProcessRunning(application, out _, out _)) return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyRunning);
 
-        // if (processManager.IsApplicationRunning(application, out _))
-        //     return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyRunning);
+        var startError = processManager.StartApplication(application);
 
-        // processStatisticsService.TrackApplicationUsages(application);
+        if (startError is not null) return TypedResults.BadRequest(new GenericFailureResponse(startError.Value.MapToErrorString()));
 
-        // var startError = processManager.StartApplication(application);
-
-        // if (startError is not null)
-        // {
-        //     processStatisticsService.StopTrackingApplicationUsage(application);
-        //     return TypedResults.BadRequest(new GenericFailureResponse(startError.Value.MapToErrorString()));
-        // }
-
-        // return TypedResults.NoContent();
+        return TypedResults.NoContent();
     }
 }
