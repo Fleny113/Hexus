@@ -22,7 +22,7 @@ internal sealed class SendInputEndpoint : IEndpoint
         if (!configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
 
-        if (!string.IsNullOrEmpty(request.Text))
+        if (string.IsNullOrEmpty(request.Text))
             return TypedResults.ValidationProblem([new("Text", ["Text cannot be empty."])]);
 
         if (!processManager.SendToApplication(application, request.Text, request.AddNewLine))

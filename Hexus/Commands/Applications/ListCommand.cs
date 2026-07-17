@@ -18,7 +18,7 @@ internal static class ListCommand
         Command.SetAction(Handler);
     }
 
-    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
+    internal static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
         if (!await HttpInvocation.CheckForRunningDaemon(ct))
         {

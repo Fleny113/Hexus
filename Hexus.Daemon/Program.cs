@@ -18,9 +18,9 @@ Environment.SetEnvironmentVariable(reloadConfigOnChangeEnvVar, null);
 
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
-    {"Logging:LogLevel:Default", Enum.GetName(LogLevel.Information) },
-    {"Logging:LogLevel:Microsoft.AspNetCore", Enum.GetName(LogLevel.Warning) },
-    {"Logging:LogLevel:Hexus.Daemon", Enum.GetName(builder.Environment.IsDevelopment() ? LogLevel.Trace : LogLevel.Information) },
+    { "Logging:LogLevel:Default", Enum.GetName(LogLevel.Information) },
+    { "Logging:LogLevel:Microsoft.AspNetCore", Enum.GetName(LogLevel.Warning) },
+    { "Logging:LogLevel:Hexus.Daemon", Enum.GetName(builder.Environment.IsDevelopment() ? LogLevel.Trace : LogLevel.Information) },
 });
 
 builder.WebHost.UseKestrel((context, options) =>
@@ -73,6 +73,7 @@ builder.Services.AddHostedService<HexusLifecycle>();
 builder.Services.AddHostedService<PerformanceTrackingService>();
 builder.Services.AddHostedService<MemoryLimiterService>();
 
+builder.Services.AddSingleton<StateManagerService>();
 builder.Services.AddSingleton<ProcessStatisticsService>();
 builder.Services.AddSingleton<ProcessLogsService>();
 builder.Services.AddSingleton<ProcessManagerService>();
@@ -82,17 +83,17 @@ var app = builder.Build();
 // TODO: Expose these warnings in an endpoint, and call it from the CLI to show them to the user
 var hexusConfiguration = app.Services.GetRequiredService<HexusConfigurationManager>();
 
-foreach (var application in hexusConfiguration.Warnings)
+foreach (var warning in hexusConfiguration.Warnings)
 {
-    app.Logger.LogWarning(application);
+    app.Logger.LogWarning("A configuration warn was found: {warning}", warning);
 }
 
-foreach (var application in hexusConfiguration.Errors)
+foreach (var error in hexusConfiguration.Errors)
 {
-    app.Logger.LogError(application);
+    app.Logger.LogError("A configuration error was found: {error}", error);
 }
 
 app.UseExceptionHandler();
 app.MapEndpointMapperEndpoints();
 
-await app.RunAsync();
+app.Run();

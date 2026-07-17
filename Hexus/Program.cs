@@ -31,6 +31,9 @@ var rootCommand = new RootCommand("The Hexus management CLI")
 // Allow "hexus [diagram] ..." to show the parse diagram
 rootCommand.Directives.Add(new DiagramDirective());
 
+// The default command is list
+rootCommand.SetAction(ListCommand.Handler);
+
 try
 {
     return await rootCommand.Parse(args).InvokeAsync();

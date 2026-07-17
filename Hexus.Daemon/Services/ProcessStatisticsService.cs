@@ -12,12 +12,20 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
     public ApplicationStatistics GetApplicationStats(ApplicationConfiguration application)
     {
+        var state = processManagerService.GetApplicationState(application);
+
         if (
-            !processManagerService.IsApplicationProcessRunning(application, out var state, out var process) ||
+            !ProcessManagerService.IsApplicationProcessRunning(state, out var process) ||
             !_cpuStatisticsMap.TryGetValue(application, out var cpuStatistics)
         )
         {
-            return new ApplicationStatistics(TimeSpan.Zero, 0, ApplicationStatus.Stopped, 0, 0);
+            return new ApplicationStatistics(
+                ProcessUptime: TimeSpan.Zero,
+                ProcessId: 0,
+                Status: state.Status,
+                CpuUsage: 0,
+                MemoryUsage: 0
+            );
         }
 
         return new ApplicationStatistics(
@@ -75,8 +83,8 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
                 proc.Refresh();
 
                 return OperatingSystem.IsWindows()
-                   ? proc.PrivateMemorySize64
-                   : proc.WorkingSet64;
+                    ? proc.PrivateMemorySize64
+                    : proc.WorkingSet64;
             });
     }
 
@@ -113,11 +121,8 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
         // For newly spawned children and for exiting ones
         foreach (var process in enumerableProcesses)
         {
-            var stats = statistics.ProcessCpuStatistics.GetOrCreate(process.Id, _ => new CpuStatistics
-            {
-                LastTotalProcessorTime = TimeSpan.Zero,
-                LastTime = DateTimeOffset.UtcNow,
-            });
+            var stats = statistics.ProcessCpuStatistics.GetOrCreate(process.Id,
+                _ => new CpuStatistics { LastTotalProcessorTime = TimeSpan.Zero, LastTime = DateTimeOffset.UtcNow, });
 
             yield return process.GetProcessCpuUsage(stats);
         }

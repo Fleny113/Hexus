@@ -9,6 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Tomlyn" Version="2.10.1" />
         <ProjectReference Include="..\Hexus.Configuration\Hexus.Configuration.csproj" />
 
         <PackageReference Include="EndpointMapper" Version="2.0.0" />

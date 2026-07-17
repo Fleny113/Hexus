@@ -9,14 +9,9 @@ using Windows.Win32.System.Console;
 
 namespace Hexus.Daemon.Services;
 
-internal partial class ProcessManagerService(
-    ILoggerFactory loggerFactory,
-    // HexusConfigurationManager configManager,
-    ProcessLogsService processLogsService/*,
-    IHostApplicationLifetime hostLifetime*/)
+internal partial class ProcessManagerService(ILoggerFactory loggerFactory, ProcessLogsService processLogsService, StateManagerService stateManagerService)
 {
     private readonly ILogger<ProcessManagerService> _logger = loggerFactory.CreateLogger<ProcessManagerService>();
-    // private readonly Dictionary<Process, ApplicationConfiguration> _processToApplicationMap = [];
     private readonly Dictionary<ApplicationConfiguration, ApplicationState> _applicationProcessStates = [];
 
     // If the application can't live for more then 30 seconds, after the 10 attempts to restart it, it will be considerate crashed
@@ -53,7 +48,7 @@ internal partial class ProcessManagerService(
         if (process is null)
             return error;
 
-        var state = _applicationProcessStates.GetOrCreate(application, _ => new ApplicationState());
+        var state = GetApplicationState(application);
         state.Process = process;
         state.Status = ApplicationStatus.Running;
 
@@ -67,9 +62,9 @@ internal partial class ProcessManagerService(
         _ = HandleLogs(application, process, LogType.STDERR);
 
         // Register callbacks
-        state.RestartCallback ??= (_, _) => HandleProcessRestart(application, state).GetAwaiter().GetResult();
+        state.RestartCallback ??= (_, _) => _ = HandleProcessRestart(state);
 
-        process.Exited += (_, _) => AcknowledgeProcessExit(application, state);
+        process.Exited += (_, _) => AcknowledgeProcessExit(state);
         process.Exited += state.RestartCallback;
 
         return null;
@@ -77,7 +72,7 @@ internal partial class ProcessManagerService(
 
     public bool StopApplication(ApplicationConfiguration application, bool forceStop = false)
     {
-        if (!TryGetApplicationState(application, out var state))
+        if (!TryGetApplicationStateIfExists(application, out var state))
             return false;
 
         return StopApplication(state, forceStop);
@@ -105,24 +100,32 @@ internal partial class ProcessManagerService(
 
     public void StopApplications()
     {
-        Parallel.ForEach(_applicationProcessStates, t =>
-        {
-            StopApplication(t.Value, true);
-        });
+        Parallel.ForEach(_applicationProcessStates, t => StopApplication(t.Value));
     }
 
-    internal bool TryGetApplicationState(ApplicationConfiguration application, [NotNullWhen(true)] out ApplicationState? state)
+    internal ApplicationState GetApplicationState(ApplicationConfiguration application)
+    {
+        var state = _applicationProcessStates.GetOrCreate(application, app => new ApplicationState(app));
+        var persistantState = stateManagerService.LoadApplicationState(application);
+
+        persistantState?.ApplyTo(state);
+
+        return state;
+    }
+
+    internal bool TryGetApplicationStateIfExists(ApplicationConfiguration application, [NotNullWhen(true)] out ApplicationState? state)
     {
         return _applicationProcessStates.TryGetValue(application, out state);
     }
 
-    internal bool IsApplicationProcessRunning(ApplicationConfiguration application, [NotNullWhen(true)] out ApplicationState? state, [NotNullWhen(true)] out Process? process)
+    internal bool IsApplicationProcessRunning(ApplicationConfiguration application, [NotNullWhen(true)] out ApplicationState? state,
+        [NotNullWhen(true)] out Process? process)
     {
         process = null;
-        return TryGetApplicationState(application, out state) && IsApplicationProcessRunning(state, out process);
+        return TryGetApplicationStateIfExists(application, out state) && IsApplicationProcessRunning(state, out process);
     }
 
-    internal bool IsApplicationProcessRunning(ApplicationState state, [NotNullWhen(true)] out Process? process)
+    internal static bool IsApplicationProcessRunning(ApplicationState state, [NotNullWhen(true)] out Process? process)
     {
         process = state.Process;
 
@@ -132,7 +135,7 @@ internal partial class ProcessManagerService(
         }
         catch (InvalidOperationException exception) when (exception.Message == "No process is associated with this object.")
         {
-            state.Process = null;
+            process = state.Process = null;
 
             return false;
         }
@@ -171,6 +174,25 @@ internal partial class ProcessManagerService(
         }
     }
 
+    private async Task HandleLogs(ApplicationConfiguration application, Process process, LogType logType)
+    {
+        var streamReader = logType switch
+        {
+            LogType.STDOUT => process.StandardOutput,
+            LogType.STDERR => process.StandardError,
+            _ => throw new ArgumentException("An invalid LogType was passed in", nameof(logType)),
+        };
+
+        while (true)
+        {
+            var str = await streamReader.ReadLineAsync();
+            if (str is null) break;
+
+            processLogsService.ProcessApplicationLog(application, logType, str);
+        }
+    }
+
+
     #region Start Process Internals
 
     private static (Process?, SpawnProcessError?) SpawnProcess(ProcessStartInfo startInfo)
@@ -199,13 +221,15 @@ internal partial class ProcessManagerService(
             }
 
             // If the executable is invalid
-            if (exception.Message.EndsWith("Exec format error") || exception.Message.EndsWith("The specified executable is not a valid application for this OS platform."))
+            if (exception.Message.EndsWith("Exec format error") ||
+                exception.Message.EndsWith("The specified executable is not a valid application for this OS platform."))
             {
                 return (null, SpawnProcessError.InvalidExecutable);
             }
 
             // If the command is too long, the first is the Linux error for the arguments, the second one is the Linux error for the file, the third one is the Win32 error
-            if (exception.Message.EndsWith("Argument list too long") || exception.Message.EndsWith("File name too long") || exception.Message.EndsWith("The filename or extension is too long."))
+            if (exception.Message.EndsWith("Argument list too long") || exception.Message.EndsWith("File name too long") ||
+                exception.Message.EndsWith("The filename or extension is too long."))
             {
                 return (null, SpawnProcessError.CommandTooLong);
             }
@@ -266,65 +290,46 @@ internal partial class ProcessManagerService(
 
     #endregion
 
-    private async Task HandleLogs(ApplicationConfiguration application, Process process, LogType logType)
-    {
-        var streamReader = logType switch
-        {
-            LogType.STDOUT => process.StandardOutput,
-            LogType.STDERR => process.StandardError,
-            _ => throw new ArgumentException("An invalid LogType was passed in", nameof(logType)),
-        };
+    #region Exit process Internals
 
-        while (true)
-        {
-            var str = await streamReader.ReadLineAsync();
-            if (str is null) break;
-
-            processLogsService.ProcessApplicationLog(application, logType, str);
-        }
-    }
-
-    #region Exit process event handlers
-
-    internal void AbortProcessRestart(ApplicationState state)
+    private void AbortProcessRestart(ApplicationState state)
     {
         // Abort the restart if there are any, then delete the tokens
         state.AbortRestartCancellationTokenSource?.Cancel();
         state.AbortRestartCancellationTokenSource = null;
     }
 
-    private void AcknowledgeProcessExit(ApplicationConfiguration application, ApplicationState state)
+    private void AcknowledgeProcessExit(ApplicationState state)
     {
         if (state.Process is null)
             return;
 
         var exitCode = state.Process.ExitCode;
 
-        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
+        processLogsService.ProcessApplicationLog(state.Configuration, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
 
         state.Status = ApplicationStatus.Stopped;
         state.Process.Close();
         state.Process = null;
 
-        LogAcknowledgeProcessExit(_logger, application.Name, exitCode);
+        LogAcknowledgeProcessExit(_logger, state.Configuration.Name, exitCode);
     }
 
-    private async Task HandleProcessRestart(ApplicationConfiguration application, ApplicationState state)
+    private async Task HandleProcessRestart(ApplicationState state)
     {
         state.RestartCount++;
 
-        state.ClearRestartsTimer ??= new Timer(_ => ClearConsequentialRestarts(application, state), state, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        state.ClearRestartsTimer ??= new Timer(s => ClearConsequentialRestarts((ApplicationState)s!), state, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
         if (state.RestartCount > MaxRestarts)
         {
-            LogCrashedApplication(_logger, application.Name, state.RestartCount, ResetTimeWindow.TotalSeconds);
+            LogCrashedApplication(_logger, state.Configuration.Name, state.RestartCount, ResetTimeWindow);
 
             state.ClearRestartsTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
             state.Status = ApplicationStatus.Crashed;
 
-            // TODO: save the crashed state
-            // configManager.SaveConfiguration();
+            stateManagerService.SaveApplicationState(state.Configuration, StateManagerService.PersistantApplicationState.From(state));
 
             return;
         }
@@ -337,7 +342,7 @@ internal partial class ProcessManagerService(
         state.ClearRestartsTimer.Change(ResetTimeWindow, Timeout.InfiniteTimeSpan);
 
         var delay = CalculateDelay(state.RestartCount);
-        LogRestartAttemptDelay(_logger, application.Name, delay.TotalSeconds);
+        LogRestartAttemptDelay(_logger, state.Configuration.Name, delay.TotalSeconds);
 
         try
         {
@@ -351,14 +356,14 @@ internal partial class ProcessManagerService(
 
         state.AbortRestartCancellationTokenSource = null;
 
-        StartApplication(application);
+        StartApplication(state.Configuration);
     }
 
-    private void ClearConsequentialRestarts(ApplicationConfiguration application, ApplicationState state)
+    private void ClearConsequentialRestarts(ApplicationState state)
     {
         state.RestartCount = 0;
 
-        LogConsequentialRestartsStop(_logger, state.RestartCount, application.Name);
+        LogConsequentialRestartsStop(_logger, state.RestartCount, state.Configuration.Name);
     }
 
     private static TimeSpan CalculateDelay(int restart) =>
@@ -375,7 +380,7 @@ internal partial class ProcessManagerService(
 
     #endregion
 
-    internal record ApplicationState
+    internal record ApplicationState(ApplicationConfiguration Configuration)
     {
         public Process? Process { get; set; }
         public ApplicationStatus Status { get; set; } = ApplicationStatus.Stopped;
@@ -383,13 +388,15 @@ internal partial class ProcessManagerService(
         // Restart data
         public int RestartCount { get; set; }
         public Timer? ClearRestartsTimer { get; set; }
+
         public CancellationTokenSource? AbortRestartCancellationTokenSource { get; set; }
+
         // We have to cache this delegate so we can remove it in StopApplication
         public EventHandler? RestartCallback { get; set; }
     }
 
-    [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed.")]
-    private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, double timeWindow);
+    [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow}). It will be considered crashed.")]
+    private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, TimeSpan timeWindow);
 
     [LoggerMessage(LogLevel.Debug, "Acknowledging about \"{Name}\" exiting with code: {ExitCode}")]
     private static partial void LogAcknowledgeProcessExit(ILogger logger, string name, int exitCode);

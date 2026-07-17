@@ -18,10 +18,12 @@ public static partial class EnvironmentHelper
 
     private static readonly string FileSuffix = IsDevelopment ? ".dev" : "";
 
-    internal static readonly string HexusConfigDirectory = $"{XdgConfig}/hexus{FileSuffix}";
+    private static readonly string HexusConfigDirectory = $"{XdgConfig}/hexus{FileSuffix}";
     private static readonly string HexusStateDirectory = $"{XdgState}/hexus{FileSuffix}";
     private static readonly string HexusRuntimeDirectory = XdgRuntime is not null ? Path.GetFullPath($"{XdgRuntime}/hexus{FileSuffix}") : CreateRuntimeDirectory();
 
+    public static readonly string DaemonConfigFile = Path.GetFullPath($"{HexusConfigDirectory}/daemon.toml");
+    public static readonly string ApplicationsConfigDirectory = Path.GetFullPath($"{HexusConfigDirectory}/applications");
     public static readonly string LogFile = Path.GetFullPath($"{HexusStateDirectory}/daemon.log");
     public static readonly string ApplicationLogsDirectory = Path.GetFullPath($"{HexusStateDirectory}/logs");
     public static readonly string ApplicationStatesDirectory = Path.GetFullPath($"{HexusStateDirectory}/states");

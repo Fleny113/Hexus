@@ -60,7 +60,10 @@ public sealed partial class HexusConfigurationManager
         Errors = result.Errors;
 
         Applications = [];
-        foreach (var file in Directory.EnumerateFiles($"{EnvironmentHelper.HexusConfigDirectory}/applications", "*.toml"))
+
+        if (!Directory.Exists(EnvironmentHelper.ApplicationsConfigDirectory)) return;
+
+        foreach (var file in Directory.EnumerateFiles(EnvironmentHelper.ApplicationsConfigDirectory, "*.toml"))
         {
             var appName = Path.GetFileNameWithoutExtension(file);
             var appResult = LoadApplicationConfiguration(appName);
@@ -77,12 +80,12 @@ public sealed partial class HexusConfigurationManager
     {
         using var _ = _lock.EnterScope();
 
-        if (!File.Exists($"{EnvironmentHelper.HexusConfigDirectory}/daemon.toml"))
+        if (!File.Exists(EnvironmentHelper.DaemonConfigFile))
         {
             return ResolveDaemonConfig(null);
         }
 
-        using var file = File.OpenRead($"{EnvironmentHelper.HexusConfigDirectory}/daemon.toml");
+        using var file = File.OpenRead(EnvironmentHelper.DaemonConfigFile);
         if (!TomlSerializer.TryDeserialize<DaemonConfiguration.DaemonConfigurationRaw>(file, ConfigurationSerializerContext.Default, out var config))
         {
             return new(null!, [], ["Failed to parse daemon configuration file."]);
@@ -95,12 +98,13 @@ public sealed partial class HexusConfigurationManager
     {
         using var _ = _lock.EnterScope();
 
-        if (!File.Exists($"{EnvironmentHelper.HexusConfigDirectory}/applications/{applicationName}.toml"))
+        if (!File.Exists($"{EnvironmentHelper.ApplicationsConfigDirectory}/{applicationName}.toml"))
         {
             return new(null!, [], [$"Application configuration file for '{applicationName}' does not exist."]);
         }
 
-        using var file = File.OpenRead($"{EnvironmentHelper.HexusConfigDirectory}/applications/{applicationName}.toml");
+        using var file = File.OpenRead($"{EnvironmentHelper.ApplicationsConfigDirectory}/{applicationName}.toml");
+
         if (!TomlSerializer.TryDeserialize<ApplicationConfiguration.ApplicationConfigurationRaw>(file, ConfigurationSerializerContext.Default, out var config))
         {
             return new(null!, [], [$"Failed to parse {applicationName} configuration file."]);
@@ -133,12 +137,12 @@ public sealed partial class HexusConfigurationManager
         var config = new ApplicationConfiguration
         {
             Name = name,
-            Executable = raw.Executable,
-            Arguments = raw.Arguments,
-            WorkingDirectory = raw.WorkingDirectory,
+            Executable = raw.Exe,
+            Arguments = raw.Args,
+            WorkingDirectory = raw.WorkingDir,
             Enabled = raw.Enabled,
             Note = raw.Note,
-            EnvironmentVariables = raw.EnvironmentVariables ?? [],
+            EnvironmentVariables = raw.Environment ?? [],
             MemoryLimit = ResolveByteSize(raw.MemoryLimit, DaemonConfiguration.MemoryLimit, "memory-limit", warnings),
         };
 
