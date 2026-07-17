@@ -95,10 +95,14 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
         // Remove the restart event handler, or else it will restart the process as soon as it stops
         process.Exited -= state.RestartCallback;
 
+        // To be sure that the Exited event is called before we return, we use a ManualResetEvent to wait for the delegates to be called
+        using var waitHandle = new ManualResetEvent(false);
+        process.Exited += (_, _) => waitHandle.Set();
+
         StopProcess(process, forceStop);
 
-        state.Status = ApplicationStatus.Stopped;
-        state.Process = null;
+        // Wait for the process Exited event to be called
+        waitHandle.WaitOne();
 
         return true;
     }
