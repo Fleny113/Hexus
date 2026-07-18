@@ -41,6 +41,17 @@ internal partial class StateManagerService(ILoggerFactory loggerFactory)
         return state;
     }
 
+    public void DeleteApplicationState(ApplicationConfiguration application)
+    {
+        var path = GetApplicationStatePath(application.Name);
+
+        if (!File.Exists(path)) return;
+
+        LogDeleting(_logger, application.Name);
+
+        File.Delete(path);
+    }
+
     private static string GetApplicationStatePath(string name) => Path.Combine(EnvironmentHelper.ApplicationStatesDirectory, $"{name}.state");
 
     internal sealed record PersistantApplicationState
@@ -66,6 +77,9 @@ internal partial class StateManagerService(ILoggerFactory loggerFactory)
 
     [LoggerMessage(LogLevel.Debug, "Saving application \"{Name}\", state: {State}.")]
     private static partial void LogSaving(ILogger logger, string name, PersistantApplicationState state);
+
+    [LoggerMessage(LogLevel.Debug, "Deleting application \"{name}\"")]
+    private static partial void LogDeleting(ILogger logger, string name);
 }
 
 [TomlSerializable(typeof(StateManagerService.PersistantApplicationState))]

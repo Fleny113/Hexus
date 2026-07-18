@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Tomlyn;
@@ -48,7 +50,10 @@ public sealed partial class HexusConfigurationManager
         private set;
     }
 
-    public HexusConfigurationManager()
+    public HexusConfigurationManager() => Reload();
+
+    [MemberNotNull(nameof(DaemonConfiguration), nameof(Applications), nameof(Warnings), nameof(Errors))]
+    public void Reload()
     {
         using var _ = _lock.EnterScope();
 
@@ -78,8 +83,6 @@ public sealed partial class HexusConfigurationManager
 
     public static ConfigurationLoadResult<DaemonConfiguration> LoadDaemonConfiguration()
     {
-        using var _ = _lock.EnterScope();
-
         if (!File.Exists(EnvironmentHelper.DaemonConfigFile))
         {
             return ResolveDaemonConfig(null);
@@ -96,8 +99,6 @@ public sealed partial class HexusConfigurationManager
 
     private ConfigurationLoadResult<ApplicationConfiguration?> LoadApplicationConfiguration(string applicationName)
     {
-        using var _ = _lock.EnterScope();
-
         if (!File.Exists($"{EnvironmentHelper.ApplicationsConfigDirectory}/{applicationName}.toml"))
         {
             return new(null!, [], [$"Application configuration file for '{applicationName}' does not exist."]);
@@ -142,7 +143,7 @@ public sealed partial class HexusConfigurationManager
             WorkingDirectory = raw.WorkingDir,
             Enabled = raw.Enabled,
             Note = raw.Note,
-            EnvironmentVariables = raw.Environment ?? [],
+            EnvironmentVariables = raw.Environment?.ToImmutableDictionary() ?? [],
             MemoryLimit = ResolveByteSize(raw.MemoryLimit, DaemonConfiguration.MemoryLimit, "memory-limit", warnings),
         };
 

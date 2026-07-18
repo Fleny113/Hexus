@@ -7,27 +7,22 @@ internal sealed partial class MemoryLimiterService(
     ILogger<MemoryLimiterService> logger,
     HexusConfigurationManager configuration,
     ProcessLogsService processLogsService,
-    ProcessManagerService processManagerService) : BackgroundService
+    ProcessManagerService processManagerService) : BackgroundService, IConfigRelodable
 {
+    private readonly PeriodicTimer _timer = new(Timeout.InfiniteTimeSpan);
+
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        var interval = configuration.DaemonConfiguration.MemoryPollingInterval;
-
-        if (interval.TotalMilliseconds is <= 0 or >= uint.MaxValue)
+        try
+        {
+            _timer.Period = configuration.DaemonConfiguration.MemoryPollingInterval;
+        }
+        catch (Exception)
         {
             LogDisableMemoryLimiter(logger, configuration.DaemonConfiguration.MemoryPollingInterval);
-            return;
         }
 
-        if (configuration.DaemonConfiguration.MemoryLimit == 0)
-        {
-            LogConfigDisabledMemoryLimiter(logger);
-            return;
-        }
-
-        var timer = new PeriodicTimer(interval);
-
-        while (!ct.IsCancellationRequested && await timer.WaitForNextTickAsync(ct))
+        while (!ct.IsCancellationRequested && await _timer.WaitForNextTickAsync(ct))
         {
             foreach (var (_, application) in configuration.Applications)
             {
@@ -63,8 +58,32 @@ internal sealed partial class MemoryLimiterService(
         }
     }
 
-    [LoggerMessage(LogLevel.Debug, "The memory limiter was disabled in the config file.")]
-    private static partial void LogConfigDisabledMemoryLimiter(ILogger logger);
+    public ReloadResult ReloadConfiguration(ConfigurationDiff diff)
+    {
+        var actions = new List<string>();
+        var errors = new List<string>();
+
+        if (diff.OldConfiguration.MemoryPollingInterval != diff.NewConfiguration.MemoryPollingInterval)
+        {
+            try
+            {
+                _timer.Period = configuration.DaemonConfiguration.MemoryPollingInterval;
+
+                actions.Add($"Updated memory polling interval");
+            }
+            catch (Exception)
+            {
+                errors.Add($"Failed to update memory polling interval to {configuration.DaemonConfiguration.MemoryPollingInterval}. The value is invalid.");
+            }
+        }
+
+        if (diff.OldConfiguration.MemoryLimit != diff.NewConfiguration.MemoryLimit || diff.Modified.Any(t => t.Old.MemoryLimit != t.New.MemoryLimit))
+        {
+            actions.Add($"Updated memory limits for applications");
+        }
+
+        return new ReloadResult(actions, [], errors);
+    }
 
     [LoggerMessage(LogLevel.Warning, "Disabling the memory limiter. An invalid interval ({interval}) was passed.")]
     private static partial void LogDisableMemoryLimiter(ILogger logger, TimeSpan interval);

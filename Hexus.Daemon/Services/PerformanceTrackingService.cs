@@ -5,21 +5,22 @@ namespace Hexus.Daemon.Services;
 internal partial class PerformanceTrackingService(
     ILogger<PerformanceTrackingService> logger,
     HexusConfigurationManager configuration,
-    ProcessStatisticsService processStatisticsService) : BackgroundService
+    ProcessStatisticsService processStatisticsService) : BackgroundService, IConfigRelodable
 {
+    private readonly PeriodicTimer _timer = new(Timeout.InfiniteTimeSpan);
+
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        var interval = configuration.DaemonConfiguration.CpuPollingInterval;
-
-        if (interval.TotalMilliseconds is <= 0 or >= uint.MaxValue)
+        try
+        {
+            _timer.Period = configuration.DaemonConfiguration.CpuPollingInterval;
+        }
+        catch (Exception)
         {
             LogDisablePerformanceTracking(logger, configuration.DaemonConfiguration.CpuPollingInterval);
-            return;
         }
 
-        var timer = new PeriodicTimer(interval);
-
-        while (!ct.IsCancellationRequested && await timer.WaitForNextTickAsync(ct))
+        while (!ct.IsCancellationRequested && await _timer.WaitForNextTickAsync(ct))
         {
             try
             {
@@ -30,6 +31,27 @@ internal partial class PerformanceTrackingService(
                 LogFailedRefresh(logger, ex);
             }
         }
+    }
+
+    public ReloadResult ReloadConfiguration(ConfigurationDiff diff)
+    {
+        if (diff.OldConfiguration.CpuPollingInterval == diff.NewConfiguration.CpuPollingInterval) return new ReloadResult([], [], []);
+
+        var actions = new List<string>();
+        var errors = new List<string>();
+
+        try
+        {
+            _timer.Period = configuration.DaemonConfiguration.CpuPollingInterval;
+
+            actions.Add($"Updated cpu polling interval");
+        }
+        catch (Exception)
+        {
+            errors.Add($"Failed to update cpu polling interval to {configuration.DaemonConfiguration.CpuPollingInterval}. The value is invalid.");
+        }
+
+        return new ReloadResult(actions, [], errors);
     }
 
     [LoggerMessage(LogLevel.Warning, "Disabling the CPU performance tracking. An invalid interval ({interval}) was passed.")]

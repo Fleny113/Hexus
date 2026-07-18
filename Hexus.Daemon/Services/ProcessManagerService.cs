@@ -9,7 +9,7 @@ using Windows.Win32.System.Console;
 
 namespace Hexus.Daemon.Services;
 
-internal partial class ProcessManagerService(ILoggerFactory loggerFactory, ProcessLogsService processLogsService, StateManagerService stateManagerService)
+internal partial class ProcessManagerService(ILoggerFactory loggerFactory, ProcessLogsService processLogsService, StateManagerService stateManagerService) : IConfigRelodable
 {
     private readonly ILogger<ProcessManagerService> _logger = loggerFactory.CreateLogger<ProcessManagerService>();
     private readonly Dictionary<ApplicationConfiguration, ApplicationState> _applicationProcessStates = [];
@@ -55,7 +55,7 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
         // Enable the emitting of events (like Exited)
         process.EnableRaisingEvents = true;
 
-        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, ProcessLogsService.ApplicationStartedLog);
+        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, ApplicationLog.ApplicationStartedLog);
 
         // Setup log handling 
         _ = HandleLogs(application, process, LogType.STDOUT);
@@ -114,7 +114,7 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
 
     internal ApplicationState GetApplicationState(ApplicationConfiguration application)
     {
-        var state = _applicationProcessStates.GetOrCreate(application, app => new ApplicationState(app));
+        var state = _applicationProcessStates.GetOrCreate(application, app => new ApplicationState { Configuration = app });
         var persistantState = stateManagerService.LoadApplicationState(application);
 
         persistantState?.ApplyTo(state);
@@ -183,6 +183,58 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
         }
     }
 
+    public ReloadResult ReloadConfiguration(ConfigurationDiff diff)
+    {
+        List<string> actions = [];
+        List<string> errors = [];
+
+        foreach (var app in diff.Removed)
+        {
+            StopApplication(app);
+            stateManagerService.DeleteApplicationState(app);
+            _applicationProcessStates.Remove(app);
+
+            actions.Add($"Stopped removed application {app.Name}");
+        }
+
+        foreach (var app in diff.Added)
+        {
+            if (!app.Enabled) continue;
+
+            StartApplication(app);
+
+            actions.Add($"Starting added and enabled application {app.Name}");
+        }
+
+        foreach (var (old, update) in diff.Modified)
+        {
+            var shouldRestart = old.Executable != update.Executable ||
+                                old.Arguments != update.Arguments ||
+                                old.WorkingDirectory != update.WorkingDirectory ||
+                                old.EnvironmentVariables != update.EnvironmentVariables;
+
+            // Move the state to the new configuration
+            if (_applicationProcessStates.Remove(old, out var state))
+            {
+                state.Configuration = update;
+                _applicationProcessStates.Add(update, state);
+            }
+
+            if (!shouldRestart) continue;
+
+            actions.Add($"Restarting modified application {update.Name} due to changes that require a restart");
+
+            StopApplication(update);
+
+            if (StartApplication(update) is { } error)
+            {
+                errors.Add($"Failed to start application {update.Name}: {error.MapToErrorString()}");
+            }
+        }
+
+        return new ReloadResult(actions, [], errors);
+    }
+
     private async Task HandleLogs(ApplicationConfiguration application, Process process, LogType logType)
     {
         var streamReader = logType switch
@@ -200,7 +252,6 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
             processLogsService.ProcessApplicationLog(application, logType, str);
         }
     }
-
 
     #region Start Process Internals
 
@@ -317,7 +368,7 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
 
         var exitCode = state.Process.ExitCode;
 
-        processLogsService.ProcessApplicationLog(state.Configuration, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
+        processLogsService.ProcessApplicationLog(state.Configuration, LogType.SYSTEM, string.Format(null, ApplicationLog.ApplicationStoppedLog, exitCode));
 
         state.Status = ApplicationStatus.Stopped;
         state.Process.Close();
@@ -391,8 +442,10 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
 
     #endregion
 
-    internal record ApplicationState(ApplicationConfiguration Configuration)
+    internal record ApplicationState
     {
+        public required ApplicationConfiguration Configuration { get; set; }
+
         public Process? Process { get; set; }
         public ApplicationStatus Status { get; set; } = ApplicationStatus.Stopped;
 

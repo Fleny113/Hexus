@@ -8,6 +8,7 @@ namespace Hexus.Daemon.Services;
 
 internal sealed class ProcessStatisticsService(ProcessManagerService processManagerService)
 {
+    // PID -> ApplicationCpuStatistics
     private readonly Dictionary<int, ApplicationCpuStatistics> _cpuStatisticsMap = [];
 
     public ApplicationStatistics GetApplicationStats(ApplicationConfiguration application)
@@ -79,11 +80,9 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
     private static IEnumerable<Process> Traverse(int pid, IReadOnlyDictionary<int, IEnumerable<int>> processIds)
     {
-        var process = Process.GetProcessById(pid);
+        yield return Process.GetProcessById(pid);
 
-        yield return process;
-
-        if (!processIds.TryGetValue(process.Id, out var childrenIds)) yield break;
+        if (!processIds.TryGetValue(pid, out var childrenIds)) yield break;
 
         foreach (var child in childrenIds)
         {
@@ -130,6 +129,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
     private class ApplicationCpuStatistics
     {
+        // PID -> ProcessExtensions.CpuStatistics
         public Dictionary<int, ProcessExtensions.CpuStatistics> ProcessCpuStatistics { get; } = [];
         public double LastUsage { get; set; }
     }

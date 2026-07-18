@@ -69,14 +69,24 @@ builder.Services.AddSingleton<HexusConfigurationManager>();
 // builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().DaemonConfiguration);
 
 // Services & HostedServices
-builder.Services.AddHostedService<HexusLifecycle>();
-builder.Services.AddHostedService<PerformanceTrackingService>();
-builder.Services.AddHostedService<MemoryLimiterService>();
+builder.Services.AddSingleton<HexusLifecycle>();
+builder.Services.AddSingleton<PerformanceTrackingService>();
+builder.Services.AddSingleton<MemoryLimiterService>();
+
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<HexusLifecycle>());
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<PerformanceTrackingService>());
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<MemoryLimiterService>());
+
 
 builder.Services.AddSingleton<StateManagerService>();
 builder.Services.AddSingleton<ProcessStatisticsService>();
 builder.Services.AddSingleton<ProcessLogsService>();
 builder.Services.AddSingleton<ProcessManagerService>();
+
+builder.Services.AddSingleton<IConfigRelodable>(sp => sp.GetRequiredService<ProcessManagerService>());
+builder.Services.AddSingleton<IConfigRelodable>(sp => sp.GetRequiredService<HexusLifecycle>());
+builder.Services.AddSingleton<IConfigRelodable>(sp => sp.GetRequiredService<MemoryLimiterService>());
+builder.Services.AddSingleton<IConfigRelodable>(sp => sp.GetRequiredService<PerformanceTrackingService>());
 
 var app = builder.Build();
 

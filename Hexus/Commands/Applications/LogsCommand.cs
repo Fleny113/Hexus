@@ -296,7 +296,7 @@ internal static class LogsCommand
             lineOffset = -1;
 
             // We only wanted the current execution, and we found an application started notice. We should now stop.
-            if (currentExecution && appLog is { LogType: LogType.SYSTEM, Text: ProcessLogsService.ApplicationStartedLog })
+            if (currentExecution && appLog is { LogType: LogType.SYSTEM, Text: ApplicationLog.ApplicationStartedLog })
             {
                 break;
             }

@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace Hexus.Daemon.Contracts.Responses;
 
 public sealed record ApplicationResponse(
@@ -6,7 +8,7 @@ public sealed record ApplicationResponse(
     string? Arguments,
     string WorkingDirectory,
     string? Note,
-    Dictionary<string, string> EnvironmentVariables,
+    ImmutableDictionary<string, string> EnvironmentVariables,
     ApplicationStatus Status,
     TimeSpan ProcessUptime,
     long ProcessId,
