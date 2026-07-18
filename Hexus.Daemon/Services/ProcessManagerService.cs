@@ -9,7 +9,7 @@ using Windows.Win32.System.Console;
 
 namespace Hexus.Daemon.Services;
 
-internal partial class ProcessManagerService(ILoggerFactory loggerFactory, ProcessLogsService processLogsService, StateManagerService stateManagerService) : IConfigRelodable
+internal partial class ProcessManagerService(ILoggerFactory loggerFactory, ProcessLogsService processLogsService, StateManagerService stateManagerService) : IConfigRelodable, IDisposable
 {
     private readonly ILogger<ProcessManagerService> _logger = loggerFactory.CreateLogger<ProcessManagerService>();
     private readonly Dictionary<ApplicationConfiguration, ApplicationState> _applicationProcessStates = [];
@@ -107,9 +107,10 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
         return true;
     }
 
-    public void StopApplications()
+    public void Dispose()
     {
         Parallel.ForEach(_applicationProcessStates, t => StopApplication(t.Value));
+        _applicationProcessStates.Clear();
     }
 
     internal ApplicationState GetApplicationState(ApplicationConfiguration application)
