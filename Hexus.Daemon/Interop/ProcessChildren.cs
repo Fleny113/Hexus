@@ -60,7 +60,18 @@ internal static class ProcessChildren
     {
         foreach (var task in Directory.EnumerateDirectories($"/proc/{parentId}/task", "*", SearchOption.TopDirectoryOnly))
         {
-            foreach (var strPId in File.ReadAllText($"{task}/children").Split(' '))
+            string[] children;
+
+            try
+            {
+                children = File.ReadAllText($"{task}/children").Split(' ');
+            }
+            catch (IOException)
+            {
+                continue;
+            }
+
+            foreach (var strPId in children)
             {
                 if (!int.TryParse(strPId, out var processId)) continue;
 
