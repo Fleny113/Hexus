@@ -12,22 +12,22 @@ public static partial class EnvironmentHelper
     // XDG_RUNTIME_DIR does not have a default we can point to due to the requirement this folder has (being owned by the user and being the only with Read Write Execute so 0o700)
     // This mean that we need to default to a directory in the temp, on Windows we instead use the XDG_STATE_HOME
     // as using the TEMP in Windows is unreliable as the socket file does not get locked so it is easily deletable
-    private static readonly string XdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? $"{Home}/.config";
-    private static readonly string XdgState = Environment.GetEnvironmentVariable("XDG_STATE_HOME") ?? $"{Home}/.local/state";
+    private static readonly string XdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(Home, ".config");
+    private static readonly string XdgState = Environment.GetEnvironmentVariable("XDG_STATE_HOME") ?? Path.Combine(Home, ".local", "state");
     internal static readonly string? XdgRuntime = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
 
     private static readonly string FileSuffix = IsDevelopment ? ".dev" : "";
 
-    private static readonly string HexusConfigDirectory = $"{XdgConfig}/hexus{FileSuffix}";
-    private static readonly string HexusStateDirectory = $"{XdgState}/hexus{FileSuffix}";
-    private static readonly string HexusRuntimeDirectory = XdgRuntime is not null ? Path.GetFullPath($"{XdgRuntime}/hexus{FileSuffix}") : CreateRuntimeDirectory();
+    private static readonly string HexusConfigDirectory = Path.Combine(XdgConfig, $"hexus{FileSuffix}");
+    private static readonly string HexusStateDirectory = Path.Combine(XdgState, $"hexus{FileSuffix}");
+    private static readonly string HexusRuntimeDirectory = XdgRuntime is not null ? Path.Combine(XdgRuntime, $"hexus{FileSuffix}") : CreateRuntimeDirectory();
 
-    public static readonly string DaemonConfigFile = Path.GetFullPath($"{HexusConfigDirectory}/daemon.toml");
-    public static readonly string ApplicationsConfigDirectory = Path.GetFullPath($"{HexusConfigDirectory}/applications");
-    public static readonly string LogFile = Path.GetFullPath($"{HexusStateDirectory}/daemon.log");
-    public static readonly string ApplicationLogsDirectory = Path.GetFullPath($"{HexusStateDirectory}/logs");
-    public static readonly string ApplicationStatesDirectory = Path.GetFullPath($"{HexusStateDirectory}/states");
-    public static readonly string DefaultSocketFile = Path.GetFullPath($"{HexusRuntimeDirectory}/daemon.sock");
+    public static readonly string DaemonConfigFile = Path.Combine(HexusConfigDirectory, "daemon.toml");
+    public static readonly string ApplicationsConfigDirectory = Path.Combine(HexusConfigDirectory, "applications");
+    public static readonly string LogFile = Path.Combine(HexusStateDirectory, "daemon.log");
+    public static readonly string ApplicationLogsDirectory = Path.Combine(HexusStateDirectory, "logs");
+    public static readonly string ApplicationStatesDirectory = Path.Combine(HexusStateDirectory, "states");
+    public static readonly string DefaultSocketFile = Path.Combine(HexusRuntimeDirectory, "daemon.sock");
 
     public static void EnsureDirectoriesExistence()
     {

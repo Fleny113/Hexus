@@ -58,7 +58,7 @@ internal static partial class MigratePm2Command
     private static readonly Option<string> Pm2DumpFile = new("--pm2-dump")
     {
         Description = "The pm2 dump file",
-        DefaultValueFactory = _ => Path.GetFullPath($"{EnvironmentHelper.Home}/.pm2/dump.pm2"),
+        DefaultValueFactory = _ => Path.Combine(EnvironmentHelper.Home, ".pm2", "dump.pm2"),
     };
 
     public static readonly Command Command = new("migrate-pm2", "Migrate your current PM2 Config to Hexus.")

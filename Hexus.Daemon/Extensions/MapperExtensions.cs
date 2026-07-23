@@ -10,9 +10,9 @@ internal static class MapperExtensions
     {
         return new ApplicationResponse(
             Name: application.Name,
-            Executable: Path.GetFullPath(application.Executable),
+            Executable: application.Executable,
             Arguments: application.Arguments,
-            WorkingDirectory: Path.GetFullPath(application.WorkingDirectory),
+            WorkingDirectory: application.WorkingDirectory,
             Note: application.Note,
             EnvironmentVariables: application.EnvironmentVariables,
             Status: applicationStatisticsResponse.Status,
