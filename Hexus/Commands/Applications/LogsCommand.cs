@@ -364,7 +364,7 @@ internal static class LogsCommand
 
         if (logsRequest.IsSuccessStatusCode)
         {
-            return logsRequest.Content.ReadFromJsonAsAsyncEnumerable<ApplicationLog>(HttpInvocation.JsonSerializerContext.ApplicationLog, ct);
+            return logsRequest.Content.ReadFromJsonAsAsyncEnumerable(HttpInvocation.JsonSerializerContext.ApplicationLog, ct);
         }
 
         PrettyConsole.Out.MarkupLine("""

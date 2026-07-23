@@ -1,10 +1,12 @@
 using EndpointMapper;
 using Hexus.Daemon.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using System.Net;
+using System.Reflection;
 using System.Text.Json;
 
 namespace Hexus.Daemon.Endpoints.Applications;
@@ -12,11 +14,9 @@ namespace Hexus.Daemon.Endpoints.Applications;
 internal sealed class GetLogsEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Get, "/{name}/logs")]
-    public static async Task<NotFound?> Handle(
+    public static async Task<Results<NotFound, JsonArrayStreamResult<ApplicationLog>>> Handle(
         [FromServices] HexusConfiguration configuration,
         [FromServices] ProcessLogsService processLogsService,
-        HttpContext context,
-        [FromServices] IOptions<AppJsonSerializerContext> jsonSerializerContext,
         [FromServices] IHostApplicationLifetime hostLifetime,
         [FromRoute] string name,
         [FromQuery] DateTimeOffset? before = null,
@@ -25,29 +25,32 @@ internal sealed class GetLogsEndpoint : IEndpoint
         if (!configuration.Applications.TryGetValue(name, out var application))
             return TypedResults.NotFound();
 
-        // When the aspnet or the hexus cancellation token get cancelled it cancels this as well
+        // When the aspnet or the hostLifetime cancellation token get cancelled it cancels this as well
         var combinedCtSource = CancellationTokenSource.CreateLinkedTokenSource(ct, hostLifetime.ApplicationStopping);
 
-        var logs = processLogsService.GetLogs(application, before, combinedCtSource.Token);
+        return new JsonArrayStreamResult<ApplicationLog>(processLogsService.GetLogs(application, before, combinedCtSource.Token));
+    }
+}
 
-        context.Response.StatusCode = (int)HttpStatusCode.OK;
-        context.Response.Headers.ContentType = "application/json; charset=utf-8";
+public class JsonArrayStreamResult<T>(IAsyncEnumerable<T> source) : IResult, IEndpointMetadataProvider
+{
+    public async Task ExecuteAsync(HttpContext httpContext)
+    {
+        httpContext.Response.ContentType = "application/json; charset=utf-8";
 
-        // We need to manually write the response body as ASP.NET won't send the header using TypedResults.Ok() or anything similar
+        await httpContext.Response.Body.FlushAsync(httpContext.RequestAborted);
 
-        await context.Response.WriteAsync("[", ct);
-        await context.Response.Body.FlushAsync(ct);
+        var jsonOptions = httpContext.RequestServices.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>();
 
-        await foreach (var item in logs)
-        {
-            await context.Response.WriteAsync(JsonSerializer.Serialize(item, jsonSerializerContext.Value.ApplicationLog), cancellationToken: ct);
-            await context.Response.WriteAsync(",", ct);
-            await context.Response.Body.FlushAsync(ct);
-        }
+        await JsonSerializer.SerializeAsync(httpContext.Response.BodyWriter, source, jsonOptions.Value.SerializerOptions, httpContext.RequestAborted);
+    }
 
-        await context.Response.WriteAsync("]", ct);
-        await context.Response.Body.FlushAsync(ct);
-
-        return null;
+    public static void PopulateMetadata(MethodInfo method, EndpointBuilder builder)
+    {
+        builder.Metadata.Add(new ProducesResponseTypeMetadata(
+            statusCode: StatusCodes.Status200OK,
+            type: typeof(IEnumerable<T>),
+            contentTypes: ["application/json"]
+        ));
     }
 }
