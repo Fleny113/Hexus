@@ -53,7 +53,7 @@ public sealed partial class HexusConfigurationManager
     public HexusConfigurationManager() => Reload();
 
     [MemberNotNull(nameof(DaemonConfiguration), nameof(Applications), nameof(Warnings), nameof(Errors))]
-    public void Reload()
+    public ConfigurationProblems Reload()
     {
         using var _ = _lock.EnterScope();
 
@@ -66,19 +66,37 @@ public sealed partial class HexusConfigurationManager
 
         Applications = [];
 
-        if (!Directory.Exists(EnvironmentHelper.ApplicationsConfigDirectory)) return;
-
-        foreach (var file in Directory.EnumerateFiles(EnvironmentHelper.ApplicationsConfigDirectory, "*.toml"))
+        if (Directory.Exists(EnvironmentHelper.ApplicationsConfigDirectory))
         {
-            var appName = Path.GetFileNameWithoutExtension(file);
-            var appResult = LoadApplicationConfiguration(appName);
-            if (appResult.Configuration is not null)
+            foreach (var file in Directory.EnumerateFiles(EnvironmentHelper.ApplicationsConfigDirectory, "*.toml"))
             {
-                Applications[appName] = appResult.Configuration;
+                var appName = Path.GetFileNameWithoutExtension(file);
+                var appResult = Reload(appName);
+
+                Warnings = Warnings.Concat(appResult.Warnings);
+                Errors = Errors.Concat(appResult.Errors);
             }
-            Warnings = Warnings.Concat(appResult.Warnings);
-            Errors = Errors.Concat(appResult.Errors);
         }
+
+        return new(Warnings, Errors);
+    }
+
+    public ConfigurationProblems Reload(string applicationName)
+    {
+        using var _ = _lock.EnterScope();
+
+        var result = LoadApplicationConfiguration(applicationName);
+
+        if (result.Configuration is not null)
+        {
+            Applications[applicationName] = result.Configuration;
+        }
+        else
+        {
+            Applications.Remove(applicationName);
+        }
+
+        return new(result.Warnings, result.Errors);
     }
 
     public static ConfigurationLoadResult<DaemonConfiguration> LoadDaemonConfiguration()
@@ -91,7 +109,8 @@ public sealed partial class HexusConfigurationManager
         using var file = File.OpenRead(EnvironmentHelper.DaemonConfigFile);
         if (!TomlSerializer.TryDeserialize<DaemonConfiguration.DaemonConfigurationRaw>(file, ConfigurationSerializerContext.Default, out var config))
         {
-            return new(null!, [], ["Failed to parse daemon configuration file."]);
+            var defaultConfig = ResolveDaemonConfig(null);
+            return new(defaultConfig.Configuration, defaultConfig.Warnings, defaultConfig.Errors.Concat(["Failed to parse daemon configuration file."]));
         }
 
         return ResolveDaemonConfig(config);
@@ -101,14 +120,14 @@ public sealed partial class HexusConfigurationManager
     {
         if (!File.Exists($"{EnvironmentHelper.ApplicationsConfigDirectory}/{applicationName}.toml"))
         {
-            return new(null!, [], [$"Application configuration file for '{applicationName}' does not exist."]);
+            return new(null, [], [$"Application configuration file for '{applicationName}' does not exist."]);
         }
 
         using var file = File.OpenRead($"{EnvironmentHelper.ApplicationsConfigDirectory}/{applicationName}.toml");
 
         if (!TomlSerializer.TryDeserialize<ApplicationConfiguration.ApplicationConfigurationRaw>(file, ConfigurationSerializerContext.Default, out var config))
         {
-            return new(null!, [], [$"Failed to parse {applicationName} configuration file."]);
+            return new(null, [], [$"Failed to parse {applicationName} configuration file."]);
         }
 
         return ResolveApplicationConfig(config, applicationName);

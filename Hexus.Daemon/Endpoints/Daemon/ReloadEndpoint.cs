@@ -4,6 +4,7 @@ using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Immutable;
 
 namespace Hexus.Daemon.Endpoints.Daemon;
 
@@ -16,16 +17,25 @@ internal class ReloadEndpoint : IEndpoint, IRegisterEndpoint
 
     public static Ok<ReloadResult> Handle(
         [FromServices] HexusConfigurationManager configurationManager,
-        [FromServices] IEnumerable<IConfigRelodable> relodableServices
+        [FromServices] IEnumerable<IConfigRelodable> relodableServices,
+        [FromQuery] string? applicationName = null
     )
     {
-        var oldConfig = (configurationManager.DaemonConfiguration, configurationManager.Applications);
+        var oldConfig = new ConfigurationSnapshot(configurationManager.DaemonConfiguration, configurationManager.Applications.ToImmutableDictionary());
 
-        configurationManager.Reload();
+        var result = applicationName is not null ? configurationManager.Reload(applicationName) : configurationManager.Reload();
 
-        var newConfig = (configurationManager.DaemonConfiguration, configurationManager.Applications);
+        var newConfig = new ConfigurationSnapshot(configurationManager.DaemonConfiguration, configurationManager.Applications.ToImmutableDictionary());
 
-        var diff = new ConfigurationDiff
+        var diff = BuildDiff(oldConfig, newConfig);
+        var results = ApplyDiff(result.Warnings, result.Errors, diff, relodableServices);
+
+        return TypedResults.Ok(results);
+    }
+
+    private static ConfigurationDiff BuildDiff(ConfigurationSnapshot oldConfig, ConfigurationSnapshot newConfig)
+    {
+        return new ConfigurationDiff
         {
             Added = [.. newConfig.Applications.Values.Where(@new => oldConfig.Applications.Values.Select(old => old.Name).All(oldName => oldName != @new.Name))],
             Removed = [.. oldConfig.Applications.Values.Where(old => newConfig.Applications.Values.Select(@new => @new.Name).All(newName => newName != old.Name))],
@@ -35,16 +45,21 @@ internal class ReloadEndpoint : IEndpoint, IRegisterEndpoint
                 .Where(t => t.Old != t.New)
             ],
 
-            OldConfiguration = oldConfig.DaemonConfiguration,
-            NewConfiguration = newConfig.DaemonConfiguration
+            OldConfiguration = oldConfig.Daemon,
+            NewConfiguration = newConfig.Daemon
         };
-
-        var results = relodableServices.Select(service => service.ReloadConfiguration(diff)).Aggregate(new ReloadResult([], [], []), (acc, result) => new ReloadResult(
-            Actions: acc.Actions.Concat(result.Actions),
-            Warnings: acc.Warnings.Concat(result.Warnings),
-            Errors: acc.Errors.Concat(result.Errors)
-        ));
-
-        return TypedResults.Ok(results);
     }
+
+    private static ReloadResult ApplyDiff(IEnumerable<string> warnings, IEnumerable<string> errors, ConfigurationDiff diff, IEnumerable<IConfigRelodable> relodableServices)
+    {
+        return relodableServices
+            .Select(service => service.ReloadConfiguration(diff))
+            .Aggregate(new ReloadResult([], warnings, errors), (acc, result) => new ReloadResult(
+                Actions: acc.Actions.Concat(result.Actions),
+                Warnings: acc.Warnings.Concat(result.Warnings),
+                Errors: acc.Errors.Concat(result.Errors)
+            ));
+    }
+
+    private sealed record ConfigurationSnapshot(DaemonConfiguration Daemon, ImmutableDictionary<string, ApplicationConfiguration> Applications);
 }
