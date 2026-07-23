@@ -24,77 +24,10 @@ internal static class MapperExtensions
         );
     }
 
-
     public static IEnumerable<ApplicationResponse> MapToResponse(this IEnumerable<ApplicationConfiguration> applications,
         Func<ApplicationConfiguration, ApplicationStatistics> getApplicationStats)
     {
         return applications.Select(app => app.MapToResponse(getApplicationStats(app)));
-    }
-
-    [Obsolete]
-    public static Configuration.HexusConfiguration MapToConfig(this Configuration.HexusConfigurationFile configurationFile)
-    {
-        var applications = configurationFile.Applications?.Select(x => new KeyValuePair<string, Configuration.HexusApplication>(x.Key, new()
-        {
-            Name = x.Key,
-            Executable = x.Value.Executable,
-            Arguments = x.Value.Arguments,
-            WorkingDirectory = x.Value.WorkingDirectory,
-            Status = x.Value.Status,
-            Note = x.Value.Note,
-            EnvironmentVariables = x.Value.EnvironmentVariables,
-            MemoryLimit = x.Value.MemoryLimit,
-        }));
-
-        var totalMemory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
-        var defaultMemoryLimit = (long)(totalMemory * 0.25);
-
-        return new Configuration.HexusConfiguration
-        {
-            UnixSocket = configurationFile.UnixSocket ?? Configuration.EnvironmentHelper.SocketFile,
-            HttpPort = configurationFile.HttpPort,
-            CpuRefreshIntervalSeconds = configurationFile.CpuRefreshIntervalSeconds ?? 2.5,
-            MemoryLimitCheckIntervalSeconds = configurationFile.MemoryLimitCheckIntervalSeconds ?? 10.0,
-            MemoryLimit = configurationFile.MemoryLimit ?? defaultMemoryLimit,
-            Applications = applications?.ToDictionary() ?? [],
-        };
-    }
-
-    [Obsolete]
-    public static Configuration.HexusConfigurationFile MapToConfigFile(this Configuration.HexusConfiguration configuration)
-    {
-        // If we are using default values, we can omit writing them to the file
-        var socket = configuration.UnixSocket != Configuration.EnvironmentHelper.SocketFile ? configuration.UnixSocket : null;
-        var cpuRefresh = Math.Abs(configuration.CpuRefreshIntervalSeconds - 2.5) > 0.1 ? configuration.CpuRefreshIntervalSeconds : (double?)null;
-        var memRefresh = Math.Abs(configuration.MemoryLimitCheckIntervalSeconds - 10.0) > 0.1 ? configuration.MemoryLimitCheckIntervalSeconds : (double?)null;
-
-        var totalMemory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
-        var defaultMemoryLimit = (long)(totalMemory * 0.25);
-
-        var memoryLimit = configuration.MemoryLimit != defaultMemoryLimit ? configuration.MemoryLimit : (long?)null;
-
-        var applications = configuration.Applications.Select(x => new KeyValuePair<string, Configuration.HexusApplication>(x.Key, new Configuration.HexusApplication
-        {
-            // We don't want to serialize the name in the config file
-            Name = null!,
-            Executable = x.Value.Executable,
-            Arguments = x.Value.Arguments,
-            WorkingDirectory = x.Value.WorkingDirectory,
-            Status = x.Value.Status,
-            Note = x.Value.Note,
-            EnvironmentVariables = x.Value.EnvironmentVariables,
-            MemoryLimit = x.Value.MemoryLimit,
-        }));
-
-        return new Configuration.HexusConfigurationFile
-        {
-            UnixSocket = socket,
-            HttpPort = configuration.HttpPort,
-            CpuRefreshIntervalSeconds = cpuRefresh,
-            MemoryLimitCheckIntervalSeconds = memRefresh,
-            MemoryLimit = memoryLimit,
-            Applications = applications.ToDictionary(),
-        };
     }
 
     public static string MapToErrorString(this ProcessManagerService.SpawnProcessError error)

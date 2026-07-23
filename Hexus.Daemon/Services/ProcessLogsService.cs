@@ -13,29 +13,6 @@ public partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
 
     private readonly Dictionary<ApplicationConfiguration, List<Channel<ApplicationLog>>> _logChannels = [];
 
-    internal void ProcessApplicationLog(ApplicationConfiguration application, LogType logType, string message)
-    {
-        lock (application)
-        {
-            if (logType != LogType.SYSTEM)
-            {
-                LogApplicationOutput(logger, application.Name, message);
-            }
-
-            var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
-
-            if (_logChannels.TryGetValue(application, out var channels))
-            {
-                channels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
-            }
-
-            using var logFile = File.Open($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log", FileMode.Append, FileAccess.Write, FileShare.Read);
-            using var log = new StreamWriter(logFile, Utf8EncodingWithoutBom);
-
-            log.Write($"[{applicationLog.Date.DateTime:O},{applicationLog.LogType}] {applicationLog.Text}\n");
-        }
-    }
-
     public async IAsyncEnumerable<ApplicationLog> GetLogs(ApplicationConfiguration application, DateTimeOffset? before, [EnumeratorCancellation] CancellationToken ct)
     {
         var channels = _logChannels.GetOrCreate(application, _ => []);
@@ -60,25 +37,27 @@ public partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
         }
     }
 
-    [Obsolete]
-    public void RegisterApplication(ApplicationConfiguration application)
+    internal void ProcessApplicationLog(ApplicationConfiguration application, LogType logType, string message)
     {
-        // LogRegisteringApplication(logger, application.Name);
-        _logChannels[application] = [];
-    }
+        lock (application)
+        {
+            if (logType is not LogType.SYSTEM)
+            {
+                LogApplicationOutput(logger, application.Name, message);
+            }
 
-    [Obsolete]
-    public bool UnregisterApplication(ApplicationConfiguration application)
-    {
-        // LogUnregisteringApplication(logger, application.Name);
-        return _logChannels.Remove(application, out _);
-    }
+            var applicationLog = new ApplicationLog(DateTimeOffset.UtcNow, logType, message);
 
-    [Obsolete]
-    public void DeleteApplication(ApplicationConfiguration application)
-    {
-        UnregisterApplication(application);
-        File.Delete($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log");
+            if (_logChannels.TryGetValue(application, out var channels))
+            {
+                channels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
+            }
+
+            using var logFile = File.Open($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log", FileMode.Append, FileAccess.Write, FileShare.Read);
+            using var log = new StreamWriter(logFile, Utf8EncodingWithoutBom);
+
+            log.Write($"[{applicationLog.Date.DateTime:O},{applicationLog.LogType}] {applicationLog.Text}\n");
+        }
     }
 
     [LoggerMessage(LogLevel.Trace, "Application \"{Name}\" says: '{OutputData}'")]

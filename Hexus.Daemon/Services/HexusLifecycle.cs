@@ -14,7 +14,7 @@ internal sealed class HexusLifecycle(
         {
             var persistantState = stateManagerService.LoadApplicationState(application);
 
-            if (!application.Enabled || (persistantState is not null && persistantState.Crashed)) continue;
+            if (!application.Enabled || persistantState?.Crashed is true) continue;
 
             processManager.StartApplication(application);
         }

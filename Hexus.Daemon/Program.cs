@@ -1,15 +1,15 @@
 using EndpointMapper;
-// using FluentValidation;
 using Hexus.Daemon;
 using Hexus.Configuration;
-// using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Services;
-// using Hexus.Daemon.Validators;
 using NReco.Logging.File;
 
 const string reloadConfigOnChangeEnvVar = "ASPNETCORE_hostBuilder__reloadConfigOnChange";
 
-// This has to be done before the call to CreateSlimBuilder, otherwise it will configure appsettings.json to reload on file change
+// We need to always disable the reload config on change as
+// 1. We don't use appsettings.json, however there is no way to disable this unless we use CreateEmptyBuilder
+// 2. Since we usually don't spawn in the same directory as the DLLs but dirs such as the home directory, this causes lots of file watchers to be created
+// We need to do this via environment variable as only envs are loaded before appsettings.json is loaded
 Environment.SetEnvironmentVariable(reloadConfigOnChangeEnvVar, false.ToString());
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -59,24 +59,16 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 builder.Services.AddProblemDetails();
 
-// Validators
-// builder.Services.AddScoped<IValidator<EditApplicationRequest>, EditApplicationValidator>();
-// builder.Services.AddScoped<IValidator<NewApplicationRequest>, NewApplicationValidator>();
-// builder.Services.AddScoped<IValidator<SendInputRequest>, SendInputValidator>();
-
-// Configuration
 builder.Services.AddSingleton<HexusConfigurationManager>();
-// builder.Services.AddTransient(sp => sp.GetRequiredService<HexusConfigurationManager>().DaemonConfiguration);
 
-// Services & HostedServices
 builder.Services.AddSingleton<HexusLifecycle>();
 builder.Services.AddSingleton<PerformanceTrackingService>();
 builder.Services.AddSingleton<MemoryLimiterService>();
 
+// We can't use AddHostedService here as we need to register these services under IConfigRelodable as well
 builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<HexusLifecycle>());
 builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<PerformanceTrackingService>());
 builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<MemoryLimiterService>());
-
 
 builder.Services.AddSingleton<StateManagerService>();
 builder.Services.AddSingleton<ProcessStatisticsService>();
@@ -90,18 +82,13 @@ builder.Services.AddSingleton<IConfigRelodable>(sp => sp.GetRequiredService<Perf
 
 var app = builder.Build();
 
-// TODO: Expose these warnings in an endpoint, and call it from the CLI to show them to the user
 var hexusConfiguration = app.Services.GetRequiredService<HexusConfigurationManager>();
 
 foreach (var warning in hexusConfiguration.Warnings)
-{
     app.Logger.LogWarning("A configuration warn was found: {warning}", warning);
-}
 
 foreach (var error in hexusConfiguration.Errors)
-{
     app.Logger.LogError("A configuration error was found: {error}", error);
-}
 
 app.UseExceptionHandler();
 app.MapEndpointMapperEndpoints();

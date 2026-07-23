@@ -1,16 +1,5 @@
 namespace Hexus.Daemon.Configuration;
 
-[Obsolete]
-public sealed record HexusConfiguration
-{
-    public required string UnixSocket { get; init; }
-    public int? HttpPort { get; init; }
-    public double CpuRefreshIntervalSeconds { get; init; }
-    public double MemoryLimitCheckIntervalSeconds { get; init; }
-    public long MemoryLimit { get; init; }
-    public Dictionary<string, HexusApplication> Applications { get; init; } = [];
-}
-
 // Used for the YAML File serialization
 [Obsolete]
 internal sealed record HexusConfigurationFile
