@@ -1,4 +1,3 @@
-using Hexus.Daemon.Contracts.Requests;
 using Hexus.Extensions;
 using Spectre.Console;
 using System.Collections;
@@ -136,19 +135,20 @@ internal static class EditCommand
         var editRequest = await HttpInvocation.PatchAsJsonAsync(
             "Editing application",
             $"{name}",
-            new EditApplicationRequest(
-                Name: newName,
-                Executable: newExecutable,
-                Arguments: newArgumentsOptionValue is { Length: 0 }
-                    ? null
-                    : newArguments,
-                WorkingDirectory: newWorkingDirectory,
-                Note: newNote,
-                NewEnvironmentVariables: addEnv,
-                RemoveEnvironmentVariables: remove,
-                IsReloadingEnvironmentVariables: reloadEnv,
-                MemoryLimit: memoryLimit
-            ),
+            new { },
+            // new EditApplicationRequest(
+            //     Name: newName,
+            //     Executable: newExecutable,
+            //     Arguments: newArgumentsOptionValue is { Length: 0 }
+            //         ? null
+            //         : newArguments,
+            //     WorkingDirectory: newWorkingDirectory,
+            //     Note: newNote,
+            //     NewEnvironmentVariables: addEnv,
+            //     RemoveEnvironmentVariables: remove,
+            //     IsReloadingEnvironmentVariables: reloadEnv,
+            //     MemoryLimit: memoryLimit
+            // ),
             HttpInvocation.JsonSerializerContext,
             ct
         );

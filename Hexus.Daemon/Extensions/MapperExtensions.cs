@@ -1,5 +1,4 @@
 using Hexus.Configuration;
-using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Contracts.Responses;
 using Hexus.Daemon.Services;
 
@@ -7,21 +6,6 @@ namespace Hexus.Daemon.Extensions;
 
 internal static class MapperExtensions
 {
-    [Obsolete]
-    public static Configuration.HexusApplication MapToApplication(this NewApplicationRequest request)
-    {
-        return new Configuration.HexusApplication
-        {
-            Name = request.Name,
-            Executable = Path.GetFullPath(request.Executable),
-            Arguments = request.Arguments,
-            WorkingDirectory = Path.GetFullPath(request.WorkingDirectory ?? EnvironmentHelper.Home),
-            Note = request.Note,
-            EnvironmentVariables = request.EnvironmentVariables ?? [],
-            MemoryLimit = request.MemoryLimit,
-        };
-    }
-
     public static ApplicationResponse MapToResponse(this ApplicationConfiguration application, ApplicationStatistics applicationStatisticsResponse)
     {
         return new ApplicationResponse(

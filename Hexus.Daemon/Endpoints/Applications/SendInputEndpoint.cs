@@ -1,9 +1,7 @@
 using EndpointMapper;
-// using FluentValidation;
 using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Requests;
-// using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;

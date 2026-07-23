@@ -1,4 +1,3 @@
-using Hexus.Daemon.Contracts.Requests;
 using Hexus.Extensions;
 using Spectre.Console;
 using System.Collections;
@@ -145,15 +144,16 @@ internal static class NewCommand
         var newRequest = await HttpInvocation.PostAsJsonAsync(
             "Creating new application",
             "/new",
-            new NewApplicationRequest(
-                name,
-                executable,
-                arguments,
-                workingDirectory,
-                note ?? "",
-                environmentVariables,
-                memoryLimit
-            ),
+            new { },
+            // new NewApplicationRequest(
+            //     name,
+            //     executable,
+            //     arguments,
+            //     workingDirectory,
+            //     note ?? "",
+            //     environmentVariables,
+            //     memoryLimit
+            // ),
             HttpInvocation.JsonSerializerContext,
             ct
         );

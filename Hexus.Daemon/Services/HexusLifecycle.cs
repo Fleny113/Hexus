@@ -1,4 +1,5 @@
 using Hexus.Configuration;
+using Hexus.Daemon.Contracts;
 
 namespace Hexus.Daemon.Services;
 

@@ -1,6 +1,5 @@
 using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
-using Hexus.Daemon.Services;
 using Spectre.Console;
 using System.Buffers;
 using System.CommandLine;
