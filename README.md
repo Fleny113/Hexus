@@ -165,7 +165,7 @@ Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2
 > [!WARNING]
 > The only tested version for migration is pm2 `5.3.0` using another version might give errors. Migrating apps that are configured as cluster in pm2 will fail and Hexus will skip them as Hexus supports `fork_mode` only.
 >
-> Hexus uses names to discriminate on what application the operation should be taken, for this reason if there are name conflicts with exiting application Hexus will try to save the application with the same name, if that fails due to an application having the same name Hexus will add the `-pm2` suffix. If even at that point there were conflicts with exiting application, Hexus will log out on what application it failed for you to configure it manually
+> Hexus uses names to discriminate on what application the operation should be taken, for this reason if there are name conflicts with exiting application Hexus will add the `-pm2` suffix. If the name is still used, it will add a `-pm2-[num]` starting from 2 until the name conflict is solved.
 
 ## Roadmap
 
