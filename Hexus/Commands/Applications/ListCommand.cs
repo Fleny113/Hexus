@@ -1,5 +1,8 @@
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Responses;
+using Hexus.Daemon.Extensions;
+using Hexus.Daemon.Services;
 using Humanizer;
 using Spectre.Console;
 using System.CommandLine;
@@ -19,23 +22,14 @@ internal static class ListCommand
 
     internal static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        if (!await HttpInvocation.CheckForRunningDaemon(ct))
+        var isDaemonRunning = await HttpInvocation.CheckForRunningDaemon(ct);
+
+        if (!isDaemonRunning)
         {
-            PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            return 1;
+            PrettyConsole.Out.MarkupLine("[blue]Note[/]: Hexus daemon is not running, showing applications from configs\n");
         }
 
-        var listRequest = await HttpInvocation.GetAsync("Getting application list", "/list", ct);
-
-        if (!listRequest.IsSuccessStatusCode)
-        {
-            await HttpInvocation.HandleFailedHttpRequestLogging(listRequest, ct);
-            return 1;
-        }
-
-        var applications =
-            await listRequest.Content.ReadFromJsonAsync<IEnumerable<ApplicationResponse>>(HttpInvocation.JsonSerializerContext.IEnumerableApplicationResponse, ct);
-        Debug.Assert(applications is not null);
+        var applications = isDaemonRunning ? await LoadApplicationsFromDaemon(ct) : LoadApplicationsFromConfig();
 
         var table = new Table();
 
@@ -88,4 +82,34 @@ internal static class ListCommand
         ApplicationStatus.Crashed => Color.LightSalmon3,
         _ => throw new ArgumentOutOfRangeException(nameof(status), "The requested status is not mapped to a color"),
     };
+
+    private static async Task<IEnumerable<ApplicationResponse>> LoadApplicationsFromDaemon(CancellationToken ct)
+    {
+        var listRequest = await HttpInvocation.GetAsync("Getting application list", "/list", ct);
+
+        if (!listRequest.IsSuccessStatusCode)
+        {
+            await HttpInvocation.HandleFailedHttpRequestLogging(listRequest, ct);
+            return [];
+        }
+
+        var applications =
+            await listRequest.Content.ReadFromJsonAsync<IEnumerable<ApplicationResponse>>(HttpInvocation.JsonSerializerContext.IEnumerableApplicationResponse, ct);
+        Debug.Assert(applications is not null);
+
+        return applications;
+    }
+
+    private static IEnumerable<ApplicationResponse> LoadApplicationsFromConfig()
+    {
+        var configurationManager = new HexusConfigurationManager();
+
+        return configurationManager.Applications.Select(kvp => kvp.Value.MapToResponse(new ApplicationStatistics(
+            ProcessUptime: TimeSpan.Zero,
+            ProcessId: 0,
+            Status: ApplicationStatus.Stopped,
+            CpuUsage: 0,
+            MemoryUsage: 0
+        )));
+    }
 }

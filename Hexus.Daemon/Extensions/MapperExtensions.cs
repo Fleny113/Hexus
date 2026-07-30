@@ -4,7 +4,7 @@ using Hexus.Daemon.Services;
 
 namespace Hexus.Daemon.Extensions;
 
-internal static class MapperExtensions
+public static class MapperExtensions
 {
     public static ApplicationResponse MapToResponse(this ApplicationConfiguration application, ApplicationStatistics applicationStatisticsResponse)
     {
@@ -25,13 +25,13 @@ internal static class MapperExtensions
         );
     }
 
-    public static IEnumerable<ApplicationResponse> MapToResponse(this IEnumerable<ApplicationConfiguration> applications,
+    internal static IEnumerable<ApplicationResponse> MapToResponse(this IEnumerable<ApplicationConfiguration> applications,
         Func<ApplicationConfiguration, ApplicationStatistics> getApplicationStats)
     {
         return applications.Select(app => app.MapToResponse(getApplicationStats(app)));
     }
 
-    public static string MapToErrorString(this ProcessManagerService.SpawnProcessError error)
+    internal static string MapToErrorString(this ProcessManagerService.SpawnProcessError error)
     {
         return error switch
         {

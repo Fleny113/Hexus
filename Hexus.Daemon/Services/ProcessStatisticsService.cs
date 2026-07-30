@@ -135,7 +135,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
     }
 }
 
-internal record ApplicationStatistics(
+public record ApplicationStatistics(
     TimeSpan ProcessUptime,
     long ProcessId,
     ApplicationStatus Status,

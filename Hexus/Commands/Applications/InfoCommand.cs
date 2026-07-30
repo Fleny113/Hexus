@@ -1,3 +1,8 @@
+using Hexus.Configuration;
+using Hexus.Daemon.Contracts;
+using Hexus.Daemon.Contracts.Responses;
+using Hexus.Daemon.Extensions;
+using Hexus.Daemon.Services;
 using Humanizer;
 using Spectre.Console;
 using System.CommandLine;
@@ -27,23 +32,20 @@ internal static class InfoCommand
         var name = parseResult.GetRequiredValue(NameArgument);
         var showEnv = parseResult.GetValue(ShowEnvironmentVariables);
 
-        if (!await HttpInvocation.CheckForRunningDaemon(ct))
+        var isDaemonRunning = await HttpInvocation.CheckForRunningDaemon(ct);
+
+        if (!isDaemonRunning)
         {
-            PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            return 1;
+            PrettyConsole.Out.MarkupLine("[blue]Note[/]: Hexus daemon is not running, showing application from config\n");
         }
 
-        var infoRequest = await HttpInvocation.GetAsync("Gathering information", $"/{name}", ct);
+        var application = isDaemonRunning ? await LoadApplicationFromDaemon(name, ct) : LoadApplicationFromConfig(name);
 
-        if (!infoRequest.IsSuccessStatusCode)
+        if (application is null)
         {
-            await HttpInvocation.HandleFailedHttpRequestLogging(infoRequest, ct);
+            PrettyConsole.Error.MarkupLine($"[red]Error[/]: Application [cornflowerblue]{name}[/] not found");
             return 1;
         }
-
-        var application = await infoRequest.Content.ReadFromJsonAsync(HttpInvocation.JsonSerializerContext.ApplicationResponse, ct);
-
-        Debug.Assert(application is not null);
 
         var isStopped = application.ProcessId == 0;
         var environmentVariables = showEnv
@@ -71,5 +73,37 @@ internal static class InfoCommand
              """);
 
         return 0;
+    }
+
+    private static async Task<ApplicationResponse?> LoadApplicationFromDaemon(string name, CancellationToken ct)
+    {
+        var infoRequest = await HttpInvocation.GetAsync("Gathering information", $"/{name}", ct);
+
+        if (!infoRequest.IsSuccessStatusCode)
+        {
+            await HttpInvocation.HandleFailedHttpRequestLogging(infoRequest, ct);
+            return null;
+        }
+
+        var application = await infoRequest.Content.ReadFromJsonAsync(HttpInvocation.JsonSerializerContext.ApplicationResponse, ct);
+
+        Debug.Assert(application is not null);
+
+        return application;
+    }
+
+    private static ApplicationResponse? LoadApplicationFromConfig(string name)
+    {
+        var configurationManager = new HexusConfigurationManager();
+
+        var app = configurationManager.Applications.GetValueOrDefault(name);
+
+        return app?.MapToResponse(new ApplicationStatistics(
+            ProcessUptime: TimeSpan.Zero,
+            ProcessId: 0,
+            Status: ApplicationStatus.Stopped,
+            CpuUsage: 0,
+            MemoryUsage: 0
+        ));
     }
 }
