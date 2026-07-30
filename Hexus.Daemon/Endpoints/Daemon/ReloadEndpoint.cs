@@ -29,7 +29,6 @@ internal class ReloadEndpoint : IEndpoint, IRegisterEndpoint
         {
             reloadProblems = applicationNames.Aggregate(new ConfigurationProblems([], []), (acc, appName) =>
             {
-                Console.WriteLine($"Reloading configuration for application '{appName}'...");
                 var result = configurationManager.Reload(appName);
                 return new ConfigurationProblems(
                     Warnings: acc.Warnings.Concat(result.Warnings),
