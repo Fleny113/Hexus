@@ -12,13 +12,13 @@ internal class ReloadEndpoint : IEndpoint, IRegisterEndpoint
 {
     public static void Register(IEndpointRouteBuilder builder)
     {
-        builder.MapGet("/daemon/reload", Handle);
+        builder.MapPost("/daemon/reload", Handle);
     }
 
     public static Ok<ReloadResult> Handle(
         [FromServices] HexusConfigurationManager configurationManager,
         [FromServices] IEnumerable<IConfigRelodable> relodableServices,
-        [FromQuery] string[] applicationNames
+        [FromBody] string[] applicationNames
     )
     {
         var oldConfig = new ConfigurationSnapshot(configurationManager.DaemonConfiguration, configurationManager.Applications.ToImmutableDictionary());
@@ -30,6 +30,7 @@ internal class ReloadEndpoint : IEndpoint, IRegisterEndpoint
             reloadProblems = applicationNames.Aggregate(new ConfigurationProblems([], []), (acc, appName) =>
             {
                 var result = configurationManager.Reload(appName);
+
                 return new ConfigurationProblems(
                     Warnings: acc.Warnings.Concat(result.Warnings),
                     Errors: acc.Errors.Concat(result.Errors)

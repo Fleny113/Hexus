@@ -1,7 +1,5 @@
 using Hexus.Configuration;
 using Hexus.Daemon;
-// using Hexus.Daemon.Contracts.Responses;
-using Microsoft.AspNetCore.Http;
 using Spectre.Console;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -50,16 +48,11 @@ internal static class HttpInvocation
         },
     };
 
-    public static HttpClient HttpClient { get; } = new(HttpClientHandler)
-    {
-        BaseAddress = new Uri("http://hexus-socket"),
-    };
+    public static HttpClient HttpClient { get; } = new(HttpClientHandler) { BaseAddress = new Uri("http://hexus-socket"), };
 
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        TypeInfoResolverChain = { AppJsonSerializerContext.Default },
+        PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase, TypeInfoResolverChain = { AppJsonSerializerContext.Default },
     };
 
     public static AppJsonSerializerContext JsonSerializerContext { get; } = new(JsonSerializerOptions);
@@ -85,7 +78,8 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.GetAsync(url, ct));
     }
 
-    public static async Task<HttpResponseMessage> GetAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpCompletionOption completionOption, CancellationToken ct)
+    public static async Task<HttpResponseMessage> GetAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpCompletionOption completionOption,
+        CancellationToken ct)
     {
         return await PrettyConsole.Out.Status()
             .Spinner(PrettyConsole.Spinner)
@@ -93,7 +87,8 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.GetAsync(url, completionOption, ct));
     }
 
-    public static async Task<HttpResponseMessage> PostAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content, CancellationToken ct)
+    public static async Task<HttpResponseMessage> PostAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content,
+        CancellationToken ct)
     {
         return await PrettyConsole.Out.Status()
             .Spinner(PrettyConsole.Spinner)
@@ -101,7 +96,8 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.PostAsync(url, content, ct));
     }
 
-    public static async Task<HttpResponseMessage> PostAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content, JsonSerializerContext context, CancellationToken ct)
+    public static async Task<HttpResponseMessage> PostAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content,
+        JsonSerializerContext context, CancellationToken ct)
     {
         var typeInfo = context.GetTypeInfo(typeof(T));
 
@@ -116,7 +112,8 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.PostAsJsonAsync(url, content, jsonTypeInfo, ct));
     }
 
-    public static async Task<HttpResponseMessage> PatchAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content, CancellationToken ct)
+    public static async Task<HttpResponseMessage> PatchAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content,
+        CancellationToken ct)
     {
         return await PrettyConsole.Out.Status()
             .Spinner(PrettyConsole.Spinner)
@@ -124,7 +121,8 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.PatchAsync(url, content, ct));
     }
 
-    public static async Task<HttpResponseMessage> PatchAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content, JsonSerializerContext context, CancellationToken ct)
+    public static async Task<HttpResponseMessage> PatchAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content,
+        JsonSerializerContext context, CancellationToken ct)
     {
         var typeInfo = context.GetTypeInfo(typeof(T));
 
@@ -187,11 +185,11 @@ internal static class HttpInvocation
             default:
                 {
                     response = $"""
-                        Unknown error,
-                        HTTP status code: {request.StatusCode}
-                        Content-Type: {request.Content.Headers.ContentType?.MediaType}
-                        Body: {await request.Content.ReadAsStringAsync(ct)}
-                        """;
+                                Unknown error,
+                                HTTP status code: {request.StatusCode}
+                                Content-Type: {request.Content.Headers.ContentType?.MediaType}
+                                Body: {await request.Content.ReadAsStringAsync(ct)}
+                                """;
                     break;
                 }
         }
