@@ -104,12 +104,6 @@ internal static class ListCommand
     {
         var configurationManager = new HexusConfigurationManager();
 
-        return configurationManager.Applications.Select(kvp => kvp.Value.MapToResponse(new ApplicationStatistics(
-            ProcessUptime: TimeSpan.Zero,
-            ProcessId: 0,
-            Status: ApplicationStatus.Stopped,
-            CpuUsage: 0,
-            MemoryUsage: 0
-        )));
+        return configurationManager.Applications.Select(kvp => kvp.Value.MapToResponse(new ApplicationStatistics()));
     }
 }

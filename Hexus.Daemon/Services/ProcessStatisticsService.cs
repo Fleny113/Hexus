@@ -17,13 +17,7 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
         if (!ProcessManagerService.IsApplicationProcessRunning(state, out var process))
         {
-            return new ApplicationStatistics(
-                ProcessUptime: TimeSpan.Zero,
-                ProcessId: 0,
-                Status: state.Status,
-                CpuUsage: 0,
-                MemoryUsage: 0
-            );
+            return new ApplicationStatistics();
         }
 
         // If an application is running, but doesn't have a cpu stats it means we haven't refreshed since it started
@@ -141,4 +135,15 @@ public record ApplicationStatistics(
     ApplicationStatus Status,
     double CpuUsage,
     long MemoryUsage
-);
+)
+{
+    public ApplicationStatistics() : this(
+        ProcessUptime: TimeSpan.Zero,
+        ProcessId: 0,
+        Status: ApplicationStatus.Stopped,
+        CpuUsage: 0,
+        MemoryUsage: 0
+    )
+    {
+    }
+}

@@ -1,5 +1,4 @@
 using Hexus.Configuration;
-using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Responses;
 using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Services;
@@ -98,12 +97,6 @@ internal static class InfoCommand
 
         var app = configurationManager.Applications.GetValueOrDefault(name);
 
-        return app?.MapToResponse(new ApplicationStatistics(
-            ProcessUptime: TimeSpan.Zero,
-            ProcessId: 0,
-            Status: ApplicationStatus.Stopped,
-            CpuUsage: 0,
-            MemoryUsage: 0
-        ));
+        return app?.MapToResponse(new ApplicationStatistics());
     }
 }
