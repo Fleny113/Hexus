@@ -1,19 +1,17 @@
 using Hexus.Configuration;
-using Hexus.Daemon.Configuration;
 using Spectre.Console;
 using System.CommandLine;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Tomlyn;
 
 namespace Hexus.Commands.Utils;
 
-// TODO: this is to rewrite basically entirerly due to the new configuration system.
-// as such this is marked as obsolete for now, the annotation will be removed once the rewrite is complete and the command is functional again.
-[Obsolete]
 internal static partial class MigratePm2Command
 {
-    private static readonly string[] Pm2KnownConfig = [
+    private static readonly string[] Pm2KnownConfig =
+    [
         "versioning",
         "version",
         "unstable_restarts",
@@ -57,14 +55,10 @@ internal static partial class MigratePm2Command
 
     private static readonly Option<string> Pm2DumpFile = new("--pm2-dump")
     {
-        Description = "The pm2 dump file",
-        DefaultValueFactory = _ => Path.Combine(EnvironmentHelper.Home, ".pm2", "dump.pm2"),
+        Description = "The pm2 dump file", DefaultValueFactory = _ => Path.Combine(EnvironmentHelper.Home, ".pm2", "dump.pm2"),
     };
 
-    public static readonly Command Command = new("migrate-pm2", "Migrate your current PM2 Config to Hexus.")
-    {
-        Pm2DumpFile,
-    };
+    public static readonly Command Command = new("migrate-pm2", "Migrate your current PM2 Config to Hexus.") { Pm2DumpFile, };
 
     static MigratePm2Command()
     {
@@ -77,15 +71,10 @@ internal static partial class MigratePm2Command
 
         PrettyConsole.Error.MarkupLine("[yellow]WARNING[/]: This has been tested with PM2 5.3.0. It might not work with other versions.");
 
-        if (await HttpInvocation.CheckForRunningDaemon(ct))
-        {
-            PrettyConsole.Error.MarkupLine("To edit the Hexus configuration the [indianred1]daemon needs to be stopped[/]. Stop it first using the '[indianred1]daemon[/] [darkseagreen1_1]stop[/]' command.");
-            return 1;
-        }
-
         if (!File.Exists(pm2Dump))
         {
-            PrettyConsole.Error.MarkupLineInterpolated($"The specified dump file [indianred1]does not exist[/] ({pm2Dump}). Try using the --pm2-dump option to change the dump file name");
+            PrettyConsole.Error.MarkupLineInterpolated(
+                $"The specified dump file [indianred1]does not exist[/] ({pm2Dump}). Try using the --pm2-dump option to change the dump file name");
             return 1;
         }
 
@@ -98,7 +87,7 @@ internal static partial class MigratePm2Command
             return 1;
         }
 
-        List<HexusApplication> parsedApplications = [];
+        List<(string Name, ApplicationConfiguration.ApplicationConfigurationRaw Configuration)> parsedApplications = [];
 
         try
         {
@@ -108,58 +97,73 @@ internal static partial class MigratePm2Command
 
                 var execMode = appConfig["exec_mode"]!.GetValue<string>();
                 var name = appConfig["name"]!.GetValue<string>();
+                var executable = appConfig["pm_exec_path"]?.GetValue<string>();
+                var pm2Args = appConfig["args"]?.AsArray();
+                var cwd = appConfig["pm_cwd"]?.GetValue<string>();
+                var status = appConfig["status"]?.GetValue<string>();
 
                 if (execMode != "fork_mode")
                 {
-                    PrettyConsole.Error.MarkupLineInterpolated($"[yellow]WARNING[/]: The application \"{name}\" where the exec mode is set to \"{execMode}\" has been ignored as Hexus supports fork_mode applications only");
+                    PrettyConsole.Error.MarkupLineInterpolated(
+                        $"[yellow]WARNING[/]: The application \"{name}\" has been ignore due to exec mode being set to \"{execMode}\". Hexus only supports fork_mode applications");
                     continue;
                 }
 
-                var hexusApplication = new HexusApplication { Name = name, Executable = null! };
+                var environmentVariables = new Dictionary<string, string>();
 
                 foreach (var (key, value) in appConfig)
                 {
-                    if (!Pm2KnownConfig.Contains(key))
+                    if (Pm2KnownConfig.Contains(key)) continue;
+
+                    if (value!.GetValueKind() == JsonValueKind.String)
                     {
-                        if (value!.GetValueKind() == JsonValueKind.String)
-                        {
-                            hexusApplication.EnvironmentVariables.Add(key, value.GetValue<string>());
-                        }
-                    }
-
-                    switch (key)
-                    {
-                        case "pm_exec_path":
-                            hexusApplication.Executable = value!.GetValue<string>();
-
-                            if (hexusApplication.Executable.EndsWith(".js"))
-                            {
-                                hexusApplication.Arguments = $"{hexusApplication.Executable} {hexusApplication.Arguments}";
-                                hexusApplication.Executable = PathHelper.ResolveExecutable("node");
-                            }
-
-                            break;
-                        case "args":
-                            var joinedArgs = string.Join(" ", value!.AsArray());
-                            hexusApplication.Arguments += joinedArgs;
-                            break;
-                        case "pm_cwd":
-                            hexusApplication.WorkingDirectory = value!.GetValue<string>();
-                            break;
-                        case "status":
-                            hexusApplication.Status = value!.GetValue<string>() switch
-                            {
-                                "errored" => HexusApplicationStatus.Crashed,
-                                "stopped" => HexusApplicationStatus.Exited,
-                                "online" => HexusApplicationStatus.Running,
-                                _ => HexusApplicationStatus.Exited,
-                            };
-
-                            break;
+                        environmentVariables.Add(key, value.GetValue<string>());
                     }
                 }
 
-                parsedApplications.Add(hexusApplication);
+                if (executable is null)
+                {
+                    PrettyConsole.Error.MarkupLineInterpolated($"[indianred1]Unable to parse application[/] {name} due to missing executable");
+                    continue;
+                }
+
+                if (cwd is null)
+                {
+                    PrettyConsole.Error.MarkupLineInterpolated($"[indianred1]Unable to parse application[/] {name} due to missing working directory");
+                    continue;
+                }
+
+                if (status is null)
+                {
+                    PrettyConsole.Error.MarkupLineInterpolated($"[indianred1]Unable to parse application[/] {name} due to missing status");
+                    continue;
+                }
+
+                var args = "";
+                var isEnabled = status == "online";
+
+                if (executable.EndsWith(".js"))
+                {
+                    args = executable;
+                    executable = PathHelper.ResolveExecutable("node");
+                }
+
+                if (pm2Args is not null)
+                {
+                    args += string.Join(" ", pm2Args);
+                }
+
+                var hexusApplication = new ApplicationConfiguration.ApplicationConfigurationRaw
+                {
+                    Exe = executable,
+                    Args = string.IsNullOrWhiteSpace(args) ? null : args,
+                    WorkingDir = cwd,
+                    Enabled = isEnabled,
+                    Environment = environmentVariables,
+                    Note = "This application was migrated from a PM2 configuration. Please verify the configuration and make any necessary adjustments.",
+                };
+
+                parsedApplications.Add((name, hexusApplication));
             }
         }
         catch (Exception ex)
@@ -167,21 +171,36 @@ internal static partial class MigratePm2Command
             throw new InvalidOperationException("An error occurred parsing the pm2 dump config, see inner exception for details", ex);
         }
 
-        foreach (var application in parsedApplications)
+        parsedApplications =
+        [
+            .. parsedApplications.Select(app =>
+            {
+                var origianlName = app.Name;
+                var count = 0;
+
+                while (File.Exists(Path.Combine(EnvironmentHelper.ApplicationsConfigDirectory, $"{app.Name}.toml")))
+                {
+                    var suffix = count++ is 0 ? "pm2" : $"pm2-{count}";
+                    app = app with { Name = $"{origianlName}-{suffix}", };
+                }
+
+                return app;
+            }),
+        ];
+
+        PrettyConsole.Out.MarkupLineInterpolated($"[green]Successfully parsed[/] {parsedApplications.Count} applications from the pm2 dump file");
+
+        EnvironmentHelper.EnsureDirectoriesExistence();
+
+        foreach (var (name, config) in parsedApplications)
         {
-            // To avoid most conflicts we add a -pm2 suffix if the key already exists.
-            // if (Configuration.HexusConfiguration.Applications.ContainsKey(application.Name))
-            // {
-            //     application.Name += "-pm2";
-            // }
+            var configPath = Path.Combine(EnvironmentHelper.ApplicationsConfigDirectory, $"{name}.toml");
+            await using var configStream = File.OpenWrite(configPath);
 
-            // if (!Configuration.HexusConfiguration.Applications.TryAdd(application.Name, application))
-            // {
-            //     PrettyConsole.Error.MarkupLineInterpolated($"[indianred1]Unable to add application[/] {application.Name} due to conflicts with already existing applications");
-            // }
+            TomlSerializer.Serialize(configStream, config, ConfigurationSerializerContext.Default.ApplicationConfigurationRaw);
+
+            PrettyConsole.Out.MarkupLineInterpolated($"[green]Successfully wrote[/] {configPath}");
         }
-
-        // Configuration.HexusConfigurationManager.SaveConfiguration();
 
         return 0;
     }

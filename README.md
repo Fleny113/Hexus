@@ -163,7 +163,7 @@ The config file is a `.yaml` file with the following options:
 Hexus allows you to migrate your current pm2 applications saved in the `dump.pm2` file. You can use the `migrate-pm2` command with, optionally, the `--pm2-dump` option in case you are not using the default `$HOME/.pm2/dump.pm2` file, just remember to run `pm2 save` before you run the command.
 
 > [!WARNING]
-> Hexus only supports migrating from pm2 `5.3.0`, using another version might give errors. Migrating apps that are configured as cluster in pm2 will fail and Hexus will skip them as Hexus supports `fork_mode` only.
+> The only tested version for migration is pm2 `5.3.0` using another version might give errors. Migrating apps that are configured as cluster in pm2 will fail and Hexus will skip them as Hexus supports `fork_mode` only.
 >
 > Hexus uses names to discriminate on what application the operation should be taken, for this reason if there are name conflicts with exiting application Hexus will try to save the application with the same name, if that fails due to an application having the same name Hexus will add the `-pm2` suffix. If even at that point there were conflicts with exiting application, Hexus will log out on what application it failed for you to configure it manually
 

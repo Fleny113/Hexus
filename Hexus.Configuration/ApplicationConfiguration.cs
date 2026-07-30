@@ -13,7 +13,7 @@ public sealed record ApplicationConfiguration
     public required ImmutableDictionary<string, string> EnvironmentVariables { get; init; }
     public long MemoryLimit { get; init; }
 
-    internal sealed class ApplicationConfigurationRaw
+    public sealed class ApplicationConfigurationRaw
     {
         public required string Exe { get; init; }
         public string? Args { get; init; }

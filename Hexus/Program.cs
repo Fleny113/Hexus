@@ -24,7 +24,7 @@ var rootCommand = new RootCommand("The Hexus management CLI")
 
     UpdateCommand.Command,
     StartupCommand.Command,
-    // MigratePm2Command.Command,
+    MigratePm2Command.Command,
     ShowTimezones.Command,
 };
 

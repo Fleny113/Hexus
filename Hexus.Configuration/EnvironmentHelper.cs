@@ -41,6 +41,8 @@ public static partial class EnvironmentHelper
         Directory.CreateDirectory(XdgConfig);
         Directory.CreateDirectory(HexusStateDirectory);
         Directory.CreateDirectory(HexusRuntimeDirectory);
+        Directory.CreateDirectory(HexusConfigDirectory);
+        Directory.CreateDirectory(ApplicationsConfigDirectory);
         Directory.CreateDirectory(ApplicationLogsDirectory);
         Directory.CreateDirectory(ApplicationStatesDirectory);
     }

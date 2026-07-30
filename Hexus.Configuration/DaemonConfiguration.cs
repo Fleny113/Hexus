@@ -8,7 +8,7 @@ public sealed record DaemonConfiguration
     public required TimeSpan MemoryPollingInterval { get; init; }
     public required long MemoryLimit { get; init; }
 
-    internal sealed class DaemonConfigurationRaw
+    public sealed class DaemonConfigurationRaw
     {
         public string? UnixSocket { get; init; }
         public int? HttpPort { get; init; }
