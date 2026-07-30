@@ -56,18 +56,20 @@ internal class ReloadEndpoint : IEndpoint, IRegisterEndpoint
         {
             Added = [.. newConfig.Applications.Values.Where(@new => oldConfig.Applications.Values.Select(old => old.Name).All(oldName => oldName != @new.Name))],
             Removed = [.. oldConfig.Applications.Values.Where(old => newConfig.Applications.Values.Select(@new => @new.Name).All(newName => newName != old.Name))],
-            Modified = [.. oldConfig.Applications.Values
-                .Where(oldApp => newConfig.Applications.ContainsKey(oldApp.Name))
-                .Select(oldApp => (Old: oldApp, New: newConfig.Applications[oldApp.Name]))
-                .Where(t => t.Old != t.New)
+            Modified =
+            [
+                .. oldConfig.Applications.Values
+                    .Where(oldApp => newConfig.Applications.ContainsKey(oldApp.Name))
+                    .Select(oldApp => (Old: oldApp, New: newConfig.Applications[oldApp.Name]))
+                    .Where(t => t.Old != t.New)
             ],
-
             OldConfiguration = oldConfig.Daemon,
-            NewConfiguration = newConfig.Daemon
+            NewConfiguration = newConfig.Daemon,
         };
     }
 
-    private static ReloadResult ApplyDiff(IEnumerable<string> warnings, IEnumerable<string> errors, ConfigurationDiff diff, IEnumerable<IConfigRelodable> relodableServices)
+    private static ReloadResult ApplyDiff(IEnumerable<ConfigurationNotice> warnings, IEnumerable<ConfigurationNotice> errors, ConfigurationDiff diff,
+        IEnumerable<IConfigRelodable> relodableServices)
     {
         return relodableServices
             .Select(service => service.ReloadConfiguration(diff))

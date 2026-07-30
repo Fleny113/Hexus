@@ -9,7 +9,8 @@ using Windows.Win32.System.Console;
 
 namespace Hexus.Daemon.Services;
 
-internal partial class ProcessManagerService(ILoggerFactory loggerFactory, ProcessLogsService processLogsService, StateManagerService stateManagerService) : IConfigRelodable, IDisposable
+internal partial class ProcessManagerService(ILoggerFactory loggerFactory, ProcessLogsService processLogsService, StateManagerService stateManagerService)
+    : IConfigRelodable, IDisposable
 {
     private readonly ILogger<ProcessManagerService> _logger = loggerFactory.CreateLogger<ProcessManagerService>();
     private readonly Dictionary<ApplicationConfiguration, ApplicationState> _applicationProcessStates = [];
@@ -187,7 +188,7 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
     public ReloadResult ReloadConfiguration(ConfigurationDiff diff)
     {
         List<string> actions = [];
-        List<string> errors = [];
+        List<ConfigurationNotice> errors = [];
 
         foreach (var app in diff.Removed)
         {
@@ -229,7 +230,7 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
 
             if (StartApplication(update) is { } error)
             {
-                errors.Add($"Failed to start application {update.Name}: {error.MapToErrorString()}");
+                errors.Add(new ConfigurationNotice($"Failed to start application {update.Name}: {error.MapToErrorString()}", "Process Manager"));
             }
         }
 

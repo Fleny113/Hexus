@@ -8,6 +8,8 @@ namespace Hexus.Configuration;
 
 public sealed partial class HexusConfigurationManager
 {
+    private const string DaemonSource = "Hexus Daemon";
+
     private static readonly Lock _lock = new();
 
     public DaemonConfiguration DaemonConfiguration
@@ -30,7 +32,7 @@ public sealed partial class HexusConfigurationManager
         private set;
     }
 
-    public IEnumerable<string> Warnings
+    public IEnumerable<ConfigurationNotice> Warnings
     {
         get
         {
@@ -40,7 +42,7 @@ public sealed partial class HexusConfigurationManager
         private set;
     }
 
-    public IEnumerable<string> Errors
+    public IEnumerable<ConfigurationNotice> Errors
     {
         get
         {
@@ -110,7 +112,7 @@ public sealed partial class HexusConfigurationManager
         if (!TomlSerializer.TryDeserialize<DaemonConfiguration.DaemonConfigurationRaw>(file, ConfigurationSerializerContext.Default, out var config))
         {
             var defaultConfig = ResolveDaemonConfig(null);
-            return new(defaultConfig.Configuration, defaultConfig.Warnings, defaultConfig.Errors.Concat(["Failed to parse daemon configuration file."]));
+            return defaultConfig with { Errors = defaultConfig.Errors.Concat([new ConfigurationNotice("Failed to parse daemon configuration file.", DaemonSource)]) };
         }
 
         return ResolveDaemonConfig(config);
@@ -120,14 +122,14 @@ public sealed partial class HexusConfigurationManager
     {
         if (!File.Exists($"{EnvironmentHelper.ApplicationsConfigDirectory}/{applicationName}.toml"))
         {
-            return new(null, [], [$"Application configuration file for '{applicationName}' does not exist."]);
+            return new(null, [], [new ConfigurationNotice("Configuration file does not exist.", applicationName)]);
         }
 
         using var file = File.OpenRead($"{EnvironmentHelper.ApplicationsConfigDirectory}/{applicationName}.toml");
 
         if (!TomlSerializer.TryDeserialize<ApplicationConfiguration.ApplicationConfigurationRaw>(file, ConfigurationSerializerContext.Default, out var config))
         {
-            return new(null, [], [$"Failed to parse {applicationName} configuration file."]);
+            return new(null, [], [new ConfigurationNotice("Failed to parse configuration file.", applicationName)]);
         }
 
         return ResolveApplicationConfig(config, applicationName);
@@ -137,14 +139,14 @@ public sealed partial class HexusConfigurationManager
     {
         var defaultMemoryLimit = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 4;
 
-        var warnings = new List<string>();
+        var warnings = new List<ConfigurationNotice>();
         var config = new DaemonConfiguration
         {
-            UnixSocket = ResolveSocketPath(raw?.UnixSocket, EnvironmentHelper.DefaultSocketFile, warnings),
+            UnixSocket = ResolveSocketPath(raw?.UnixSocket, EnvironmentHelper.DefaultSocketFile, DaemonSource, warnings),
             HttpPort = raw?.HttpPort,
-            CpuPollingInterval = ResolveTimeSpan(raw?.CpuPollingInterval, TimeSpan.FromSeconds(2.5), "cpu-polling-interval", warnings),
-            MemoryPollingInterval = ResolveTimeSpan(raw?.MemoryPollingInterval, TimeSpan.FromSeconds(10), "memory-polling-interval", warnings),
-            MemoryLimit = ResolveByteSize(raw?.MemoryLimit, defaultMemoryLimit, "memory-limit", warnings),
+            CpuPollingInterval = ResolveTimeSpan(raw?.CpuPollingInterval, TimeSpan.FromSeconds(2.5), DaemonSource, "cpu-polling-interval", warnings),
+            MemoryPollingInterval = ResolveTimeSpan(raw?.MemoryPollingInterval, TimeSpan.FromSeconds(10), DaemonSource, "memory-polling-interval", warnings),
+            MemoryLimit = ResolveByteSize(raw?.MemoryLimit, defaultMemoryLimit, DaemonSource, "memory-limit", warnings),
         };
 
         return new(config, warnings, []);
@@ -152,7 +154,7 @@ public sealed partial class HexusConfigurationManager
 
     private ConfigurationLoadResult<ApplicationConfiguration?> ResolveApplicationConfig(ApplicationConfiguration.ApplicationConfigurationRaw raw, string name)
     {
-        var warnings = new List<string>();
+        var warnings = new List<ConfigurationNotice>();
 
         var config = new ApplicationConfiguration
         {
@@ -163,43 +165,41 @@ public sealed partial class HexusConfigurationManager
             Enabled = raw.Enabled,
             Note = raw.Note,
             EnvironmentVariables = raw.Environment?.ToImmutableDictionary() ?? [],
-            MemoryLimit = ResolveByteSize(raw.MemoryLimit, DaemonConfiguration.MemoryLimit, "memory-limit", warnings),
+            MemoryLimit = ResolveByteSize(raw.MemoryLimit, DaemonConfiguration.MemoryLimit, name, "memory-limit", warnings),
         };
 
         return new(config, warnings, []);
     }
 
-    public sealed record ConfigurationLoadResult<T>(T Configuration, IEnumerable<string> Warnings, IEnumerable<string> Errors);
-
     // Resolvers
 
-    private static TimeSpan ResolveTimeSpan(string? value, TimeSpan defaultValue, string propName, List<string> warnings)
+    private static TimeSpan ResolveTimeSpan(string? value, TimeSpan defaultValue, string source, string propName, List<ConfigurationNotice> warnings)
     {
         if (value is null) return defaultValue;
 
         if (!TryParseTimeSpan(value, out var result))
         {
-            warnings.Add($"Invalid value for {propName}: {value}. Using default value.");
+            warnings.Add(new ConfigurationNotice($"Invalid value for {propName}: {value}. Using default value.", source));
             return defaultValue;
         }
 
         return result;
     }
 
-    private static long ResolveByteSize(string? value, long defaultValue, string propName, List<string> warnings)
+    private static long ResolveByteSize(string? value, long defaultValue, string source, string propName, List<ConfigurationNotice> warnings)
     {
         if (value is null) return defaultValue;
 
         if (!TryParseByteSize(value, out var result))
         {
-            warnings.Add($"Invalid value for {propName}: {value}. Using default value.");
+            warnings.Add(new ConfigurationNotice($"Invalid value for {propName}: {value}. Using default value.", source));
             return defaultValue;
         }
 
         return result;
     }
 
-    private static string ResolveSocketPath(string? value, string defaultValue, List<string> warnings)
+    private static string ResolveSocketPath(string? value, string defaultValue, string source, List<ConfigurationNotice> warnings)
     {
         if (value is not null) return value;
 
@@ -209,7 +209,7 @@ public sealed partial class HexusConfigurationManager
         //  - The user hasn't specified another location for the socket
         if (!OperatingSystem.IsWindows() && EnvironmentHelper.XdgRuntime is null)
         {
-            warnings.Add($"The XDG_RUNTIME_DIR environment is missing. Using default socket location ({defaultValue}).");
+            warnings.Add(new ConfigurationNotice($"The XDG_RUNTIME_DIR environment is missing. Using default socket location ({defaultValue}).", source));
         }
 
         return defaultValue;

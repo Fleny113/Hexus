@@ -85,10 +85,10 @@ var app = builder.Build();
 var hexusConfiguration = app.Services.GetRequiredService<HexusConfigurationManager>();
 
 foreach (var warning in hexusConfiguration.Warnings)
-    app.Logger.LogWarning("A configuration warn was found: {warning}", warning);
+    app.Logger.LogWarning("A configuration warn was found: {warningSource}: {warning}", warning.Source, warning.Message);
 
 foreach (var error in hexusConfiguration.Errors)
-    app.Logger.LogError("A configuration error was found: {error}", error);
+    app.Logger.LogError("A configuration error was found: {errorSource}, {error}", error.Source, error.Message);
 
 app.UseExceptionHandler();
 app.MapEndpointMapperEndpoints();

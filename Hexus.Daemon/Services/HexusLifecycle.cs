@@ -26,16 +26,20 @@ internal sealed class HexusLifecycle(
 
     public ReloadResult ReloadConfiguration(ConfigurationDiff diff)
     {
-        List<string> warnings = [];
+        List<ConfigurationNotice> warnings = [];
 
         if (diff.OldConfiguration.HttpPort != diff.NewConfiguration.HttpPort)
         {
-            warnings.Add($"The HTTP port has changed from {diff.OldConfiguration.HttpPort} to {diff.NewConfiguration.HttpPort}. The change will not take effect until the daemon is restarted.");
+            warnings.Add(new ConfigurationNotice(
+                $"The HTTP port has changed from {diff.OldConfiguration.HttpPort} to {diff.NewConfiguration.HttpPort}. The change will not take effect until the daemon is restarted.",
+                "Hexus Daemon"));
         }
 
         if (diff.OldConfiguration.UnixSocket != diff.NewConfiguration.UnixSocket)
         {
-            warnings.Add($"The Unix socket path has changed from {diff.OldConfiguration.UnixSocket} to {diff.NewConfiguration.UnixSocket}. The change will not take effect until the daemon is restarted.");
+            warnings.Add(new ConfigurationNotice(
+                $"The Unix socket path has changed from {diff.OldConfiguration.UnixSocket} to {diff.NewConfiguration.UnixSocket}. The change will not take effect until the daemon is restarted.",
+                "Hexus Daemon"));
         }
 
         return new ReloadResult([], warnings, []);

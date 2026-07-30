@@ -1,3 +1,4 @@
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Contracts.Responses;
@@ -13,5 +14,6 @@ namespace Hexus.Daemon;
 [JsonSerializable(typeof(SendInputRequest))]
 [JsonSerializable(typeof(GenericFailureResponse))]
 [JsonSerializable(typeof(ReloadResult))]
+[JsonSerializable(typeof(ConfigurationProblems))]
 [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
 public partial class AppJsonSerializerContext : JsonSerializerContext;

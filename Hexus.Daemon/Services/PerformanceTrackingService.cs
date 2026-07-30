@@ -39,17 +39,18 @@ internal partial class PerformanceTrackingService(
         if (diff.OldConfiguration.CpuPollingInterval == diff.NewConfiguration.CpuPollingInterval) return new ReloadResult([], [], []);
 
         var actions = new List<string>();
-        var errors = new List<string>();
+        var errors = new List<ConfigurationNotice>();
 
         try
         {
             _timer.Period = configuration.DaemonConfiguration.CpuPollingInterval;
 
-            actions.Add($"Updated cpu polling interval");
+            actions.Add("Updated cpu polling interval");
         }
         catch (Exception)
         {
-            errors.Add($"Failed to update cpu polling interval to {configuration.DaemonConfiguration.CpuPollingInterval}. The value is invalid.");
+            errors.Add(new ConfigurationNotice($"Failed to update cpu polling interval to {configuration.DaemonConfiguration.CpuPollingInterval}. The value is invalid.",
+                "Performace Tracking"));
         }
 
         return new ReloadResult(actions, [], errors);

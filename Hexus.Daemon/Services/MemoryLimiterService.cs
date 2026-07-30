@@ -61,7 +61,7 @@ internal sealed partial class MemoryLimiterService(
     public ReloadResult ReloadConfiguration(ConfigurationDiff diff)
     {
         var actions = new List<string>();
-        var errors = new List<string>();
+        var errors = new List<ConfigurationNotice>();
 
         if (diff.OldConfiguration.MemoryPollingInterval != diff.NewConfiguration.MemoryPollingInterval)
         {
@@ -69,17 +69,19 @@ internal sealed partial class MemoryLimiterService(
             {
                 _timer.Period = configuration.DaemonConfiguration.MemoryPollingInterval;
 
-                actions.Add($"Updated memory polling interval");
+                actions.Add("Updated memory polling interval");
             }
             catch (Exception)
             {
-                errors.Add($"Failed to update memory polling interval to {configuration.DaemonConfiguration.MemoryPollingInterval}. The value is invalid.");
+                errors.Add(new ConfigurationNotice(
+                    $"Failed to update memory polling interval to {configuration.DaemonConfiguration.MemoryPollingInterval}. The value is invalid.",
+                    "Memory Limiter"));
             }
         }
 
         if (diff.OldConfiguration.MemoryLimit != diff.NewConfiguration.MemoryLimit || diff.Modified.Any(t => t.Old.MemoryLimit != t.New.MemoryLimit))
         {
-            actions.Add($"Updated memory limits for applications");
+            actions.Add("Updated memory limits for applications");
         }
 
         return new ReloadResult(actions, [], errors);

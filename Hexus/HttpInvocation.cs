@@ -22,12 +22,12 @@ internal static class HttpInvocation
 
         foreach (var warning in daemonConfigurationResult.Warnings)
         {
-            PrettyConsole.Out.WriteLine($"Configuration [yellow]warning[/]: {warning.EscapeMarkup()}");
+            PrettyConsole.Out.MarkupInterpolated($"Configuration [yellow]warning[/]: {warning.Source}: {warning.Message}");
         }
 
         foreach (var error in daemonConfigurationResult.Errors)
         {
-            PrettyConsole.Error.WriteLine($"Configuration [red]error[/]: {error.EscapeMarkup()}");
+            PrettyConsole.Error.WriteLine($"Configuration [red]error[/]: {error.Source}: {error.Message}");
         }
 
         return daemonConfigurationResult.Configuration;
@@ -201,8 +201,13 @@ internal static class HttpInvocation
     {
         try
         {
-            // This in fact returns a 404, we only care to check if the daemon is running, so this is fine.
-            await HttpClient.GetAsync("/", ct);
+            var response = await HttpClient.GetAsync("/daemon/health", ct);
+
+            var healthResponse = await response.Content.ReadFromJsonAsync(JsonSerializerContext.ConfigurationProblems, ct);
+
+            Debug.Assert(healthResponse is not null);
+
+            LogConfigurationProblems(healthResponse);
 
             return true;
         }
@@ -210,5 +215,27 @@ internal static class HttpInvocation
         {
             return false;
         }
+    }
+
+    public static void LogConfigurationProblems(ConfigurationProblems problems)
+    {
+        if (!problems.Warnings.Any() && !problems.Errors.Any())
+        {
+            return;
+        }
+
+        PrettyConsole.Out.MarkupLine("The daemon reported the following [red]configuration problems[/]:");
+
+        foreach (var warning in problems.Warnings)
+        {
+            PrettyConsole.Out.MarkupLineInterpolated($"[yellow]Warning[/]: {warning.Source} - {warning.Message}");
+        }
+
+        foreach (var error in problems.Errors)
+        {
+            PrettyConsole.Error.MarkupLineInterpolated($"[red]Error[/]: {error.Source} - {error.Message}");
+        }
+
+        PrettyConsole.Out.WriteLine();
     }
 }
