@@ -33,7 +33,8 @@ internal static class ListCommand
             return 1;
         }
 
-        var applications = await listRequest.Content.ReadFromJsonAsync<IEnumerable<ApplicationResponse>>(HttpInvocation.JsonSerializerContext.IEnumerableApplicationResponse, ct);
+        var applications =
+            await listRequest.Content.ReadFromJsonAsync<IEnumerable<ApplicationResponse>>(HttpInvocation.JsonSerializerContext.IEnumerableApplicationResponse, ct);
         Debug.Assert(applications is not null);
 
         var table = new Table();
@@ -45,6 +46,7 @@ internal static class ListCommand
             .AddColumns(
                 new TableColumn("[cornflowerblue]Name[/]").Centered(),
                 new TableColumn("[palegreen1]Status[/]").Centered(),
+                new TableColumn("[darkseagreen4_1]Enabled[/]").Centered(),
                 new TableColumn("[lightsalmon1]Uptime[/]").Centered(),
                 new TableColumn("[slateblue1]PID[/]").Centered(),
                 new TableColumn("[lightslateblue]Cpu Usage[/]").Centered(),
@@ -53,15 +55,16 @@ internal static class ListCommand
 
         foreach (var application in applications)
         {
-            var isStopped = application.ProcessId == 0;
+            var hasProcess = application.ProcessId == 0;
 
             table.AddRow(
                 application.Name.EscapeMarkup(),
                 $"[{GetStatusColor(application.Status)}]{application.Status}[/]",
-                isStopped ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, precision: 1)}",
-                isStopped ? "N/A" : $"{application.ProcessId}",
-                isStopped ? "N/A" : $"{application.CpuUsage}%",
-                isStopped ? "N/A" : $"{application.MemoryUsage.Bytes().Humanize()}"
+                $"{(application.Enabled ? "[green]Yes[/]" : "[red]No[/]")}",
+                hasProcess ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, precision: 1)}",
+                hasProcess ? "N/A" : $"{application.ProcessId}",
+                hasProcess ? "N/A" : $"{application.CpuUsage}%",
+                hasProcess ? "N/A" : $"{application.MemoryUsage.Bytes().Humanize()}"
             );
         }
 

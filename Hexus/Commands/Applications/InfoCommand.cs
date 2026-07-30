@@ -8,21 +8,14 @@ namespace Hexus.Commands.Applications;
 
 internal static class InfoCommand
 {
-    private static readonly Argument<string> NameArgument = new("name")
-    {
-        Description = "The name(s) of the application(s) to get the info for",
-    };
+    private static readonly Argument<string> NameArgument = new("name") { Description = "The name(s) of the application(s) to get the info for", };
 
     private static readonly Option<bool> ShowEnvironmentVariables = new("--show-environment", "-e")
     {
-        Description = "Show the environment variables the application has set"
+        Description = "Show the environment variables the application has set",
     };
 
-    public static readonly Command Command = new("info", "Get the information for an application")
-    {
-        NameArgument,
-        ShowEnvironmentVariables,
-    };
+    public static readonly Command Command = new("info", "Get the information for an application") { NameArgument, ShowEnvironmentVariables, };
 
     static InfoCommand()
     {
@@ -57,23 +50,25 @@ internal static class InfoCommand
             ? $"\n{string.Join("\n", application.EnvironmentVariables.Select(kvp => $"  - [tan]{kvp.Key}[/]: {kvp.Value}"))}"
             : "[italic gray39]Use the --show-environment option to list them[/]";
 
-        PrettyConsole.OutLimitlessWidth.MarkupLine($"""
-            Application configuration:
-            - [cornflowerblue]Name[/]: {application.Name.EscapeMarkup()}
-            - [salmon1]Executable file[/]: [link]{application.Executable.EscapeMarkup()}[/]
-            - [lightseagreen]Arguments[/]: {(string.IsNullOrWhiteSpace(application.Arguments) ? "[italic gray39]No arguments specified[/]" : application.Arguments.EscapeMarkup())}
-            - [plum2]Working Directory[/]: [link]{application.WorkingDirectory.EscapeMarkup()}[/]
-            - [lightgoldenrod2_1]Note[/]: {(string.IsNullOrWhiteSpace(application.Note) ? "[italic gray39]No note added[/]" : application.Note)}
-            - [aquamarine1]Environment variables[/]: {environmentVariables}
-            - [skyblue2]Memory limit[/]: {(application.MemoryLimit == 0 ? "[italic gray39]No limit set[/]" : $"{application.MemoryLimit.Bytes().Humanize()}")}
+        PrettyConsole.OutLimitlessWidth.MarkupLine(
+            $"""
+             Application configuration:
+             - [cornflowerblue]Name[/]: {application.Name.EscapeMarkup()}
+             - [salmon1]Executable file[/]: [link]{application.Executable.EscapeMarkup()}[/]
+             - [lightseagreen]Arguments[/]: {(string.IsNullOrWhiteSpace(application.Arguments) ? "[italic gray39]No arguments specified[/]" : application.Arguments.EscapeMarkup())}
+             - [plum2]Working Directory[/]: [link]{application.WorkingDirectory.EscapeMarkup()}[/]
+             - [darkseagreen4_1]Enabled[/]: {(application.Enabled ? "[green]Yes[/]" : "[red]No[/]")}
+             - [lightgoldenrod2_1]Note[/]: {(string.IsNullOrWhiteSpace(application.Note) ? "[italic gray39]No note added[/]" : application.Note)}
+             - [aquamarine1]Environment variables[/]: {environmentVariables}
+             - [skyblue2]Memory limit[/]: {(application.MemoryLimit == 0 ? "[italic gray39]No limit set[/]" : $"{application.MemoryLimit.Bytes().Humanize()}")}
 
-            Current status:
-            - [palegreen1]Status[/]: [{ListCommand.GetStatusColor(application.Status)}]{application.Status}[/]
-            - [lightsalmon1]Uptime[/]: {(isStopped ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, maxUnit: TimeUnit.Week, precision: 7)}")}
-            - [slateblue1]PID[/]: {(isStopped ? "N/A" : application.ProcessId)}
-            - [lightslateblue]CPU Usage[/]: {(isStopped ? "N/A" : $"{application.CpuUsage}%")}
-            - [skyblue1]Memory Usage[/]: {(isStopped ? "N/A" : application.MemoryUsage.Bytes().Humanize())}
-            """);
+             Current status:
+             - [palegreen1]Status[/]: [{ListCommand.GetStatusColor(application.Status)}]{application.Status}[/]
+             - [lightsalmon1]Uptime[/]: {(isStopped ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, maxUnit: TimeUnit.Week, precision: 7)}")}
+             - [slateblue1]PID[/]: {(isStopped ? "N/A" : application.ProcessId)}
+             - [lightslateblue]CPU Usage[/]: {(isStopped ? "N/A" : $"{application.CpuUsage}%")}
+             - [skyblue1]Memory Usage[/]: {(isStopped ? "N/A" : application.MemoryUsage.Bytes().Humanize())}
+             """);
 
         return 0;
     }

@@ -13,6 +13,7 @@ internal static class MapperExtensions
             Executable: application.Executable,
             Arguments: application.Arguments,
             WorkingDirectory: application.WorkingDirectory,
+            Enabled: application.Enabled,
             Note: application.Note,
             EnvironmentVariables: application.EnvironmentVariables,
             Status: applicationStatisticsResponse.Status,

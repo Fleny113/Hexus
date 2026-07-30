@@ -7,6 +7,7 @@ public sealed record ApplicationResponse(
     string Executable,
     string? Arguments,
     string WorkingDirectory,
+    bool Enabled,
     string? Note,
     ImmutableDictionary<string, string> EnvironmentVariables,
     ApplicationStatus Status,
