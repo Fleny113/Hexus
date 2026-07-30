@@ -45,9 +45,9 @@ Optionally you can add `--self-contained` to remove the need for the .NET Runtim
 
 #### Start the daemon
 
-Hexus requires you to start the daemon manually before you can start using it. To start the daemon run the command `hexusd` and if you want to stop it without sending a CTRL + C or a kill signal to the process you can use the `hexus daemon stop` command.
+To start the daemon run `hexusd`. To stop the daemon you can terminate the process with CTRL-C or a signal or you can use the `hexus daemon stop` command.
 
-If you want to add the Hexus daemon to the startup you can use the `hexus startup` command that will detect what platform you are on and give you a powershell script for the windows task scheduler when run under windows and a systemd unit service file when running under Linux to quickly set up the startup process.
+If you want to add `hexusd` to the startup you can use the `hexus startup` command. It will detect what platform you are on and give you a powershell script for the windows task scheduler when run under windows or a systemd unit service file when running under Linux to quickly set up the startup process.
 
 > [!TIP]
 > When the command of `hexus startup` is redirected it won't output the decorations around the text to be easier to use the script/service that it creates
@@ -67,7 +67,7 @@ All the flags are available in the help for the command, you can use the `--help
 
 #### List applications
 
-To list all the application currently running you can use the list command
+To list all the application currently configured you can use the list command
 
 ```sh
 hexus list
@@ -105,6 +105,8 @@ If you want to manually parse the log files the format is as follows: `[<date>,<
 
 #### Start / Stop / Restart / Delete application
 
+<!-- TODO: Update when done with config cli commands -->
+
 To start an application you can use the `hexus start <name>` command with the name right after and to stop an application you can use the `hexus stop <name>` command with the name right after, for the stop command you can also specify the `--force` flag what will kill as soon as possible the application without sending a CTRl + C.
 
 Similar to the stop command you can also restart an application with the name of it using the `hexus restart <name>` command with, if wanted, the `--force` flag to force the stop of the application
@@ -122,41 +124,60 @@ To edit an application you will first need to stop it using the `hexus stop` com
 
 #### Send input to the application
 
-Hexus also allows sending messages in the application `STDIN` by using the `hexus info <name> <message>` command where name is the application name and message whatever you need to send to the application.
+Hexus also allows sending messages in the application `STDIN` by using the `hexus input <name> <message>` command.
 
-Keep in mind Hexus will send the message to the direct child so in a situation where the direct child is not the application you want to send the input to you might have troubles
+You need to specify the application name and the message you want to send to the application.
+
+You can add the `--no-new-line` (`-n`) flag to avoid adding the newline at the end.
+
+Hexus will always send the message to the direct child, if the application spawns child-processes you won't be able to write to their `STDIN` unless the application itself handles that.
 
 ## Configuration
 
-Hexus will store the configuration in `$XDG_CONFIG_HOME/hexus.yaml`,
-the daemon socket on `$XDG_RUNTIME_DIR/hexus.sock` for Linux and `$XDG_STATE_HOME/hexus/hexus.sock` for Windows,
-the logs for the daemon in `$XDG_STATE_HOME/hexus/daemon.log` and the logs for the applications in `$XDG_STATE_HOME/hexus/applications/<app name>.log`
+Hexus configuration is stored in `$XDG_CONFIG_HOME/hexus`.
+
+The socket the daemon exposes is on `$XDG_RUNTIME_DIR/hexus.sock` for Linux and `$XDG_STATE_HOME/hexus/hexus.sock` for Windows,
+
+The logs for the daemon in `$XDG_STATE_HOME/hexus/daemon.log` and the logs for the applications in `$XDG_STATE_HOME/hexus/logs/<app name>.log`
 
 These locations can be customized with the `XDG_CONFIG_HOME` (defaults to `~/.config`), `XDG_RUNTIME_DIR`[^XDG_RUNTIME_DIR] and `XDG_STATE_HOME` (defaults to `.local/state`) environment variables.
+
 On Windows setting the `XDG_RUNTIME_DIR` will not be ignored and that path will be used instead of using the `$XDG_STATE_HOME/hexus` folder.
 
 [^XDG_RUNTIME_DIR]: `XDG_RUNTIME_DIR` does not provide a clear default, however if running on Windows the value "defaults" to `$XDG_STATE_HOME/hexus`, on Unix systems a `<UID>-runtime` directory, where `<UID>` is replaced with the user ID that is running hexus, will be created in the temp with the permissions `700` and the current user as the owner according to the XDG basedir specification
 
-The config file is a `.yaml` file with the following options:
+The configuration is split in multiple files in the TOML format.
 
-- `unixSocket`: Changes where the socket is located. Used for connecting to the daemon.
-- `httpPort`: The HTTP port to listen as an addition way to access the daemon to the required socket, useful for interfacing with software that cant use the socket. \[OPTIONAL\]
-- `cpuRefreshIntervalSeconds`: The interval for the refresh of CPU usage of applications. The lower the value, the more CPU Hexus will use but the more precise it will the CPU usage of applications. Default 2.5 seconds.
-- `memoryLimitCheckIntervalSeconds`: The interval for the check of the application memory limit. Default 10 seconds.
-- `memoryLimit`: The max memory usage, in bytes, for a process, can be 0 to disable the feature. Defaults to 25% of the installed RAM.
-- `applications`: Object with the application name as the key as the value the following proprieties.
-  - `executable`: The file to execute when spawning the application.
-  - `arguments`: The arguments to give the executable, as a string. \[OPTIONAL\]
-  - `workingDirectory`: The directory where the application should start.
-  - `status`: Status of the application. Possible values: `Crashed`, `Exited`, `Running` (Matches the `HexusApplicationStatus` enum)
-  - `note`: A note that can be seen in the `info` command. \[OPTIONAL\]
-  - `environmentVariables`: All the environment variables for the application. Application **WILL NOT** inherit the environment variables from the daemon \[OPTIONAL\]
-  - `memoryLimit`: Used to override the max memory usage, in bytes, for this specific application, can be 0 to disable the feature. \[OPTIONAL\]
+Intervals can be specified with the following format: `[<hours>h] [<minutes>m] [<seconds>s]`. Example: `5s`
+Byte sizes can be specified with the following format: `<size>[unit]B`. Example: `5GB`
+
+### `daemon.toml`
+
+This is the configuration for the daemon
+
+| Name                      | Description                                                                  |
+|:--------------------------|:-----------------------------------------------------------------------------|
+| `unix-socket`             | Path for the unix socket, used for connecting to the daemon                  |
+| `http-port`               | Optional http port to expose the daemon                                      |
+| `cpu-pooling-interval`    | Interval for pooling the CPU usage of applications                           |
+| `memory-pooling-interval` | Interval for pooling the Memory usage of applications for the memory limiter |
+| `memory-limit`            | The default limit in byte size for application memory usage                  |
+
+### `applications/<name>.toml`
+
+| Name           | Description                                                     |
+|:---------------|:----------------------------------------------------------------|
+| `exe`          | Path for the executable of the application                      |
+| `args`         | Optional arguments for the executable                           |
+| `working-dir`  | Path for the working directory of the application               |
+| `enabled`      | Whatever the application should start when the daemon starts    |
+| `note`         | Optional user-defined string. It is printed in the info command |
+| `memory-limit` | The limit in byte size for application memory usage             |
+| `env`          | Optional TOML dictionary for envs                               |
 
 
 > [!NOTE]
-> The configuration file, the socket and the daemon log will have a `.dev` suffix before the extension to the name when running in development.
-> The resulting config file, socket file and log file are respectively `hexus.dev.yaml`, `hexus.dev.sock` and `daemon.dev.log`
+> The configuration directory and state directory will have a `.dev` suffix when run in development. The `.dev` suffix is enabled if `DOTNET_ENVIRONMENT` is `Development`
 
 #### PM2 Migration
 
