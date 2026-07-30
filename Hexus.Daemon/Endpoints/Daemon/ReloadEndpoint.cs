@@ -18,17 +18,34 @@ internal class ReloadEndpoint : IEndpoint, IRegisterEndpoint
     public static Ok<ReloadResult> Handle(
         [FromServices] HexusConfigurationManager configurationManager,
         [FromServices] IEnumerable<IConfigRelodable> relodableServices,
-        [FromQuery] string? applicationName = null
+        [FromQuery] string[] applicationNames
     )
     {
         var oldConfig = new ConfigurationSnapshot(configurationManager.DaemonConfiguration, configurationManager.Applications.ToImmutableDictionary());
 
-        var result = applicationName is not null ? configurationManager.Reload(applicationName) : configurationManager.Reload();
+        ConfigurationProblems reloadProblems;
+
+        if (applicationNames.Length > 0)
+        {
+            reloadProblems = applicationNames.Aggregate(new ConfigurationProblems([], []), (acc, appName) =>
+            {
+                Console.WriteLine($"Reloading configuration for application '{appName}'...");
+                var result = configurationManager.Reload(appName);
+                return new ConfigurationProblems(
+                    Warnings: acc.Warnings.Concat(result.Warnings),
+                    Errors: acc.Errors.Concat(result.Errors)
+                );
+            });
+        }
+        else
+        {
+            reloadProblems = configurationManager.Reload();
+        }
 
         var newConfig = new ConfigurationSnapshot(configurationManager.DaemonConfiguration, configurationManager.Applications.ToImmutableDictionary());
 
         var diff = BuildDiff(oldConfig, newConfig);
-        var results = ApplyDiff(result.Warnings, result.Errors, diff, relodableServices);
+        var results = ApplyDiff(reloadProblems.Warnings, reloadProblems.Errors, diff, relodableServices);
 
         return TypedResults.Ok(results);
     }
