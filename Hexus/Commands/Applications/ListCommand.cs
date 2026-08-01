@@ -5,7 +5,6 @@ using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Services;
 using Humanizer;
 using Spectre.Console;
-using System.Collections.Immutable;
 using System.CommandLine;
 using System.Diagnostics;
 using System.Net.Http.Json;
