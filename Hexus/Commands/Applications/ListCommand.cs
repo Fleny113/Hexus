@@ -5,6 +5,7 @@ using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Services;
 using Humanizer;
 using Spectre.Console;
+using System.Collections.Immutable;
 using System.CommandLine;
 using System.Diagnostics;
 using System.Net.Http.Json;
@@ -47,7 +48,7 @@ internal static class ListCommand
                 new TableColumn("[skyblue1]Memory Usage[/]").Centered()
             );
 
-        foreach (var application in applications)
+        foreach (var application in applications.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase))
         {
             var hasProcess = application.ProcessId == 0;
 
