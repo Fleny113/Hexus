@@ -8,9 +8,6 @@ internal static partial class UnixInterop
 {
     [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
     internal static partial int SendSignal(int pId, UnixSignal signal);
-
-    [Obsolete, LibraryImport("libc", EntryPoint = "getuid", SetLastError = true)]
-    internal static partial int GetUserId();
 }
 
 public enum UnixSignal
