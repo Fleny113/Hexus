@@ -26,6 +26,7 @@ var rootCommand = new RootCommand("The Hexus management CLI")
     StartupCommand.Command,
     MigratePm2Command.Command,
     ShowTimezones.Command,
+    MigrateConfigCommand.Command,
 };
 
 // Allow "hexus [diagram] ..." to show the parse diagram
