@@ -72,11 +72,7 @@ public sealed partial class HexusConfigurationManager
         {
             foreach (var file in Directory.EnumerateFiles(HexusPaths.ApplicationsConfigDirectory, "*.toml"))
             {
-                var appName = Path.GetFileNameWithoutExtension(file);
-                var appResult = Reload(appName);
-
-                Warnings = Warnings.Concat(appResult.Warnings);
-                Errors = Errors.Concat(appResult.Errors);
+                Reload(Path.GetFileNameWithoutExtension(file));
             }
         }
 
@@ -98,6 +94,9 @@ public sealed partial class HexusConfigurationManager
             Applications.Remove(applicationName);
         }
 
+        Warnings = Warnings.Where(w => w.Source != applicationName).Concat(result.Warnings);
+        Errors = Errors.Where(e => e.Source != applicationName).Concat(result.Errors);
+
         return new(result.Warnings, result.Errors);
     }
 
@@ -109,13 +108,17 @@ public sealed partial class HexusConfigurationManager
         }
 
         using var file = File.OpenRead(HexusPaths.DaemonConfigFile);
-        if (!TomlSerializer.TryDeserialize<DaemonConfiguration.DaemonConfigurationRaw>(file, ConfigurationSerializerContext.Default, out var config))
+
+        try
+        {
+            var config = TomlSerializer.Deserialize<DaemonConfiguration.DaemonConfigurationRaw>(file, ConfigurationSerializerContext.Default);
+            return ResolveDaemonConfig(config);
+        }
+        catch (TomlException ex)
         {
             var defaultConfig = ResolveDaemonConfig(null);
-            return defaultConfig with { Errors = defaultConfig.Errors.Concat([new ConfigurationNotice("Failed to parse daemon configuration file.", DaemonSource)]) };
+            return defaultConfig with { Errors = defaultConfig.Errors.Concat([new ConfigurationNotice($"Failed to parse daemon configuration file: {ex.Message}", DaemonSource)]) };
         }
-
-        return ResolveDaemonConfig(config);
     }
 
     private ConfigurationLoadResult<ApplicationConfiguration?> LoadApplicationConfiguration(string applicationName)
@@ -127,12 +130,21 @@ public sealed partial class HexusConfigurationManager
 
         using var file = File.OpenRead($"{HexusPaths.ApplicationsConfigDirectory}/{applicationName}.toml");
 
-        if (!TomlSerializer.TryDeserialize<ApplicationConfiguration.ApplicationConfigurationRaw>(file, ConfigurationSerializerContext.Default, out var config))
+        try
         {
-            return new(null, [], [new ConfigurationNotice("Failed to parse configuration file.", applicationName)]);
-        }
+            var config = TomlSerializer.Deserialize<ApplicationConfiguration.ApplicationConfigurationRaw>(file, ConfigurationSerializerContext.Default);
 
-        return ResolveApplicationConfig(config, applicationName);
+            if (config is null)
+            {
+                return new(null, [], [new ConfigurationNotice("Configuration file is empty.", applicationName)]);
+            }
+
+            return ResolveApplicationConfig(config, applicationName);
+        }
+        catch (TomlException ex)
+        {
+            return new(null, [], [new ConfigurationNotice($"Failed to parse configuration file: {ex.Message}", applicationName)]);
+        }
     }
 
     private static ConfigurationLoadResult<DaemonConfiguration> ResolveDaemonConfig(DaemonConfiguration.DaemonConfigurationRaw? raw)

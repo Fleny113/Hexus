@@ -201,7 +201,11 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
 
         foreach (var app in diff.Added)
         {
-            if (!app.Enabled) continue;
+            if (!app.Enabled)
+            {
+                actions.Add($"Added disabled application {app.Name}");
+                continue;
+            }
 
             StartApplication(app);
 
