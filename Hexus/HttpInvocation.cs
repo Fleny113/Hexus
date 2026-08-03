@@ -233,7 +233,7 @@ internal static class HttpInvocation
 
         foreach (var error in problems.Errors)
         {
-            PrettyConsole.Error.MarkupLineInterpolated($"[red]Error[/]: {error.Source} - {error.Message}");
+            PrettyConsole.Out.MarkupLineInterpolated($"[red]Error[/]: {error.Source} - {error.Message}");
         }
 
         PrettyConsole.Out.WriteLine();
