@@ -11,6 +11,11 @@ internal static class PathHelper
             return absolutePath;
 
         // PATH env resolver
+        return ResolveExecutableInPath(executable) ?? throw new FileNotFoundException($"Cannot find the executable '{executable}'");
+    }
+
+    public static string? ResolveExecutableInPath(string executable)
+    {
         if (executable.Contains(Path.DirectorySeparatorChar))
             throw new Exception("Executable name cannot have slashes");
 
@@ -19,7 +24,7 @@ internal static class PathHelper
         // Linux and Windows use different split char for the path
         var paths = pathEnv.Split(Path.PathSeparator);
 
-        var resolvedExecutable = paths
+        return paths
             .SelectMany<string, string>(path =>
             {
                 var file = Path.Combine(path, executable);
@@ -33,11 +38,5 @@ internal static class PathHelper
             .Where(File.Exists)
             .Select(Path.GetFullPath)
             .FirstOrDefault();
-
-        if (resolvedExecutable is not null)
-            return resolvedExecutable;
-
-        // No executable found
-        throw new FileNotFoundException("Cannot find the executable");
     }
 }

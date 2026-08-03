@@ -52,7 +52,7 @@ internal partial class StateManagerService(ILoggerFactory loggerFactory)
         File.Delete(path);
     }
 
-    private static string GetApplicationStatePath(string name) => Path.Combine(EnvironmentHelper.ApplicationStatesDirectory, $"{name}.state");
+    private static string GetApplicationStatePath(string name) => Path.Combine(HexusPaths.ApplicationStatesDirectory, $"{name}.state");
 
     internal sealed record PersistantApplicationState
     {

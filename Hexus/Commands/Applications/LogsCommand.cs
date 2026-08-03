@@ -120,7 +120,7 @@ internal static class LogsCommand
 
         var lines = linesOption == -1 ? int.MaxValue : linesOption;
 
-        var logFileName = $"{EnvironmentHelper.ApplicationLogsDirectory}/{name}.log";
+        var logFileName = $"{HexusPaths.ApplicationLogsDirectory}/{name}.log";
 
         if (!File.Exists(logFileName))
         {

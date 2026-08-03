@@ -54,9 +54,9 @@ internal static class DeleteCommand
                 }
             }
 
-            var configFile = Path.Combine(EnvironmentHelper.ApplicationsConfigDirectory, $"{name}.toml");
-            var stateFile = Path.Combine(EnvironmentHelper.ApplicationStatesDirectory, $"{name}.state");
-            var logFile = Path.Combine(EnvironmentHelper.ApplicationLogsDirectory, $"{name}.log");
+            var configFile = Path.Combine(HexusPaths.ApplicationsConfigDirectory, $"{name}.toml");
+            var stateFile = Path.Combine(HexusPaths.ApplicationStatesDirectory, $"{name}.state");
+            var logFile = Path.Combine(HexusPaths.ApplicationLogsDirectory, $"{name}.log");
 
             if (!File.Exists(configFile))
             {

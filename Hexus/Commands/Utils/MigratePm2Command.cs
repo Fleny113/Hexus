@@ -55,7 +55,8 @@ internal static partial class MigratePm2Command
 
     private static readonly Option<string> Pm2DumpFile = new("--pm2-dump")
     {
-        Description = "The pm2 dump file", DefaultValueFactory = _ => Path.Combine(EnvironmentHelper.Home, ".pm2", "dump.pm2"),
+        Description = "The pm2 dump file",
+        DefaultValueFactory = _ => Path.Combine(HexusPaths.Home, ".pm2", "dump.pm2"),
     };
 
     public static readonly Command Command = new("migrate-pm2", "Migrate your current PM2 Config to Hexus.") { Pm2DumpFile, };
@@ -178,7 +179,7 @@ internal static partial class MigratePm2Command
                 var origianlName = app.Name;
                 var count = 0;
 
-                while (File.Exists(Path.Combine(EnvironmentHelper.ApplicationsConfigDirectory, $"{app.Name}.toml")))
+                while (File.Exists(Path.Combine(HexusPaths.ApplicationsConfigDirectory, $"{app.Name}.toml")))
                 {
                     var suffix = count++ is 0 ? "pm2" : $"pm2-{count}";
                     app = app with { Name = $"{origianlName}-{suffix}", };
@@ -190,11 +191,11 @@ internal static partial class MigratePm2Command
 
         PrettyConsole.Out.MarkupLineInterpolated($"[green]Successfully parsed[/] {parsedApplications.Count} applications from the pm2 dump file");
 
-        EnvironmentHelper.EnsureDirectoriesExistence();
+        HexusPaths.EnsureDirectoriesExistence();
 
         foreach (var (name, config) in parsedApplications)
         {
-            var configPath = Path.Combine(EnvironmentHelper.ApplicationsConfigDirectory, $"{name}.toml");
+            var configPath = Path.Combine(HexusPaths.ApplicationsConfigDirectory, $"{name}.toml");
             await using var configStream = File.OpenWrite(configPath);
 
             TomlSerializer.Serialize(configStream, config, ConfigurationSerializerContext.Default.ApplicationConfigurationRaw);

@@ -19,7 +19,7 @@ internal static class MigrateConfigCommand
 
     private static async Task<int> Handler(ParseResult parseResult)
     {
-        var configFile = Path.Combine(EnvironmentHelper.XdgConfig, $"hexus{EnvironmentHelper.FileSuffix}.yaml");
+        var configFile = Path.Combine(HexusPaths.XdgConfig, $"hexus{HexusPaths.FileSuffix}.yaml");
 
         if (!File.Exists(configFile))
         {
@@ -59,11 +59,11 @@ internal static class MigrateConfigCommand
 
         PrettyConsole.Out.MarkupLineInterpolated($"[green]Successfully parsed[/] {newApplications.Count} applications from the hexus yaml config file");
 
-        EnvironmentHelper.EnsureDirectoriesExistence();
+        HexusPaths.EnsureDirectoriesExistence();
 
         var confirm = true;
 
-        if (File.Exists(EnvironmentHelper.DaemonConfigFile))
+        if (File.Exists(HexusPaths.DaemonConfigFile))
         {
             confirm = PrettyConsole.Out.Confirm("The deamon configuration already exists. Do you want to overwrite it?", false);
         }
@@ -79,20 +79,20 @@ internal static class MigrateConfigCommand
 
             if (string.IsNullOrWhiteSpace(config))
             {
-                PrettyConsole.Error.MarkupLine($"[blue]Note[/]: The daemon configuration is default, skipping writing it to {EnvironmentHelper.DaemonConfigFile}");
+                PrettyConsole.Error.MarkupLine($"[blue]Note[/]: The daemon configuration is default, skipping writing it to {HexusPaths.DaemonConfigFile}");
             }
             else
             {
-                await File.WriteAllTextAsync(EnvironmentHelper.DaemonConfigFile, config);
+                await File.WriteAllTextAsync(HexusPaths.DaemonConfigFile, config);
 
-                PrettyConsole.Out.MarkupLineInterpolated($"[green]Successfully wrote[/] daemon config at {EnvironmentHelper.DaemonConfigFile}");
+                PrettyConsole.Out.MarkupLineInterpolated($"[green]Successfully wrote[/] daemon config at {HexusPaths.DaemonConfigFile}");
             }
 
         }
 
         foreach (var (name, config) in newApplications)
         {
-            var configPath = Path.Combine(EnvironmentHelper.ApplicationsConfigDirectory, $"{name}.toml");
+            var configPath = Path.Combine(HexusPaths.ApplicationsConfigDirectory, $"{name}.toml");
 
             if (File.Exists(configPath))
             {

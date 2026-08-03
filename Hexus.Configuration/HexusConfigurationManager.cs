@@ -59,7 +59,7 @@ public sealed partial class HexusConfigurationManager
     {
         using var _ = _lock.EnterScope();
 
-        EnvironmentHelper.EnsureDirectoriesExistence();
+        HexusPaths.EnsureDirectoriesExistence();
 
         var result = LoadDaemonConfiguration();
         DaemonConfiguration = result.Configuration;
@@ -68,9 +68,9 @@ public sealed partial class HexusConfigurationManager
 
         Applications = [];
 
-        if (Directory.Exists(EnvironmentHelper.ApplicationsConfigDirectory))
+        if (Directory.Exists(HexusPaths.ApplicationsConfigDirectory))
         {
-            foreach (var file in Directory.EnumerateFiles(EnvironmentHelper.ApplicationsConfigDirectory, "*.toml"))
+            foreach (var file in Directory.EnumerateFiles(HexusPaths.ApplicationsConfigDirectory, "*.toml"))
             {
                 var appName = Path.GetFileNameWithoutExtension(file);
                 var appResult = Reload(appName);
@@ -103,12 +103,12 @@ public sealed partial class HexusConfigurationManager
 
     public static ConfigurationLoadResult<DaemonConfiguration> LoadDaemonConfiguration()
     {
-        if (!File.Exists(EnvironmentHelper.DaemonConfigFile))
+        if (!File.Exists(HexusPaths.DaemonConfigFile))
         {
             return ResolveDaemonConfig(null);
         }
 
-        using var file = File.OpenRead(EnvironmentHelper.DaemonConfigFile);
+        using var file = File.OpenRead(HexusPaths.DaemonConfigFile);
         if (!TomlSerializer.TryDeserialize<DaemonConfiguration.DaemonConfigurationRaw>(file, ConfigurationSerializerContext.Default, out var config))
         {
             var defaultConfig = ResolveDaemonConfig(null);
@@ -120,12 +120,12 @@ public sealed partial class HexusConfigurationManager
 
     private ConfigurationLoadResult<ApplicationConfiguration?> LoadApplicationConfiguration(string applicationName)
     {
-        if (!File.Exists($"{EnvironmentHelper.ApplicationsConfigDirectory}/{applicationName}.toml"))
+        if (!File.Exists($"{HexusPaths.ApplicationsConfigDirectory}/{applicationName}.toml"))
         {
             return new(null, [], [new ConfigurationNotice("Configuration file does not exist.", applicationName)]);
         }
 
-        using var file = File.OpenRead($"{EnvironmentHelper.ApplicationsConfigDirectory}/{applicationName}.toml");
+        using var file = File.OpenRead($"{HexusPaths.ApplicationsConfigDirectory}/{applicationName}.toml");
 
         if (!TomlSerializer.TryDeserialize<ApplicationConfiguration.ApplicationConfigurationRaw>(file, ConfigurationSerializerContext.Default, out var config))
         {
@@ -142,7 +142,7 @@ public sealed partial class HexusConfigurationManager
         var warnings = new List<ConfigurationNotice>();
         var config = new DaemonConfiguration
         {
-            UnixSocket = ResolveSocketPath(raw?.UnixSocket, EnvironmentHelper.DefaultSocketFile, DaemonSource, warnings),
+            UnixSocket = ResolveSocketPath(raw?.UnixSocket, HexusPaths.DefaultSocketFile, DaemonSource, warnings),
             HttpPort = raw?.HttpPort,
             CpuPollingInterval = ResolveTimeSpan(raw?.CpuPollingInterval, TimeSpan.FromSeconds(2.5), DaemonSource, "cpu-polling-interval", warnings),
             MemoryPollingInterval = ResolveTimeSpan(raw?.MemoryPollingInterval, TimeSpan.FromSeconds(10), DaemonSource, "memory-polling-interval", warnings),
@@ -207,7 +207,7 @@ public sealed partial class HexusConfigurationManager
         //  - We are not on Windows, it is standard that XDG_RUNTIME_DIR does not exist on Windows
         //  - XDG_RUNTIME_DIR is not set
         //  - The user hasn't specified another location for the socket
-        if (!OperatingSystem.IsWindows() && EnvironmentHelper.XdgRuntime is null)
+        if (!OperatingSystem.IsWindows() && HexusPaths.XdgRuntime is null)
         {
             warnings.Add(new ConfigurationNotice($"The XDG_RUNTIME_DIR environment is missing. Using default socket location ({defaultValue}).", source));
         }

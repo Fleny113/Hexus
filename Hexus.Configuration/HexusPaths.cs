@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace Hexus.Configuration;
 
-public static partial class EnvironmentHelper
+public static partial class HexusPaths
 {
     private static readonly bool IsDevelopment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development";
     public static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

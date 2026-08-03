@@ -53,7 +53,7 @@ public partial class ProcessLogsService(ILogger<ProcessLogsService> logger)
                 channels.ForEach(channel => channel.Writer.TryWrite(applicationLog));
             }
 
-            using var logFile = File.Open($"{EnvironmentHelper.ApplicationLogsDirectory}/{application.Name}.log", FileMode.Append, FileAccess.Write, FileShare.Read);
+            using var logFile = File.Open($"{HexusPaths.ApplicationLogsDirectory}/{application.Name}.log", FileMode.Append, FileAccess.Write, FileShare.Read);
             using var log = new StreamWriter(logFile, Utf8EncodingWithoutBom);
 
             log.Write($"[{applicationLog.Date.DateTime:O},{applicationLog.LogType}] {applicationLog.Text}\n");

@@ -40,7 +40,7 @@ builder.WebHost.UseKestrel((context, options) =>
         options.ListenLocalhost(5104);
 });
 
-builder.Logging.AddFile(EnvironmentHelper.LogFile, x =>
+builder.Logging.AddFile(HexusPaths.LogFile, x =>
 {
     x.Append = true;
     x.UseUtcTimestamp = true;
