@@ -1,6 +1,6 @@
 using EndpointMapper;
-using Hexus.Daemon;
 using Hexus.Configuration;
+using Hexus.Daemon;
 using Hexus.Daemon.Services;
 using NReco.Logging.File;
 
