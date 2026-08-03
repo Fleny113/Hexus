@@ -1,5 +1,4 @@
 using Hexus.Configuration;
-using Hexus.Daemon.Contracts;
 using Spectre.Console;
 using System.CommandLine;
 using System.Net.Http.Json;
@@ -10,7 +9,8 @@ internal static class DeleteCommand
 {
     private static readonly Argument<string[]> NamesArgument = new("name")
     {
-        Description = "The name(s) of the application(s) to delete. You can specify multiple names separated by spaces.", Arity = ArgumentArity.OneOrMore,
+        Description = "The name(s) of the application(s) to delete. You can specify multiple names separated by spaces.",
+        Arity = ArgumentArity.OneOrMore,
     };
 
     private static readonly Option<bool> ForceOption = new("--force", "-f") { Description = "Keep the log files of the application(s) after deletion", };
@@ -102,43 +102,9 @@ internal static class DeleteCommand
             return 1;
         }
 
-        var hasErrors = LogReloadResult(reloadResult);
+        var hasErrors = HttpInvocation.LogReloadResult(reloadResult);
         if (hasErrors) exitCode = 1;
 
         return exitCode;
-    }
-
-    private static bool LogReloadResult(ReloadResult reloadResult)
-    {
-        if (reloadResult.Actions.Any())
-        {
-            PrettyConsole.Out.MarkupLine("Reload with the following actions:");
-            foreach (var action in reloadResult.Actions)
-            {
-                PrettyConsole.Out.MarkupLineInterpolated($" - [blue]{action}[/]");
-            }
-        }
-
-        if (reloadResult.Warnings.Any())
-        {
-            PrettyConsole.Out.MarkupLine("Reload completed with warnings:");
-            foreach (var warning in reloadResult.Warnings)
-            {
-                PrettyConsole.Out.MarkupLineInterpolated($" - [yellow]{warning}[/]");
-            }
-        }
-
-        if (reloadResult.Errors.Any())
-        {
-            PrettyConsole.Error.MarkupLine("Reload completed with errors:");
-            foreach (var error in reloadResult.Errors)
-            {
-                PrettyConsole.Error.MarkupLineInterpolated($" - [red]{error}[/]");
-            }
-
-            return true;
-        }
-
-        return false;
     }
 }

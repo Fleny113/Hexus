@@ -15,7 +15,7 @@ var rootCommand = new RootCommand("The Hexus management CLI")
 
     InputCommand.Command,
     StartCommand.Command,
-    // EditCommand.Command,
+    EditCommand.Command,
     StopCommand.Command,
     RestartCommand.Command,
     DeleteCommand.Command,

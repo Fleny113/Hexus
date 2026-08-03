@@ -1,5 +1,6 @@
 using Hexus.Configuration;
 using Hexus.Daemon;
+using Hexus.Daemon.Contracts;
 using Spectre.Console;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -52,7 +53,9 @@ internal static class HttpInvocation
 
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
-        PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase, TypeInfoResolverChain = { AppJsonSerializerContext.Default },
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        TypeInfoResolverChain = { AppJsonSerializerContext.Default },
     };
 
     public static AppJsonSerializerContext JsonSerializerContext { get; } = new(JsonSerializerOptions);
@@ -238,4 +241,39 @@ internal static class HttpInvocation
 
         PrettyConsole.Out.WriteLine();
     }
+
+    public static bool LogReloadResult(ReloadResult reloadResult)
+    {
+        if (reloadResult.Actions.Any())
+        {
+            PrettyConsole.Out.MarkupLine("Reload with the following actions:");
+            foreach (var action in reloadResult.Actions)
+            {
+                PrettyConsole.Out.MarkupLineInterpolated($" - [blue]{action}[/]");
+            }
+        }
+
+        if (reloadResult.Warnings.Any())
+        {
+            PrettyConsole.Out.MarkupLine("Reload completed with warnings:");
+            foreach (var warning in reloadResult.Warnings)
+            {
+                PrettyConsole.Out.MarkupLineInterpolated($" - [yellow]{warning.Source}[/]: {warning.Message}");
+            }
+        }
+
+        if (reloadResult.Errors.Any())
+        {
+            PrettyConsole.Error.MarkupLine("Reload completed with errors:");
+            foreach (var error in reloadResult.Errors)
+            {
+                PrettyConsole.Error.MarkupLineInterpolated($" - [red]{error.Source}[/]: {error.Message}");
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
 }
