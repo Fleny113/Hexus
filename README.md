@@ -216,6 +216,8 @@ Old versions of hexus (< 0.6) used a .yaml file stored at `$XDG_CONFIG_HOME/hexu
 
 This format is no longer accepted, however you can use the `migrate` command to update your configuration from the old single-file .yaml based file to the new multi-file .toml configuration.
 
+After updating if you want to preserve the old logs you should move them from `$XDG_STATE_HOME/hexus/applications` to `$XDG_STATE_HOME/hexus/logs`
+
 Additionally old versions defaulted to capture the entire env of the shell when `hexus new` was executed as used that as the env for the new app. This is no longer the case as it polluted application envs with junk/transient environment variables.
 
 <!-- TODO: Env configs will get a rework soon, update docs when that happens -->
