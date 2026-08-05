@@ -7,21 +7,20 @@ using System.CommandLine;
 
 var rootCommand = new RootCommand("The Hexus management CLI")
 {
+    // App commands
     NewCommand.Command,
-
     ListCommand.Command,
     InfoCommand.Command,
     LogsCommand.Command,
-
     InputCommand.Command,
     StartCommand.Command,
     EditCommand.Command,
     StopCommand.Command,
     RestartCommand.Command,
     DeleteCommand.Command,
-
+    // Daemon
     DaemonCommand.Command,
-
+    // Misc
     UpdateCommand.Command,
     StartupCommand.Command,
     MigratePm2Command.Command,
