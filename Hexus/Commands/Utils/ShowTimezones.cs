@@ -1,4 +1,3 @@
-
 using Humanizer;
 using Spectre.Console;
 using System.CommandLine;
