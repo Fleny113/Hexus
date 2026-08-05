@@ -9,8 +9,12 @@ namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class StopApplicationEndpoint : IEndpoint
 {
-    [HttpMap(HttpMapMethod.Delete, "/{name}")]
-    public static Results<NoContent, NotFound, ValidationProblem> Handle(
+    public static void Register(IEndpointRouteBuilder builder)
+    {
+        builder.MapDelete("/{name}", Handle);
+    }
+
+    private static Results<NoContent, NotFound, ValidationProblem> Handle(
         [AsParameters] Parameters parameters,
         [FromServices] ProcessManagerService processManager,
         [FromServices] HexusConfigurationManager configurationManager)

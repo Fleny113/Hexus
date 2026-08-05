@@ -10,15 +10,21 @@ namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class GetApplicationEndpoint : IEndpoint
 {
-    [HttpMap(HttpMapMethod.Get, "/{name}")]
-    public static Results<Ok<ApplicationResponse>, NotFound> Handle(
-        [FromRoute] string name,
+    public static void Register(IEndpointRouteBuilder builder)
+    {
+        builder.MapGet("/{name}", Handle);
+    }
+
+    private static Results<Ok<ApplicationResponse>, NotFound> Handle(
+        [AsParameters] Parameters parameters,
         [FromServices] HexusConfigurationManager configuration,
         [FromServices] ProcessStatisticsService processStatisticsService)
     {
-        if (!configuration.Applications.TryGetValue(name, out var application))
+        if (!configuration.Applications.TryGetValue(parameters.Name, out var application))
             return TypedResults.NotFound();
 
         return TypedResults.Ok(application.MapToResponse(processStatisticsService.GetApplicationStats(application)));
     }
+
+    public record Parameters([FromRoute] string Name);
 }

@@ -5,14 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Hexus.Daemon.Endpoints.Daemon;
 
-internal class HealthEndpoint : IEndpoint, IRegisterEndpoint
+internal class HealthEndpoint : IEndpoint
 {
     public static void Register(IEndpointRouteBuilder builder)
     {
         builder.MapGet("/daemon/health", Handle);
     }
 
-    public static Ok<ConfigurationProblems> Handle([FromServices] HexusConfigurationManager configurationManager)
+    private static Ok<ConfigurationProblems> Handle([FromServices] HexusConfigurationManager configurationManager)
     {
         return TypedResults.Ok(new ConfigurationProblems(configurationManager.Warnings, configurationManager.Errors));
     }

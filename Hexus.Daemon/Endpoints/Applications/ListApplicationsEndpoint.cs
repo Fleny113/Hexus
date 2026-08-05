@@ -10,8 +10,12 @@ namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class ListApplicationsEndpoint : IEndpoint
 {
-    [HttpMap(HttpMapMethod.Get, "/list")]
-    public static Ok<IEnumerable<ApplicationResponse>> Handle(
+    public static void Register(IEndpointRouteBuilder builder)
+    {
+        builder.MapGet("/list", Handle);
+    }
+
+    private static Ok<IEnumerable<ApplicationResponse>> Handle(
         [FromServices] HexusConfigurationManager config,
         [FromServices] ProcessStatisticsService processStatisticsService)
     {

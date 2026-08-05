@@ -10,7 +10,11 @@ namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class RestartApplicationEndpoint : IEndpoint
 {
-    [HttpMap(HttpMapMethod.Patch, "/{name}/restart")]
+    public static void Register(IEndpointRouteBuilder builder)
+    {
+        builder.MapPatch("/{name}/restart", Handle);
+    }
+
     public static Results<NoContent, NotFound, BadRequest<GenericFailureResponse>> Handle(
         [FromServices] ProcessManagerService processManager,
         [FromServices] HexusConfigurationManager configuration,

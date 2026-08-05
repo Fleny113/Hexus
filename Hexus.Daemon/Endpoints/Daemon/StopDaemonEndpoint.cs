@@ -6,8 +6,12 @@ namespace Hexus.Daemon.Endpoints.Daemon;
 
 internal sealed class StopDaemonEndpoint : IEndpoint
 {
-    [HttpMap(HttpMapMethod.Delete, "/daemon/stop")]
-    public static NoContent Handle([FromServices] IHostApplicationLifetime hostLifecycle)
+    public static void Register(IEndpointRouteBuilder builder)
+    {
+        builder.MapDelete("/daemon/stop", Handle);
+    }
+
+    private static NoContent Handle([FromServices] IHostApplicationLifetime hostLifecycle)
     {
         hostLifecycle.StopApplication();
         return TypedResults.NoContent();

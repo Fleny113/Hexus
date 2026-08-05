@@ -11,13 +11,18 @@ namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class StartApplicationEndpoint : IEndpoint
 {
-    [HttpMap(HttpMapMethod.Post, "/{name}")]
-    public static Results<NoContent, NotFound, ValidationProblem, BadRequest<GenericFailureResponse>> Handle(
-        [FromServices] ProcessManagerService processManager,
-        [FromServices] HexusConfigurationManager configuration,
-        [FromRoute] string name)
+    public static void Register(IEndpointRouteBuilder builder)
     {
-        if (!configuration.Applications.TryGetValue(name, out var application)) return TypedResults.NotFound();
+        builder.MapPost("/{name}", Handle);
+    }
+
+    private static Results<NoContent, NotFound, ValidationProblem, BadRequest<GenericFailureResponse>> Handle(
+        [AsParameters] Parameters parameters,
+        [FromServices] ProcessManagerService processManager,
+        [FromServices] HexusConfigurationManager configuration
+    )
+    {
+        if (!configuration.Applications.TryGetValue(parameters.Name, out var application)) return TypedResults.NotFound();
 
         if (processManager.IsApplicationProcessRunning(application, out _, out _)) return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyRunning);
 
@@ -27,4 +32,6 @@ internal sealed class StartApplicationEndpoint : IEndpoint
 
         return TypedResults.NoContent();
     }
+
+    public record Parameters([FromRoute] string Name);
 }

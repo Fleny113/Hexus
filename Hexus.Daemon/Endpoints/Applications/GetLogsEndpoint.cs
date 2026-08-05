@@ -13,23 +13,28 @@ namespace Hexus.Daemon.Endpoints.Applications;
 
 internal sealed class GetLogsEndpoint : IEndpoint
 {
-    [HttpMap(HttpMapMethod.Get, "/{name}/logs")]
-    public static async Task<Results<NotFound, JsonArrayStreamResult<ApplicationLog>>> Handle(
+    public static void Register(IEndpointRouteBuilder builder)
+    {
+        builder.MapGet("/{name}/logs", Handle);
+    }
+
+    private static async Task<Results<NotFound, JsonArrayStreamResult<ApplicationLog>>> Handle(
+        [AsParameters] Parameters parameters,
         [FromServices] HexusConfigurationManager configuration,
         [FromServices] ProcessLogsService processLogsService,
         [FromServices] IHostApplicationLifetime hostLifetime,
-        [FromRoute] string name,
-        [FromQuery] DateTimeOffset? before = null,
         CancellationToken ct = default)
     {
-        if (!configuration.Applications.TryGetValue(name, out var application))
+        if (!configuration.Applications.TryGetValue(parameters.Name, out var application))
             return TypedResults.NotFound();
 
         // When the aspnet or the hostLifetime cancellation token get cancelled it cancels this as well
         var combinedCtSource = CancellationTokenSource.CreateLinkedTokenSource(ct, hostLifetime.ApplicationStopping);
 
-        return new JsonArrayStreamResult<ApplicationLog>(processLogsService.GetLogs(application, before, combinedCtSource.Token));
+        return new JsonArrayStreamResult<ApplicationLog>(processLogsService.GetLogs(application, parameters.Before, combinedCtSource.Token));
     }
+
+    public record Parameters([FromRoute] string Name, [FromQuery] DateTimeOffset? Before = null);
 }
 
 public class JsonArrayStreamResult<T>(IAsyncEnumerable<T> source) : IResult, IEndpointMetadataProvider

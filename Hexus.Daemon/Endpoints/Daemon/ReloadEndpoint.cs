@@ -8,26 +8,26 @@ using System.Collections.Immutable;
 
 namespace Hexus.Daemon.Endpoints.Daemon;
 
-internal class ReloadEndpoint : IEndpoint, IRegisterEndpoint
+internal class ReloadEndpoint : IEndpoint
 {
     public static void Register(IEndpointRouteBuilder builder)
     {
         builder.MapPost("/daemon/reload", Handle);
     }
 
-    public static Ok<ReloadResult> Handle(
+    private static Ok<ReloadResult> Handle(
+        [AsParameters] Parameters parameters,
         [FromServices] HexusConfigurationManager configurationManager,
-        [FromServices] IEnumerable<IConfigRelodable> relodableServices,
-        [FromBody] string[] applicationNames
+        [FromServices] IEnumerable<IConfigRelodable> relodableServices
     )
     {
         var oldConfig = new ConfigurationSnapshot(configurationManager.DaemonConfiguration, configurationManager.Applications.ToImmutableDictionary());
 
         ConfigurationProblems reloadProblems;
 
-        if (applicationNames.Length > 0)
+        if (parameters.ApplicationNames.Length > 0)
         {
-            reloadProblems = applicationNames.Aggregate(new ConfigurationProblems([], []), (acc, appName) =>
+            reloadProblems = parameters.ApplicationNames.Aggregate(new ConfigurationProblems([], []), (acc, appName) =>
             {
                 var result = configurationManager.Reload(appName);
 
@@ -49,6 +49,8 @@ internal class ReloadEndpoint : IEndpoint, IRegisterEndpoint
 
         return TypedResults.Ok(results);
     }
+
+    public record Parameters([FromBody] string[] ApplicationNames);
 
     private static ConfigurationDiff BuildDiff(ConfigurationSnapshot oldConfig, ConfigurationSnapshot newConfig)
     {
