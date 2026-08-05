@@ -176,13 +176,13 @@ internal static partial class MigratePm2Command
         [
             .. parsedApplications.Select(app =>
             {
-                var origianlName = app.Name;
+                var originalName = app.Name;
                 var count = 0;
 
                 while (File.Exists(Path.Combine(HexusPaths.ApplicationsConfigDirectory, $"{app.Name}.toml")))
                 {
                     var suffix = count++ is 0 ? "pm2" : $"pm2-{count}";
-                    app = app with { Name = $"{origianlName}-{suffix}", };
+                    app = app with { Name = $"{originalName}-{suffix}", };
                 }
 
                 return app;
@@ -202,6 +202,8 @@ internal static partial class MigratePm2Command
 
             PrettyConsole.Out.MarkupLineInterpolated($"[green]Successfully wrote[/] {configPath}");
         }
+
+        PrettyConsole.Out.MarkupLine("Please verify the configuration files and then start [indianred1]hexusd[/] or reload the configuration using hexus reload");
 
         return 0;
     }

@@ -56,7 +56,7 @@ public static partial class HexusPaths
         }
 
         var uid = GetUserId();
-        var dir = Directory.CreateDirectory($"{Path.GetTempPath()}/heuxs-{uid}{FileSuffix}", UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var dir = Directory.CreateDirectory($"{Path.GetTempPath()}/hexus-{uid}{FileSuffix}", UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
         return dir.FullName;
     }

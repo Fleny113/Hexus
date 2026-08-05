@@ -15,7 +15,7 @@ internal static class EditCommand
         Arity = ArgumentArity.ExactlyOne,
     };
 
-    public static readonly Command Command = new("edit", "Edit an exiting application")
+    public static readonly Command Command = new("edit", "Edit an existing application")
     {
         NameArgument,
     };

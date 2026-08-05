@@ -10,7 +10,7 @@ namespace Hexus.Commands.Utils;
 
 internal static class MigrateConfigCommand
 {
-    public static readonly Command Command = new("migrate-config", "Migrate the old .yaml configuration to new .toml configugration");
+    public static readonly Command Command = new("migrate-config", "Migrate the old .yaml configuration to new .toml one");
 
     static MigrateConfigCommand()
     {
@@ -65,7 +65,7 @@ internal static class MigrateConfigCommand
 
         if (File.Exists(HexusPaths.DaemonConfigFile))
         {
-            confirm = PrettyConsole.Out.Confirm("The deamon configuration already exists. Do you want to overwrite it?", false);
+            confirm = PrettyConsole.Out.Confirm("The daemon configuration already exists. Do you want to overwrite it?", false);
         }
 
         if (!confirm)
@@ -111,6 +111,8 @@ internal static class MigrateConfigCommand
 
             PrettyConsole.Out.MarkupLineInterpolated($"[green]Successfully wrote[/] {configPath}");
         }
+
+        PrettyConsole.Out.MarkupLine("Please verify the configuration files and then start [indianred1]hexusd[/] or reload the configuration using hexus reload");
 
         return 0;
     }

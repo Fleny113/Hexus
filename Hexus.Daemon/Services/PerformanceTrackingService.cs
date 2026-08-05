@@ -50,7 +50,7 @@ internal partial class PerformanceTrackingService(
         catch (Exception)
         {
             errors.Add(new ConfigurationNotice($"Failed to update cpu polling interval to {configuration.DaemonConfiguration.CpuPollingInterval}. The value is invalid.",
-                "Performace Tracking"));
+                "Performance Tracking"));
         }
 
         return new ReloadResult(actions, [], errors);

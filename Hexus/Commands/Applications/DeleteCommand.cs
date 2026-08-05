@@ -13,7 +13,11 @@ internal static class DeleteCommand
         Arity = ArgumentArity.OneOrMore,
     };
 
-    private static readonly Option<bool> ForceOption = new("--force", "-f") { Description = "Keep the log files of the application(s) after deletion", };
+    private static readonly Option<bool> ForceOption = new("--force", "-f")
+    {
+        Description = "Force stop the application before deleting it. Only used when the daemon is running.",
+    };
+
     private static readonly Option<bool> KeepLogFilesOption = new("--keep-logs", "-k") { Description = "Keep the log files of the application(s) after deletion", };
 
     public static readonly Command Command = new("delete", "Stops and delete an application") { NamesArgument, ForceOption, KeepLogFilesOption, };

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Hexus.Daemon.Endpoints.Daemon;
 
-internal class Healthndpoint : IEndpoint, IRegisterEndpoint
+internal class HealthEndpoint : IEndpoint, IRegisterEndpoint
 {
     public static void Register(IEndpointRouteBuilder builder)
     {

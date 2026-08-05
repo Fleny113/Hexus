@@ -72,6 +72,7 @@ internal static class NewCommand
         var enabled = !parseResult.GetRequiredValue(NotEnabledOption);
         var environmentVariables = parseResult.GetRequiredValue(EnvironmentVariables);
 
+        HexusPaths.EnsureDirectoriesExistence();
         var configFile = Path.Combine(HexusPaths.ApplicationsConfigDirectory, $"{name}.toml");
 
         if (File.Exists(configFile))

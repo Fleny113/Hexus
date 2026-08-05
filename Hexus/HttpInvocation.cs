@@ -15,7 +15,7 @@ namespace Hexus;
 
 internal static class HttpInvocation
 {
-    public static DaemonConfiguration DeamonConfig = LoadDaemonConfig();
+    public static DaemonConfiguration DaemonConfig = LoadDaemonConfig();
 
     private static DaemonConfiguration LoadDaemonConfig()
     {
@@ -34,7 +34,7 @@ internal static class HttpInvocation
         return daemonConfigurationResult.Configuration;
     }
 
-    internal static readonly string UnixSocketPath = DeamonConfig.UnixSocket;
+    internal static readonly string UnixSocketPath = DaemonConfig.UnixSocket;
 
     private static readonly HttpMessageHandler HttpClientHandler = new SocketsHttpHandler
     {

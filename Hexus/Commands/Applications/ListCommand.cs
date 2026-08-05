@@ -49,16 +49,16 @@ internal static class ListCommand
 
         foreach (var application in applications.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase))
         {
-            var hasProcess = application.ProcessId == 0;
+            var isStopped = application.ProcessId == 0;
 
             table.AddRow(
                 application.Name.EscapeMarkup(),
                 $"[{GetStatusColor(application.Status)}]{application.Status}[/]",
                 $"{(application.Enabled ? "[green]Yes[/]" : "[red]No[/]")}",
-                hasProcess ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, precision: 1)}",
-                hasProcess ? "N/A" : $"{application.ProcessId}",
-                hasProcess ? "N/A" : $"{application.CpuUsage}%",
-                hasProcess ? "N/A" : $"{application.MemoryUsage.Bytes().Humanize()}"
+                isStopped ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, precision: 1)}",
+                isStopped ? "N/A" : $"{application.ProcessId}",
+                isStopped ? "N/A" : $"{application.CpuUsage}%",
+                isStopped ? "N/A" : $"{application.MemoryUsage.Bytes().Humanize()}"
             );
         }
 

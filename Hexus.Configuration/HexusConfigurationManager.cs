@@ -22,7 +22,7 @@ public sealed partial class HexusConfigurationManager
         private set;
     }
 
-    public Dictionary<string, ApplicationConfiguration> Applications
+    public ImmutableDictionary<string, ApplicationConfiguration> Applications
     {
         get
         {
@@ -85,14 +85,9 @@ public sealed partial class HexusConfigurationManager
 
         var result = LoadApplicationConfiguration(applicationName);
 
-        if (result.Configuration is not null)
-        {
-            Applications[applicationName] = result.Configuration;
-        }
-        else
-        {
-            Applications.Remove(applicationName);
-        }
+        Applications = result.Configuration is not null
+            ? Applications.SetItem(applicationName, result.Configuration)
+            : Applications.Remove(applicationName);
 
         Warnings = Warnings.Where(w => w.Source != applicationName).Concat(result.Warnings);
         Errors = Errors.Where(e => e.Source != applicationName).Concat(result.Errors);
@@ -107,14 +102,14 @@ public sealed partial class HexusConfigurationManager
             return ResolveDaemonConfig(null);
         }
 
-        using var file = File.OpenRead(HexusPaths.DaemonConfigFile);
-
         try
         {
+            using var file = File.OpenRead(HexusPaths.DaemonConfigFile);
+
             var config = TomlSerializer.Deserialize<DaemonConfiguration.DaemonConfigurationRaw>(file, ConfigurationSerializerContext.Default);
             return ResolveDaemonConfig(config);
         }
-        catch (TomlException ex)
+        catch (Exception ex) when (ex is TomlException or IOException)
         {
             var defaultConfig = ResolveDaemonConfig(null);
             return defaultConfig with { Errors = defaultConfig.Errors.Concat([new ConfigurationNotice($"Failed to parse daemon configuration file: {ex.Message}", DaemonSource)]) };
@@ -128,10 +123,10 @@ public sealed partial class HexusConfigurationManager
             return new(null, [], [new ConfigurationNotice("Configuration file does not exist.", applicationName)]);
         }
 
-        using var file = File.OpenRead($"{HexusPaths.ApplicationsConfigDirectory}/{applicationName}.toml");
-
         try
         {
+            using var file = File.OpenRead($"{HexusPaths.ApplicationsConfigDirectory}/{applicationName}.toml");
+
             var config = TomlSerializer.Deserialize<ApplicationConfiguration.ApplicationConfigurationRaw>(file, ConfigurationSerializerContext.Default);
 
             if (config is null)
@@ -141,7 +136,7 @@ public sealed partial class HexusConfigurationManager
 
             return ResolveApplicationConfig(config, applicationName);
         }
-        catch (TomlException ex)
+        catch (Exception ex) when (ex is TomlException or IOException)
         {
             return new(null, [], [new ConfigurationNotice($"Failed to parse configuration file: {ex.Message}", applicationName)]);
         }
