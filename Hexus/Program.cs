@@ -7,7 +7,7 @@ using System.CommandLine;
 
 var rootCommand = new RootCommand("The Hexus management CLI")
 {
-    // NewCommand.Command,
+    NewCommand.Command,
 
     ListCommand.Command,
     InfoCommand.Command,

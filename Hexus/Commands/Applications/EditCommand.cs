@@ -29,25 +29,9 @@ internal static class EditCommand
     {
         var name = parseResult.GetRequiredValue(NameArgument);
 
-        var configFile = Path.Combine(HexusPaths.ApplicationsConfigDirectory, $"{name}.toml");
+        var edit = await EditConfiguration(name, ct);
 
-        var couldEdit = false;
-
-        foreach (var editor in GetEditors())
-        {
-            var success = await StartEditor(editor, configFile, ct);
-            if (success)
-            {
-                couldEdit = true;
-                break;
-            }
-        }
-
-        if (!couldEdit)
-        {
-            PrettyConsole.Error.WriteLine("Could not find a suitable editor. Please set an editor in VISUAL or EDITOR.");
-            return 1;
-        }
+        if (!edit) return 1;
 
         var actOnDaemon = await HttpInvocation.CheckForRunningDaemon(ct) &&
                           await PrettyConsole.Out.ConfirmAsync("The daemon is running. Do you want to reload the application now?", true, ct);
@@ -61,7 +45,7 @@ internal static class EditCommand
         PrettyConsole.Out.WriteLine("Reloading the daemon configuration to apply the changes...");
 
         var restartRequest = await HttpInvocation.PostAsJsonAsync<string[]>(
-            "Reloading config for the edited apps", "/daemon/reload", [name],
+            "Reloading config for the edited app", "/daemon/reload", [name],
             HttpInvocation.JsonSerializerContext, ct);
 
         if (!restartRequest.IsSuccessStatusCode)
@@ -79,6 +63,31 @@ internal static class EditCommand
         }
 
         return HttpInvocation.LogReloadResult(reloadResult) ? 1 : 0;
+    }
+
+    internal static async Task<bool> EditConfiguration(string name, CancellationToken ct)
+    {
+        var configFile = Path.Combine(HexusPaths.ApplicationsConfigDirectory, $"{name}.toml");
+
+        var couldEdit = false;
+
+        foreach (var editor in GetEditors())
+        {
+            var success = await StartEditor(editor, configFile, ct);
+            if (success)
+            {
+                couldEdit = true;
+                break;
+            }
+        }
+
+        if (!couldEdit)
+        {
+            PrettyConsole.Error.WriteLine("Could not find a suitable editor. Please set an editor in VISUAL or EDITOR.");
+            return false;
+        }
+
+        return true;
     }
 
     private static async Task<bool> StartEditor(string editor, string configFile, CancellationToken ct)
