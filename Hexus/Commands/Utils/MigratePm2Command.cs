@@ -160,7 +160,7 @@ internal static partial class MigratePm2Command
                     Args = string.IsNullOrWhiteSpace(args) ? null : args,
                     WorkingDir = cwd,
                     Enabled = isEnabled,
-                    Environment = environmentVariables,
+                    Env = environmentVariables,
                     Note = "This application was migrated from a PM2 configuration. Please verify the configuration and make any necessary adjustments.",
                 };
 

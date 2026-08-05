@@ -92,7 +92,7 @@ internal static class NewCommand
             Args = string.IsNullOrWhiteSpace(arguments) ? null : arguments,
             WorkingDir = workingDirectory,
             Enabled = enabled,
-            Environment = environmentVariables,
+            Env = environmentVariables,
         };
 
         {

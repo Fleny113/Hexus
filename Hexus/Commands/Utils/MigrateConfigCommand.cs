@@ -50,7 +50,7 @@ internal static class MigrateConfigCommand
                 Exe = kv.Value.Executable,
                 Args = kv.Value.Arguments,
                 WorkingDir = kv.Value.WorkingDirectory,
-                Environment = kv.Value.EnvironmentVariables,
+                Env = kv.Value.EnvironmentVariables,
                 MemoryLimit = kv.Value.MemoryLimit is null ? null : $"{kv.Value.MemoryLimit}B",
                 Enabled = kv.Value.Status == HexusApplicationStatus.Running,
                 Note = kv.Value.Note,

@@ -20,7 +20,7 @@ public sealed record ApplicationConfiguration
         public required string WorkingDir { get; init; }
         public required bool Enabled { get; init; }
         public string? Note { get; init; }
-        public Dictionary<string, string>? Environment { get; init; }
+        public Dictionary<string, string>? Env { get; init; }
         public string? MemoryLimit { get; init; }
     }
 }

@@ -176,7 +176,7 @@ public sealed partial class HexusConfigurationManager
             WorkingDirectory = raw.WorkingDir,
             Enabled = raw.Enabled,
             Note = raw.Note,
-            EnvironmentVariables = raw.Environment?.ToImmutableDictionary() ?? [],
+            EnvironmentVariables = raw.Env?.ToImmutableDictionary() ?? [],
             MemoryLimit = ResolveByteSize(raw.MemoryLimit, DaemonConfiguration.MemoryLimit, name, "memory-limit", warnings),
         };
 
