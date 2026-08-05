@@ -42,7 +42,9 @@ public class JsonArrayStreamResult<T>(IAsyncEnumerable<T> source) : IResult, IEn
 
         var jsonOptions = httpContext.RequestServices.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>();
 
-        await JsonSerializer.SerializeAsync(httpContext.Response.BodyWriter, source, jsonOptions.Value.SerializerOptions, httpContext.RequestAborted);
+        var typeInfo = jsonOptions.Value.SerializerOptions.GetTypeInfo(typeof(T));
+
+        await JsonSerializer.SerializeAsync(httpContext.Response.BodyWriter, source, typeInfo, httpContext.RequestAborted);
     }
 
     public static void PopulateMetadata(MethodInfo method, EndpointBuilder builder)
