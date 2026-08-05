@@ -151,6 +151,9 @@ The configuration is split in multiple files in the TOML format.
 Intervals can be specified with the following format: `[<hours>h] [<minutes>m] [<seconds>s]`. Example: `5s`
 Byte sizes can be specified with the following format: `<size>[unit]B`. Example: `5GB`
 
+> [!NOTE]
+> The configuration directory and state directory will have a `.dev` suffix when run in development. The `.dev` suffix is enabled if `DOTNET_ENVIRONMENT` is `Development`
+
 ### `daemon.toml`
 
 This is the configuration for the daemon
@@ -174,10 +177,6 @@ This is the configuration for the daemon
 | `note`         | Optional user-defined string. It is printed in the info command |
 | `memory-limit` | The limit in byte size for application memory usage             |
 | `env`          | Optional TOML dictionary for envs                               |
-
-
-> [!NOTE]
-> The configuration directory and state directory will have a `.dev` suffix when run in development. The `.dev` suffix is enabled if `DOTNET_ENVIRONMENT` is `Development`
 
 #### PM2 Migration
 

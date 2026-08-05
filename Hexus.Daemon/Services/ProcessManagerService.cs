@@ -53,6 +53,8 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
         state.Process = process;
         state.Status = ApplicationStatus.Running;
 
+        stateManagerService.DeleteApplicationState(application);
+
         // Enable the emitting of events (like Exited)
         process.EnableRaisingEvents = true;
 
