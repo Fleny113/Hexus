@@ -4,6 +4,10 @@ on:
   push:
     branches: ["main"]
 
+concurrency:
+  group: ci-builds
+  queue: max
+
 jobs:
   publish:
     name: Publish for ${{ matrix.platform }} ${{ matrix.arch }} (${{ matrix.self-contained == 'true' && 'self-contained' || 'runtime' }})
