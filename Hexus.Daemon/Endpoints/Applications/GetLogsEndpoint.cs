@@ -47,7 +47,7 @@ public class JsonArrayStreamResult<T>(IAsyncEnumerable<T> source) : IResult, IEn
 
         var jsonOptions = httpContext.RequestServices.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>();
 
-        var typeInfo = jsonOptions.Value.SerializerOptions.GetTypeInfo(typeof(T));
+        var typeInfo = jsonOptions.Value.SerializerOptions.GetTypeInfo(typeof(IAsyncEnumerable<T>));
 
         await JsonSerializer.SerializeAsync(httpContext.Response.BodyWriter, source, typeInfo, httpContext.RequestAborted);
     }
