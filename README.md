@@ -214,7 +214,7 @@ This is the persistant data for an application. This is also a TOML file.
 
 Old versions of hexus (< 0.6) used a .yaml file stored at `$XDG_CONFIG_HOME/hexus.yaml`.
 
-This format is no longer accepted, however you can use the `migrate` command to update your configuration from the old single-file .yaml based file to the new multi-file .toml configuration.
+This format is no longer accepted, however you can use the `migrate-config` command to update your configuration from the old single-file .yaml based file to the new multi-file .toml configuration.
 
 After updating if you want to preserve the old logs you should move them from `$XDG_STATE_HOME/hexus/applications` to `$XDG_STATE_HOME/hexus/logs`
 
