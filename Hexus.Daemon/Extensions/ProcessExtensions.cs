@@ -1,23 +1,31 @@
-using Hexus.Daemon.Services;
 using System.Diagnostics;
 
 namespace Hexus.Daemon.Extensions;
 
 internal static class ProcessExtensions
 {
-    public static double GetProcessCpuUsage(this Process process, ProcessStatisticsService.CpuStatistics cpuStatistics)
+    internal record CpuStatistics
     {
-        var currentTime = DateTimeOffset.UtcNow;
-        var deltaTime = currentTime - cpuStatistics.LastTime;
+        public TimeSpan LastTotalProcessorTime { get; set; } = TimeSpan.Zero;
+        public DateTimeOffset LastTime { get; set; } = DateTimeOffset.UtcNow;
+    }
 
-        var totalProcessTime = process.TotalProcessorTime;
-        var deltaProcessTime = totalProcessTime - cpuStatistics.LastTotalProcessorTime;
+    extension(Process process)
+    {
+        public double GetProcessCpuUsage(CpuStatistics cpuStatistics)
+        {
+            var currentTime = DateTimeOffset.UtcNow;
+            var deltaTime = currentTime - cpuStatistics.LastTime;
 
-        var cpuUsage = deltaProcessTime / Environment.ProcessorCount / deltaTime;
+            var totalProcessTime = process.TotalProcessorTime;
+            var deltaProcessTime = totalProcessTime - cpuStatistics.LastTotalProcessorTime;
 
-        cpuStatistics.LastTotalProcessorTime = totalProcessTime;
-        cpuStatistics.LastTime = currentTime;
+            var cpuUsage = deltaProcessTime / Environment.ProcessorCount / deltaTime;
 
-        return cpuUsage * 100;
+            cpuStatistics.LastTotalProcessorTime = totalProcessTime;
+            cpuStatistics.LastTime = currentTime;
+
+            return cpuUsage * 100;
+        }
     }
 }

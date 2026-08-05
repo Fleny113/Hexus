@@ -1,4 +1,4 @@
-using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Spectre.Console;
 using System.CommandLine;
 using System.Diagnostics;
@@ -67,7 +67,7 @@ internal static class StartupCommand
             var powershellCommand = $"""
             {Comment("# Use the following powershell script in a elevated powershell prompt to create the scheduled task to run hexus:")}
 
-            {Variable("$action")} {Operator("=")} {Cmdlet("New-ScheduledTaskAction")} {Operator("-Execute")} {String(daemonExe)} {Operator("-WorkingDirectory")} {String(EnvironmentHelper.Home)}
+            {Variable("$action")} {Operator("=")} {Cmdlet("New-ScheduledTaskAction")} {Operator("-Execute")} {String(daemonExe)} {Operator("-WorkingDirectory")} {String(HexusPaths.Home)}
             {Variable("$trigger")} {Operator("=")} {Cmdlet("New-ScheduledTaskTrigger")} {Operator("-AtLogon")}
             {Variable("$principal")} {Operator("=")} {Cmdlet("New-ScheduledTaskPrincipal")} {Operator("-UserId")} {String(windowsUser)} {Operator("-LogonType")} S4U {Operator("-RunLevel")} Limited
             {Variable("$settings")} {Operator("=")} {Cmdlet("New-ScheduledTaskSettingsSet")} {Operator("-Compatibility")} Win8 {Operator("-MultipleInstances")} IgnoreNew {Operator("-Hidden")}

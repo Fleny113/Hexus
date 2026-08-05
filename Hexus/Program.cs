@@ -1,4 +1,4 @@
-﻿using Hexus;
+using Hexus;
 using Hexus.Commands;
 using Hexus.Commands.Applications;
 using Hexus.Commands.Utils;
@@ -7,29 +7,32 @@ using System.CommandLine;
 
 var rootCommand = new RootCommand("The Hexus management CLI")
 {
+    // App commands
     NewCommand.Command,
-
     ListCommand.Command,
     InfoCommand.Command,
     LogsCommand.Command,
-
     InputCommand.Command,
     StartCommand.Command,
     EditCommand.Command,
     StopCommand.Command,
     RestartCommand.Command,
     DeleteCommand.Command,
-
+    // Daemon
     DaemonCommand.Command,
-
+    // Misc
     UpdateCommand.Command,
     StartupCommand.Command,
     MigratePm2Command.Command,
     ShowTimezones.Command,
+    MigrateConfigCommand.Command,
 };
 
 // Allow "hexus [diagram] ..." to show the parse diagram
 rootCommand.Directives.Add(new DiagramDirective());
+
+// The default command is list
+rootCommand.SetAction(ListCommand.Handler);
 
 try
 {

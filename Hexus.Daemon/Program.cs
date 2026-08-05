@@ -1,15 +1,15 @@
 using EndpointMapper;
-using FluentValidation;
+using Hexus.Configuration;
 using Hexus.Daemon;
-using Hexus.Daemon.Configuration;
-using Hexus.Daemon.Contracts.Requests;
 using Hexus.Daemon.Services;
-using Hexus.Daemon.Validators;
 using NReco.Logging.File;
 
 const string reloadConfigOnChangeEnvVar = "ASPNETCORE_hostBuilder__reloadConfigOnChange";
 
-// This has to be done before the call to CreateSlimBuilder, otherwise it will configure appsettings.json to reload on file change
+// We need to always disable the reload config on change as
+// 1. We don't use appsettings.json, however there is no way to disable this unless we use CreateEmptyBuilder
+// 2. Since we usually don't spawn in the same directory as the DLLs but dirs such as the home directory, this causes lots of file watchers to be created
+// We need to do this via environment variable as only envs are loaded before appsettings.json is loaded
 Environment.SetEnvironmentVariable(reloadConfigOnChangeEnvVar, false.ToString());
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -18,14 +18,14 @@ Environment.SetEnvironmentVariable(reloadConfigOnChangeEnvVar, null);
 
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
-    {"Logging:LogLevel:Default", Enum.GetName(LogLevel.Information) },
-    {"Logging:LogLevel:Microsoft.AspNetCore", Enum.GetName(LogLevel.Warning) },
-    {"Logging:LogLevel:Hexus.Daemon", Enum.GetName(builder.Environment.IsDevelopment() ? LogLevel.Trace : LogLevel.Information) },
+    { "Logging:LogLevel:Default", Enum.GetName(LogLevel.Information) },
+    { "Logging:LogLevel:Microsoft.AspNetCore", Enum.GetName(LogLevel.Warning) },
+    { "Logging:LogLevel:Hexus.Daemon", Enum.GetName(builder.Environment.IsDevelopment() ? LogLevel.Trace : LogLevel.Information) },
 });
 
 builder.WebHost.UseKestrel((context, options) =>
 {
-    var config = options.ApplicationServices.GetRequiredService<HexusConfiguration>();
+    var config = options.ApplicationServices.GetRequiredService<HexusConfigurationManager>().DaemonConfiguration;
 
     // The socket could still exist, and if that is the case Kestrel will throw an exception
     if (Path.Exists(config.UnixSocket))
@@ -40,7 +40,7 @@ builder.WebHost.UseKestrel((context, options) =>
         options.ListenLocalhost(5104);
 });
 
-builder.Logging.AddFile(EnvironmentHelper.LogFile, x =>
+builder.Logging.AddFile(HexusPaths.LogFile, x =>
 {
     x.Append = true;
     x.UseUtcTimestamp = true;
@@ -59,36 +59,36 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 builder.Services.AddProblemDetails();
 
-// Validators
-builder.Services.AddScoped<IValidator<EditApplicationRequest>, EditApplicationValidator>();
-builder.Services.AddScoped<IValidator<NewApplicationRequest>, NewApplicationValidator>();
-builder.Services.AddScoped<IValidator<SendInputRequest>, SendInputValidator>();
-
-// Configuration
 builder.Services.AddSingleton<HexusConfigurationManager>();
-builder.Services.AddTransient<HexusConfiguration>(sp => sp.GetRequiredService<HexusConfigurationManager>().Configuration);
 
-// Services & HostedServices
-builder.Services.AddHostedService<HexusLifecycle>();
-builder.Services.AddHostedService<PerformanceTrackingService>();
-builder.Services.AddHostedService<MemoryLimiterService>();
+builder.Services.AddSingleton<HexusLifecycle>();
+builder.Services.AddSingleton<PerformanceTrackingService>();
+builder.Services.AddSingleton<MemoryLimiterService>();
 
+// We can't use AddHostedService here as we need to register these services under IConfigRelodable as well
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<HexusLifecycle>());
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<PerformanceTrackingService>());
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<MemoryLimiterService>());
+
+builder.Services.AddSingleton<StateManagerService>();
 builder.Services.AddSingleton<ProcessStatisticsService>();
 builder.Services.AddSingleton<ProcessLogsService>();
 builder.Services.AddSingleton<ProcessManagerService>();
 
+builder.Services.AddSingleton<IConfigRelodable>(sp => sp.GetRequiredService<ProcessManagerService>());
+builder.Services.AddSingleton<IConfigRelodable>(sp => sp.GetRequiredService<HexusLifecycle>());
+builder.Services.AddSingleton<IConfigRelodable>(sp => sp.GetRequiredService<MemoryLimiterService>());
+builder.Services.AddSingleton<IConfigRelodable>(sp => sp.GetRequiredService<PerformanceTrackingService>());
+
 var app = builder.Build();
 
-var hexusConfiguration = app.Services.GetRequiredService<HexusConfiguration>();
+var hexusConfiguration = app.Services.GetRequiredService<HexusConfigurationManager>();
 
-// We only want to print this message if:
-//  - We are not on Windows, it is standard that XDG_RUNTIME_DIR does not exist on Windows
-//  - XDG_RUNTIME_DIR is not set
-//  - The user hasn't specified another location for the socket (so we are still using the default location)
-if (!OperatingSystem.IsWindows() && EnvironmentHelper.XdgRuntime is null && hexusConfiguration.UnixSocket == EnvironmentHelper.SocketFile)
-{
-    app.Logger.LogWarning("The XDG_RUNTIME_DIR environment is missing. Defaulting socket location to {socket}", hexusConfiguration.UnixSocket);
-}
+foreach (var warning in hexusConfiguration.Warnings)
+    app.Logger.LogWarning("A configuration warn was found: {warningSource}: {warning}", warning.Source, warning.Message);
+
+foreach (var error in hexusConfiguration.Errors)
+    app.Logger.LogError("A configuration error was found: {errorSource}, {error}", error.Source, error.Message);
 
 app.UseExceptionHandler();
 app.MapEndpointMapperEndpoints();

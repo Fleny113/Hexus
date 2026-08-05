@@ -1,5 +1,8 @@
-using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
+using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Responses;
+using Hexus.Daemon.Extensions;
+using Hexus.Daemon.Services;
 using Humanizer;
 using Spectre.Console;
 using System.CommandLine;
@@ -17,24 +20,16 @@ internal static class ListCommand
         Command.SetAction(Handler);
     }
 
-    private static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
+    internal static async Task<int> Handler(ParseResult parseResult, CancellationToken ct)
     {
-        if (!await HttpInvocation.CheckForRunningDaemon(ct))
+        var isDaemonRunning = await HttpInvocation.CheckForRunningDaemon(ct);
+
+        if (!isDaemonRunning)
         {
-            PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
-            return 1;
+            PrettyConsole.Out.MarkupLine("[blue]Note[/]: Hexus daemon is not running, showing applications from configs\n");
         }
 
-        var listRequest = await HttpInvocation.GetAsync("Getting application list", "/list", ct);
-
-        if (!listRequest.IsSuccessStatusCode)
-        {
-            await HttpInvocation.HandleFailedHttpRequestLogging(listRequest, ct);
-            return 1;
-        }
-
-        var applications = await listRequest.Content.ReadFromJsonAsync<IEnumerable<ApplicationResponse>>(HttpInvocation.JsonSerializerContext.IEnumerableApplicationResponse, ct);
-        Debug.Assert(applications is not null);
+        var applications = isDaemonRunning ? await LoadApplicationsFromDaemon(ct) : LoadApplicationsFromConfig();
 
         var table = new Table();
 
@@ -45,19 +40,21 @@ internal static class ListCommand
             .AddColumns(
                 new TableColumn("[cornflowerblue]Name[/]").Centered(),
                 new TableColumn("[palegreen1]Status[/]").Centered(),
+                new TableColumn("[darkseagreen4_1]Enabled[/]").Centered(),
                 new TableColumn("[lightsalmon1]Uptime[/]").Centered(),
                 new TableColumn("[slateblue1]PID[/]").Centered(),
                 new TableColumn("[lightslateblue]Cpu Usage[/]").Centered(),
                 new TableColumn("[skyblue1]Memory Usage[/]").Centered()
             );
 
-        foreach (var application in applications)
+        foreach (var application in applications.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase))
         {
             var isStopped = application.ProcessId == 0;
 
             table.AddRow(
                 application.Name.EscapeMarkup(),
                 $"[{GetStatusColor(application.Status)}]{application.Status}[/]",
+                $"{(application.Enabled ? "[green]Yes[/]" : "[red]No[/]")}",
                 isStopped ? "N/A" : $"{application.ProcessUptime.Humanize(minUnit: TimeUnit.Second, precision: 1)}",
                 isStopped ? "N/A" : $"{application.ProcessId}",
                 isStopped ? "N/A" : $"{application.CpuUsage}%",
@@ -76,13 +73,37 @@ internal static class ListCommand
         return 0;
     }
 
-    internal static Color GetStatusColor(HexusApplicationStatus status) => status switch
+    internal static Color GetStatusColor(ApplicationStatus status) => status switch
     {
-        HexusApplicationStatus.Crashed => Color.LightSalmon3,
-        HexusApplicationStatus.Exited => Color.OrangeRed1,
-        HexusApplicationStatus.Running => Color.Aquamarine1,
-        HexusApplicationStatus.Stopping => Color.IndianRed1,
-        HexusApplicationStatus.Restarting => Color.SkyBlue1,
+        ApplicationStatus.Running => Color.Aquamarine1,
+        ApplicationStatus.Stopping => Color.IndianRed1,
+        ApplicationStatus.Stopped => Color.OrangeRed1,
+        ApplicationStatus.Restarting => Color.SkyBlue1,
+        ApplicationStatus.Crashed => Color.LightSalmon3,
         _ => throw new ArgumentOutOfRangeException(nameof(status), "The requested status is not mapped to a color"),
     };
+
+    private static async Task<IEnumerable<ApplicationResponse>> LoadApplicationsFromDaemon(CancellationToken ct)
+    {
+        var listRequest = await HttpInvocation.GetAsync("Getting application list", "/list", ct);
+
+        if (!listRequest.IsSuccessStatusCode)
+        {
+            await HttpInvocation.HandleFailedHttpRequestLogging(listRequest, ct);
+            return [];
+        }
+
+        var applications =
+            await listRequest.Content.ReadFromJsonAsync<IEnumerable<ApplicationResponse>>(HttpInvocation.JsonSerializerContext.IEnumerableApplicationResponse, ct);
+        Debug.Assert(applications is not null);
+
+        return applications;
+    }
+
+    private static IEnumerable<ApplicationResponse> LoadApplicationsFromConfig()
+    {
+        var configurationManager = new HexusConfigurationManager();
+
+        return configurationManager.Applications.Select(kvp => kvp.Value.MapToResponse(new ApplicationStatistics()));
+    }
 }

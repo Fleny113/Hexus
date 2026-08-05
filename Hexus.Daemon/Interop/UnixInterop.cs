@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 namespace Hexus.Daemon.Interop;
@@ -8,9 +8,6 @@ internal static partial class UnixInterop
 {
     [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
     internal static partial int SendSignal(int pId, UnixSignal signal);
-
-    [LibraryImport("libc", EntryPoint = "getuid", SetLastError = true)]
-    internal static partial int GetUserId();
 }
 
 public enum UnixSignal

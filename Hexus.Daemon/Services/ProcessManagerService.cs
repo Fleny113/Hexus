@@ -1,5 +1,6 @@
-﻿using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
+using Hexus.Daemon.Extensions;
 using Hexus.Daemon.Interop;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -8,19 +9,19 @@ using Windows.Win32.System.Console;
 
 namespace Hexus.Daemon.Services;
 
-internal partial class ProcessManagerService(
-    ILoggerFactory loggerFactory,
-    HexusConfigurationManager configManager,
-    ProcessLogsService processLogsService,
-    IHostApplicationLifetime hostLifetime)
+internal partial class ProcessManagerService(ILoggerFactory loggerFactory, ProcessLogsService processLogsService, StateManagerService stateManagerService)
+    : IConfigRelodable, IDisposable
 {
     private readonly ILogger<ProcessManagerService> _logger = loggerFactory.CreateLogger<ProcessManagerService>();
-    private readonly Dictionary<Process, HexusApplication> _processToApplicationMap = [];
-    private readonly Dictionary<string, Process> _applicationToProcessMap = [];
+    private readonly Dictionary<ApplicationConfiguration, ApplicationState> _applicationProcessStates = [];
 
-    public SpawnProcessError? StartApplication(HexusApplication application)
+    // If the application can't live for more then 30 seconds, after the 10 attempts to restart it, it will be considerate crashed
+    private static readonly TimeSpan ResetTimeWindow = TimeSpan.FromSeconds(30);
+    private const int MaxRestarts = 10;
+
+    public SpawnProcessError? StartApplication(ApplicationConfiguration application)
     {
-        if (IsApplicationRunning(application, out _))
+        if (IsApplicationProcessRunning(application, out _, out _))
             return null;
 
         var processInfo = new ProcessStartInfo
@@ -48,88 +49,118 @@ internal partial class ProcessManagerService(
         if (process is null)
             return error;
 
-        _processToApplicationMap[process] = application;
-        _applicationToProcessMap[application.Name] = process;
+        var state = GetApplicationState(application);
+        state.Process = process;
+        state.Status = ApplicationStatus.Running;
+
+        stateManagerService.DeleteApplicationState(application);
 
         // Enable the emitting of events (like Exited)
         process.EnableRaisingEvents = true;
 
-        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, ProcessLogsService.ApplicationStartedLog);
+        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, ApplicationLog.ApplicationStartedLog);
 
         // Setup log handling 
         _ = HandleLogs(application, process, LogType.STDOUT);
         _ = HandleLogs(application, process, LogType.STDERR);
 
         // Register callbacks
-        process.Exited += AcknowledgeProcessExit;
-        process.Exited += HandleProcessRestart;
+        state.RestartCallback ??= (_, _) => _ = HandleProcessRestart(state);
 
-        application.Status = HexusApplicationStatus.Running;
-        configManager.SaveConfiguration();
+        process.Exited += (_, _) => AcknowledgeProcessExit(state);
+        process.Exited += state.RestartCallback;
 
         return null;
     }
 
-    public bool StopApplication(HexusApplication application, bool forceStop = false)
+    public bool StopApplication(ApplicationConfiguration application, bool forceStop = false)
     {
-        if (!IsApplicationRunning(application, out var process))
+        if (!TryGetApplicationStateIfExists(application, out var state))
             return false;
 
-        application.Status = HexusApplicationStatus.Stopping;
+        return StopApplication(state, forceStop);
+    }
+
+    private bool StopApplication(ApplicationState state, bool forceStop = false)
+    {
+        // If we aborted a restart we stopped the application
+        if (AbortProcessRestart(state))
+        {
+            state.Status = ApplicationStatus.Stopped;
+            return true;
+        }
+
+        if (!IsApplicationProcessRunning(state, out var process))
+            return false;
+
+        state.Status = ApplicationStatus.Stopping;
 
         // Remove the restart event handler, or else it will restart the process as soon as it stops
-        process.Exited -= HandleProcessRestart;
-        process.Exited += ClearApplicationStateOnExit;
+        process.Exited -= state.RestartCallback;
+
+        // To be sure that the Exited event is called before we return, we use a ManualResetEvent to wait for the delegates to be called
+        using var waitHandle = new ManualResetEvent(false);
+        process.Exited += (_, _) => waitHandle.Set();
 
         StopProcess(process, forceStop);
 
-        application.Status = HexusApplicationStatus.Exited;
-
-        _processToApplicationMap.Remove(process, out _);
-        _applicationToProcessMap.Remove(application.Name, out _);
-
-        // If the daemon is shutting down we don't want to save, or else when the daemon is booted up again, all the applications will be marked as stopped
-        if (!hostLifetime.ApplicationStopping.IsCancellationRequested)
-            configManager.SaveConfiguration();
+        // Wait for the process Exited event to be called
+        waitHandle.WaitOne();
 
         return true;
     }
 
-    public void StopApplications()
+    public void Dispose()
     {
-        Parallel.ForEach(_processToApplicationMap, tuple => StopApplication(tuple.Value));
+        Parallel.ForEach(_applicationProcessStates, t => StopApplication(t.Value));
+        _applicationProcessStates.Clear();
     }
 
-    public bool IsApplicationRunning(HexusApplication application, [NotNullWhen(true)] out Process? process)
+    internal ApplicationState GetApplicationState(ApplicationConfiguration application)
     {
-        if (!_applicationToProcessMap.TryGetValue(application.Name, out process))
-        {
-            return false;
-        }
+        var state = _applicationProcessStates.GetOrCreate(application, app => new ApplicationState { Configuration = app });
+        var persistantState = stateManagerService.LoadApplicationState(application);
+
+        persistantState?.ApplyTo(state);
+
+        return state;
+    }
+
+    internal bool TryGetApplicationStateIfExists(ApplicationConfiguration application, [NotNullWhen(true)] out ApplicationState? state)
+    {
+        return _applicationProcessStates.TryGetValue(application, out state);
+    }
+
+    internal bool IsApplicationProcessRunning(ApplicationConfiguration application, [NotNullWhen(true)] out ApplicationState? state,
+        [NotNullWhen(true)] out Process? process)
+    {
+        process = null;
+        return TryGetApplicationStateIfExists(application, out state) && IsApplicationProcessRunning(state, out process);
+    }
+
+    internal static bool IsApplicationProcessRunning(ApplicationState state, [NotNullWhen(true)] out Process? process)
+    {
+        process = state.Process;
 
         try
         {
-            return application is { Status: HexusApplicationStatus.Running } && process is { HasExited: false };
+            return state.Process is { HasExited: false };
         }
         catch (InvalidOperationException exception) when (exception.Message == "No process is associated with this object.")
         {
-            // The process does not exist. so it isn't running
-            _applicationToProcessMap.Remove(application.Name, out _);
-            _processToApplicationMap.Remove(process, out _);
+            process = state.Process = null;
 
             return false;
         }
     }
 
-    public bool SendToApplication(HexusApplication application, ReadOnlySpan<char> text, bool newLine = true)
+    public bool SendToApplication(ApplicationConfiguration application, ReadOnlySpan<char> text, bool newLine = true)
     {
-        if (!IsApplicationRunning(application, out var process))
+        if (!IsApplicationProcessRunning(application, out _, out var process))
             return false;
 
-        if (newLine)
-            process.StandardInput.WriteLine(text);
-        else
-            process.StandardInput.Write(text);
+        process.StandardInput.Write(text);
+        if (newLine) process.StandardInput.WriteLine();
 
         return true;
     }
@@ -137,9 +168,9 @@ internal partial class ProcessManagerService(
     /// <summary>
     /// This is a hard kill of the application and will not prevent restarts, use StopApplication to gracefully stop an application
     /// </summary>
-    internal void KillApplication(HexusApplication application)
+    internal void KillApplication(ApplicationConfiguration application)
     {
-        if (!IsApplicationRunning(application, out var process))
+        if (!IsApplicationProcessRunning(application, out _, out var process))
             return;
 
         try
@@ -153,6 +184,80 @@ internal partial class ProcessManagerService(
         catch (Exception exception)
         {
             LogFailedApplicationStop(_logger, exception);
+        }
+    }
+
+    public ReloadResult ReloadConfiguration(ConfigurationDiff diff)
+    {
+        List<string> actions = [];
+        List<ConfigurationNotice> errors = [];
+
+        foreach (var app in diff.Removed)
+        {
+            StopApplication(app);
+            stateManagerService.DeleteApplicationState(app);
+            _applicationProcessStates.Remove(app);
+
+            actions.Add($"Stopped removed application {app.Name}");
+        }
+
+        foreach (var app in diff.Added)
+        {
+            if (!app.Enabled)
+            {
+                actions.Add($"Added disabled application {app.Name}");
+                continue;
+            }
+
+            StartApplication(app);
+
+            actions.Add($"Starting added and enabled application {app.Name}");
+        }
+
+        foreach (var (old, update) in diff.Modified)
+        {
+            var shouldRestart = old.Executable != update.Executable ||
+                                old.Arguments != update.Arguments ||
+                                old.WorkingDirectory != update.WorkingDirectory ||
+                                old.EnvironmentVariables != update.EnvironmentVariables;
+
+            // Move the state to the new configuration
+            if (_applicationProcessStates.Remove(old, out var state))
+            {
+                state.Configuration = update;
+                _applicationProcessStates.Add(update, state);
+            }
+
+            if (!shouldRestart) continue;
+
+            actions.Add($"Restarting modified application {update.Name} due to changes that require a restart");
+
+            StopApplication(update);
+
+            if (StartApplication(update) is { } error)
+            {
+                errors.Add(new ConfigurationNotice($"Failed to start application {update.Name}: {error.MapToErrorString()}", "Process Manager"));
+            }
+        }
+
+        return new ReloadResult(actions, [], errors);
+    }
+
+    private async Task HandleLogs(ApplicationConfiguration application, Process process, LogType logType)
+    {
+        var streamReader = logType switch
+        {
+            LogType.STDOUT => process.StandardOutput,
+            LogType.STDERR => process.StandardError,
+            _ => throw new ArgumentException("An invalid LogType was passed in", nameof(logType)),
+        };
+
+        while (true)
+        {
+            var str = await streamReader.ReadLineAsync();
+            if (str is null) break;
+
+            processLogsService.ProcessApplicationLog(application, logType, str);
         }
     }
 
@@ -170,26 +275,29 @@ internal partial class ProcessManagerService(
         }
         catch (Win32Exception exception)
         {
-            // If the executable is not found, the first is the Linux error, the second the Win32 error
+            // The first is the Linux error, the second is the Win32 error
+            // If the executable is not found
             if (exception.Message.EndsWith("No such file or directory") || exception.Message.EndsWith("The system cannot find the file specified."))
             {
                 return (null, SpawnProcessError.NotFound);
             }
 
-            // If the executable can not be accessed, the first is the Linux error, the second the Win32 error
+            // If the executable can not be accessed
             if (exception.Message.EndsWith("Permission denied") || exception.Message.EndsWith("Access is denied."))
             {
                 return (null, SpawnProcessError.PermissionDenied);
             }
 
-            // If the executable is invalid, the first is the Linux error, the second the Win32 error
-            if (exception.Message.EndsWith("Exec format error") || exception.Message.EndsWith("The specified executable is not a valid application for this OS platform."))
+            // If the executable is invalid
+            if (exception.Message.EndsWith("Exec format error") ||
+                exception.Message.EndsWith("The specified executable is not a valid application for this OS platform."))
             {
                 return (null, SpawnProcessError.InvalidExecutable);
             }
 
             // If the command is too long, the first is the Linux error for the arguments, the second one is the Linux error for the file, the third one is the Win32 error
-            if (exception.Message.EndsWith("Argument list too long") || exception.Message.EndsWith("File name too long") || exception.Message.EndsWith("The filename or extension is too long."))
+            if (exception.Message.EndsWith("Argument list too long") || exception.Message.EndsWith("File name too long") ||
+                exception.Message.EndsWith("The filename or extension is too long."))
             {
                 return (null, SpawnProcessError.CommandTooLong);
             }
@@ -250,120 +358,82 @@ internal partial class ProcessManagerService(
 
     #endregion
 
-    private async Task HandleLogs(HexusApplication application, Process process, LogType logType)
+    #region Exit process Internals
+
+    private static bool AbortProcessRestart(ApplicationState state)
     {
-        var streamReader = logType switch
-        {
-            LogType.STDOUT => process.StandardOutput,
-            LogType.STDERR => process.StandardError,
-            _ => throw new ArgumentException("An invalid LogType was passed in", nameof(logType)),
-        };
+        // Abort the restart if there are any, then delete the tokens
+        state.AbortRestartCancellationTokenSource?.Cancel();
+        state.AbortRestartCancellationTokenSource = null;
 
-        while (true)
-        {
-            var str = await streamReader.ReadLineAsync();
-            if (str is null) break;
-
-            processLogsService.ProcessApplicationLog(application, logType, str);
-        }
+        return state.Status is ApplicationStatus.Restarting;
     }
 
-    #region Exit process event handlers
-
-    // If the application can't live for more then 30 seconds, after the 10 attempts to restart it, it will be considerate crashed
-    private static readonly TimeSpan ResetTimeWindow = TimeSpan.FromSeconds(30);
-    private const int MaxRestarts = 10;
-
-    private readonly Dictionary<string, ConsequentialRestartsMetadata> _consequentialRestarts = [];
-
-    public bool AbortProcessRestart(HexusApplication application)
+    private void AcknowledgeProcessExit(ApplicationState state)
     {
-        if (!_consequentialRestarts.Remove(application.Name, out var metadata)) return false;
-
-        metadata.ClearConsequentialRestartCancellationTokenSource?.Dispose();
-        metadata.AbortRestartCancellationTokenSource.Cancel();
-        metadata.AbortRestartCancellationTokenSource.Dispose();
-
-        return true;
-    }
-
-    private void AcknowledgeProcessExit(object? sender, EventArgs e)
-    {
-        if (sender is not Process process || !_processToApplicationMap.TryGetValue(process, out var application))
+        if (state.Process is null)
             return;
 
-        var exitCode = process.ExitCode;
+        var exitCode = state.Process.ExitCode;
 
-        processLogsService.ProcessApplicationLog(application, LogType.SYSTEM, string.Format(null, ProcessLogsService.ApplicationStoppedLog, exitCode));
+        processLogsService.ProcessApplicationLog(state.Configuration, LogType.SYSTEM, string.Format(null, ApplicationLog.ApplicationStoppedLog, exitCode));
 
-        process.Close();
-        process.Dispose();
+        state.Status = ApplicationStatus.Stopped;
+        state.Process.Close();
+        state.Process = null;
 
-        LogAcknowledgeProcessExit(_logger, application.Name, exitCode);
+        LogAcknowledgeProcessExit(_logger, state.Configuration.Name, exitCode);
     }
 
-    private void ClearApplicationStateOnExit(object? sender, EventArgs e)
+    private async Task HandleProcessRestart(ApplicationState state)
     {
-        if (sender is not Process process || !_processToApplicationMap.TryGetValue(process, out var application))
-            return;
+        state.RestartCount++;
 
-        _processToApplicationMap.Remove(process, out _);
-        _applicationToProcessMap.Remove(application.Name, out _);
-    }
+        state.ClearRestartsTimer ??= new Timer(s => ClearConsequentialRestarts((ApplicationState)s!), state, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
-    private void HandleProcessRestart(object? sender, EventArgs e)
-    {
-        if (sender is not Process process || !_processToApplicationMap.TryGetValue(process, out var application))
-            return;
-
-        var status = _consequentialRestarts.GetValueOrDefault(application.Name, new ConsequentialRestartsMetadata());
-
-        status.Count++;
-        status.ClearConsequentialRestartCancellationTokenSource?.Dispose();
-        status.ClearConsequentialRestartCancellationTokenSource = new CancellationTokenSource(ResetTimeWindow);
-
-        _consequentialRestarts[application.Name] = status;
-        ClearApplicationStateOnExit(sender, e);
-
-        if (status.Count > MaxRestarts)
+        if (state.RestartCount > MaxRestarts)
         {
-            LogCrashedApplication(_logger, application.Name, status.Count, ResetTimeWindow.TotalSeconds);
+            LogCrashedApplication(_logger, state.Configuration.Name, state.RestartCount, ResetTimeWindow);
 
-            status.ClearConsequentialRestartCancellationTokenSource.Dispose();
-            _consequentialRestarts.Remove(application.Name, out _);
+            state.ClearRestartsTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
-            application.Status = HexusApplicationStatus.Crashed;
-            configManager.SaveConfiguration();
+            state.Status = ApplicationStatus.Crashed;
+
+            stateManagerService.SaveApplicationState(state.Configuration, StateManagerService.PersistantApplicationState.From(state));
 
             return;
         }
 
-        application.Status = HexusApplicationStatus.Restarting;
+        state.Status = ApplicationStatus.Restarting;
 
-        var delay = CalculateDelay(status.Count);
-        status.ClearConsequentialRestartCancellationTokenSource.Token.Register(ClearConsequentialRestarts, application.Name);
+        state.AbortRestartCancellationTokenSource = new CancellationTokenSource();
 
-        LogRestartAttemptDelay(_logger, application.Name, delay.TotalSeconds);
+        // Debounce the reset of the restart count
+        state.ClearRestartsTimer.Change(ResetTimeWindow, Timeout.InfiniteTimeSpan);
 
-        Task.Delay(delay, status.AbortRestartCancellationTokenSource.Token).ContinueWith(delayTask =>
+        var delay = CalculateDelay(state.RestartCount);
+        LogRestartAttemptDelay(_logger, state.Configuration.Name, delay.TotalSeconds);
+
+        try
         {
-            // If the task was aborted we need to not restart the application.
-            if (!delayTask.IsCompletedSuccessfully) return;
+            await Task.Delay(delay, state.AbortRestartCancellationTokenSource.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // The restart was aborted, we don't want to restart the application
+            return;
+        }
 
-            StartApplication(application);
-            configManager.SaveConfiguration();
-        });
+        state.AbortRestartCancellationTokenSource = null;
+
+        StartApplication(state.Configuration);
     }
 
-    private void ClearConsequentialRestarts(object? state)
+    private void ClearConsequentialRestarts(ApplicationState state)
     {
-        if (state is not string name)
-            return;
+        LogConsequentialRestartsStop(_logger, state.RestartCount, state.Configuration.Name);
 
-        _consequentialRestarts.Remove(name, out var status);
-        status.ClearConsequentialRestartCancellationTokenSource?.Dispose();
-
-        LogConsequentialRestartsStop(_logger, status.Count, name);
+        state.RestartCount = 0;
     }
 
     private static TimeSpan CalculateDelay(int restart) =>
@@ -378,23 +448,27 @@ internal partial class ProcessManagerService(
             _ => throw new ArgumentOutOfRangeException(nameof(restart)),
         };
 
-    private record struct ConsequentialRestartsMetadata(
-        int Count,
-        CancellationTokenSource? ClearConsequentialRestartCancellationTokenSource,
-        CancellationTokenSource AbortRestartCancellationTokenSource)
-    {
-        public ConsequentialRestartsMetadata() : this(0, null, new CancellationTokenSource())
-        {
-        }
-    }
-
     #endregion
 
-    [LoggerMessage(LogLevel.Error, "Failed to get the CTRL Routine Procedure address, sending signals to processes will not work.")]
-    private static partial void LogFailedToGetCtrlProcedureAddress(ILogger logger);
+    internal record ApplicationState
+    {
+        public required ApplicationConfiguration Configuration { get; set; }
 
-    [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow} seconds). It will be considered crashed.")]
-    private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, double timeWindow);
+        public Process? Process { get; set; }
+        public ApplicationStatus Status { get; set; } = ApplicationStatus.Stopped;
+
+        // Restart data
+        public int RestartCount { get; set; }
+        public Timer? ClearRestartsTimer { get; set; }
+
+        public CancellationTokenSource? AbortRestartCancellationTokenSource { get; set; }
+
+        // We have to cache this delegate so we can remove it in StopApplication
+        public EventHandler? RestartCallback { get; set; }
+    }
+
+    [LoggerMessage(LogLevel.Warning, "Application \"{Name}\" has exited for {MaxRestarts} times in the time window ({TimeWindow}). It will be considered crashed.")]
+    private static partial void LogCrashedApplication(ILogger logger, string name, int maxRestarts, TimeSpan timeWindow);
 
     [LoggerMessage(LogLevel.Debug, "Acknowledging about \"{Name}\" exiting with code: {ExitCode}")]
     private static partial void LogAcknowledgeProcessExit(ILogger logger, string name, int exitCode);

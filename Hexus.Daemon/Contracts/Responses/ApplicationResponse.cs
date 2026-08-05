@@ -1,4 +1,4 @@
-using Hexus.Daemon.Configuration;
+using System.Collections.Immutable;
 
 namespace Hexus.Daemon.Contracts.Responses;
 
@@ -7,12 +7,13 @@ public sealed record ApplicationResponse(
     string Executable,
     string? Arguments,
     string WorkingDirectory,
+    bool Enabled,
     string? Note,
-    Dictionary<string, string> EnvironmentVariables,
-    HexusApplicationStatus Status,
+    ImmutableDictionary<string, string> EnvironmentVariables,
+    ApplicationStatus Status,
     TimeSpan ProcessUptime,
     long ProcessId,
     double CpuUsage,
     long MemoryUsage,
-    long? MemoryLimit
+    long MemoryLimit
 );

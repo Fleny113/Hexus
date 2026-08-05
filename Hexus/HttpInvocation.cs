@@ -1,6 +1,6 @@
-﻿using Hexus.Daemon;
-using Hexus.Daemon.Contracts.Responses;
-using Microsoft.AspNetCore.Http;
+using Hexus.Configuration;
+using Hexus.Daemon;
+using Hexus.Daemon.Contracts;
 using Spectre.Console;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -15,12 +15,33 @@ namespace Hexus;
 
 internal static class HttpInvocation
 {
+    public static DaemonConfiguration DaemonConfig = LoadDaemonConfig();
+
+    private static DaemonConfiguration LoadDaemonConfig()
+    {
+        var daemonConfigurationResult = HexusConfigurationManager.LoadDaemonConfiguration();
+
+        foreach (var warning in daemonConfigurationResult.Warnings)
+        {
+            PrettyConsole.Out.MarkupInterpolated($"Configuration [yellow]warning[/]: {warning.Source}: {warning.Message}");
+        }
+
+        foreach (var error in daemonConfigurationResult.Errors)
+        {
+            PrettyConsole.Error.WriteLine($"Configuration [red]error[/]: {error.Source}: {error.Message}");
+        }
+
+        return daemonConfigurationResult.Configuration;
+    }
+
+    internal static readonly string UnixSocketPath = DaemonConfig.UnixSocket;
+
     private static readonly HttpMessageHandler HttpClientHandler = new SocketsHttpHandler
     {
         ConnectCallback = async (_, ct) =>
         {
             var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP);
-            var endpoint = new UnixDomainSocketEndPoint(Configuration.HexusConfiguration.UnixSocket);
+            var endpoint = new UnixDomainSocketEndPoint(UnixSocketPath);
 
             await socket.ConnectAsync(endpoint, ct);
 
@@ -28,10 +49,7 @@ internal static class HttpInvocation
         },
     };
 
-    public static HttpClient HttpClient { get; } = new(HttpClientHandler)
-    {
-        BaseAddress = new Uri("http://hexus-socket"),
-    };
+    public static HttpClient HttpClient { get; } = new(HttpClientHandler) { BaseAddress = new Uri("http://hexus-socket"), };
 
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
@@ -46,7 +64,7 @@ internal static class HttpInvocation
 
     public static async Task<bool> CheckForRunningDaemon(CancellationToken ct)
     {
-        if (!File.Exists(Configuration.HexusConfiguration.UnixSocket))
+        if (!File.Exists(UnixSocketPath))
             return false;
 
         return await PrettyConsole.Out.Status()
@@ -63,7 +81,8 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.GetAsync(url, ct));
     }
 
-    public static async Task<HttpResponseMessage> GetAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpCompletionOption completionOption, CancellationToken ct)
+    public static async Task<HttpResponseMessage> GetAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpCompletionOption completionOption,
+        CancellationToken ct)
     {
         return await PrettyConsole.Out.Status()
             .Spinner(PrettyConsole.Spinner)
@@ -71,7 +90,8 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.GetAsync(url, completionOption, ct));
     }
 
-    public static async Task<HttpResponseMessage> PostAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content, CancellationToken ct)
+    public static async Task<HttpResponseMessage> PostAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content,
+        CancellationToken ct)
     {
         return await PrettyConsole.Out.Status()
             .Spinner(PrettyConsole.Spinner)
@@ -79,7 +99,8 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.PostAsync(url, content, ct));
     }
 
-    public static async Task<HttpResponseMessage> PostAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content, JsonSerializerContext context, CancellationToken ct)
+    public static async Task<HttpResponseMessage> PostAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content,
+        JsonSerializerContext context, CancellationToken ct)
     {
         var typeInfo = context.GetTypeInfo(typeof(T));
 
@@ -94,7 +115,8 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.PostAsJsonAsync(url, content, jsonTypeInfo, ct));
     }
 
-    public static async Task<HttpResponseMessage> PatchAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content, CancellationToken ct)
+    public static async Task<HttpResponseMessage> PatchAsync(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, HttpContent? content,
+        CancellationToken ct)
     {
         return await PrettyConsole.Out.Status()
             .Spinner(PrettyConsole.Spinner)
@@ -102,7 +124,8 @@ internal static class HttpInvocation
             .StartAsync(status, _ => HttpClient.PatchAsync(url, content, ct));
     }
 
-    public static async Task<HttpResponseMessage> PatchAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content, JsonSerializerContext context, CancellationToken ct)
+    public static async Task<HttpResponseMessage> PatchAsJsonAsync<T>(string status, [StringSyntax(StringSyntaxAttribute.Uri)] string url, T? content,
+        JsonSerializerContext context, CancellationToken ct)
     {
         var typeInfo = context.GetTypeInfo(typeof(T));
 
@@ -135,7 +158,7 @@ internal static class HttpInvocation
         {
             case { StatusCode: HttpStatusCode.BadRequest, Content.Headers.ContentType.MediaType: "application/problem+json" }:
                 {
-                    var problemDetails = await request.Content.ReadFromJsonAsync<HttpValidationProblemDetails>(JsonSerializerContext.HttpValidationProblemDetails, ct);
+                    var problemDetails = await request.Content.ReadFromJsonAsync(JsonSerializerContext.HttpValidationProblemDetails, ct);
 
                     Debug.Assert(problemDetails is not null);
 
@@ -145,7 +168,7 @@ internal static class HttpInvocation
                 }
             case { StatusCode: HttpStatusCode.BadRequest }:
                 {
-                    var error = await request.Content.ReadFromJsonAsync<GenericFailureResponse>(JsonSerializerContext.GenericFailureResponse, ct);
+                    var error = await request.Content.ReadFromJsonAsync(JsonSerializerContext.GenericFailureResponse, ct);
 
                     Debug.Assert(error is not null);
 
@@ -165,11 +188,11 @@ internal static class HttpInvocation
             default:
                 {
                     response = $"""
-                        Unknown error,
-                        HTTP status code: {request.StatusCode}
-                        Content-Type: {request.Content.Headers.ContentType?.MediaType}
-                        Body: {await request.Content.ReadAsStringAsync(ct)}
-                        """;
+                                Unknown error,
+                                HTTP status code: {request.StatusCode}
+                                Content-Type: {request.Content.Headers.ContentType?.MediaType}
+                                Body: {await request.Content.ReadAsStringAsync(ct)}
+                                """;
                     break;
                 }
         }
@@ -181,8 +204,13 @@ internal static class HttpInvocation
     {
         try
         {
-            // This in fact returns a 404, we only care to check if the daemon is running, so this is fine.
-            await HttpClient.GetAsync("/", ct);
+            var response = await HttpClient.GetAsync("/daemon/health", ct);
+
+            var healthResponse = await response.Content.ReadFromJsonAsync(JsonSerializerContext.ConfigurationProblems, ct);
+
+            Debug.Assert(healthResponse is not null);
+
+            LogConfigurationProblems(healthResponse);
 
             return true;
         }
@@ -191,4 +219,61 @@ internal static class HttpInvocation
             return false;
         }
     }
+
+    public static void LogConfigurationProblems(ConfigurationProblems problems)
+    {
+        if (!problems.Warnings.Any() && !problems.Errors.Any())
+        {
+            return;
+        }
+
+        PrettyConsole.Out.MarkupLine("The daemon reported the following [red]configuration problems[/]:");
+
+        foreach (var warning in problems.Warnings)
+        {
+            PrettyConsole.Out.MarkupLineInterpolated($"[yellow]Warning[/]: {warning.Source} - {warning.Message}");
+        }
+
+        foreach (var error in problems.Errors)
+        {
+            PrettyConsole.Out.MarkupLineInterpolated($"[red]Error[/]: {error.Source} - {error.Message}");
+        }
+
+        PrettyConsole.Out.WriteLine();
+    }
+
+    public static bool LogReloadResult(ReloadResult reloadResult)
+    {
+        if (reloadResult.Actions.Any())
+        {
+            PrettyConsole.Out.MarkupLine("Reload with the following actions:");
+            foreach (var action in reloadResult.Actions)
+            {
+                PrettyConsole.Out.MarkupLineInterpolated($" - [blue]{action}[/]");
+            }
+        }
+
+        if (reloadResult.Warnings.Any())
+        {
+            PrettyConsole.Out.MarkupLine("Reload completed with warnings:");
+            foreach (var warning in reloadResult.Warnings)
+            {
+                PrettyConsole.Out.MarkupLineInterpolated($" - [yellow]{warning.Source}[/]: {warning.Message}");
+            }
+        }
+
+        if (reloadResult.Errors.Any())
+        {
+            PrettyConsole.Error.MarkupLine("Reload completed with errors:");
+            foreach (var error in reloadResult.Errors)
+            {
+                PrettyConsole.Error.MarkupLineInterpolated($" - [red]{error.Source}[/]: {error.Message}");
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
 }

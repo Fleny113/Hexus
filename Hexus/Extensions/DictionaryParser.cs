@@ -1,4 +1,4 @@
-﻿using System.CommandLine.Parsing;
+using System.CommandLine.Parsing;
 
 namespace Hexus.Extensions;
 
@@ -9,7 +9,7 @@ public static class DictionaryParser
     public static Dictionary<string, string> Parse(ArgumentResult argumentResult)
     {
         if (argumentResult.Tokens.Count == 0)
-            return new Dictionary<string, string>();
+            return [];
 
         return argumentResult.Tokens
             .Select(token => token.Value.Split(StringKeyValuePair, 2))

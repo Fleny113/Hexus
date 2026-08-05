@@ -1,5 +1,5 @@
-﻿using EndpointMapper;
-using Hexus.Daemon.Configuration;
+using EndpointMapper;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -11,30 +11,18 @@ internal sealed class StopApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Delete, "/{name}")]
     public static Results<NoContent, NotFound, ValidationProblem> Handle(
+        [AsParameters] Parameters parameters,
         [FromServices] ProcessManagerService processManager,
-        [FromServices] ProcessStatisticsService processStatisticsService,
-        [FromServices] HexusConfigurationManager configurationManager,
-        [FromRoute] string name,
-        [FromQuery] bool forceStop = false)
+        [FromServices] HexusConfigurationManager configurationManager)
     {
-        if (!configurationManager.Configuration.Applications.TryGetValue(name, out var application))
-            return TypedResults.NotFound();
+        if (!configurationManager.Applications.TryGetValue(parameters.Name, out var application)) return TypedResults.NotFound();
 
-        var stop = processManager.StopApplication(application, forceStop);
-        var abort = processManager.AbortProcessRestart(application);
+        var stop = processManager.StopApplication(application, parameters.ForceStop);
 
-        if (stop)
-            processStatisticsService.StopTrackingApplicationUsage(application);
-
-        if (!stop && !abort)
-            return TypedResults.ValidationProblem(ErrorResponses.ApplicationNotRunning);
-
-        if (!stop && abort)
-        {
-            application.Status = HexusApplicationStatus.Exited;
-            configurationManager.SaveConfiguration();
-        }
+        if (!stop) return TypedResults.ValidationProblem(ErrorResponses.ApplicationNotRunning);
 
         return TypedResults.NoContent();
     }
+
+    public record Parameters([FromRoute] string Name, [FromQuery] bool ForceStop = false);
 }

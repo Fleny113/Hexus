@@ -1,5 +1,5 @@
-﻿using EndpointMapper;
-using Hexus.Daemon.Configuration;
+using EndpointMapper;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Contracts.Responses;
 using Hexus.Daemon.Extensions;
@@ -13,26 +13,17 @@ internal sealed class StartApplicationEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Post, "/{name}")]
     public static Results<NoContent, NotFound, ValidationProblem, BadRequest<GenericFailureResponse>> Handle(
-        [FromRoute] string name,
         [FromServices] ProcessManagerService processManager,
-        [FromServices] ProcessStatisticsService processStatisticsService,
-        [FromServices] HexusConfiguration configuration)
+        [FromServices] HexusConfigurationManager configuration,
+        [FromRoute] string name)
     {
-        if (!configuration.Applications.TryGetValue(name, out var application))
-            return TypedResults.NotFound();
+        if (!configuration.Applications.TryGetValue(name, out var application)) return TypedResults.NotFound();
 
-        if (processManager.IsApplicationRunning(application, out _))
-            return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyRunning);
-
-        processStatisticsService.TrackApplicationUsages(application);
+        if (processManager.IsApplicationProcessRunning(application, out _, out _)) return TypedResults.ValidationProblem(ErrorResponses.ApplicationAlreadyRunning);
 
         var startError = processManager.StartApplication(application);
 
-        if (startError is not null)
-        {
-            processStatisticsService.StopTrackingApplicationUsage(application);
-            return TypedResults.BadRequest(new GenericFailureResponse(startError.Value.MapToErrorString()));
-        }
+        if (startError is not null) return TypedResults.BadRequest(new GenericFailureResponse(startError.Value.MapToErrorString()));
 
         return TypedResults.NoContent();
     }

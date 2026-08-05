@@ -1,5 +1,5 @@
 using EndpointMapper;
-using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
 using Hexus.Daemon.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -15,7 +15,7 @@ internal sealed class GetLogsEndpoint : IEndpoint
 {
     [HttpMap(HttpMapMethod.Get, "/{name}/logs")]
     public static async Task<Results<NotFound, JsonArrayStreamResult<ApplicationLog>>> Handle(
-        [FromServices] HexusConfiguration configuration,
+        [FromServices] HexusConfigurationManager configuration,
         [FromServices] ProcessLogsService processLogsService,
         [FromServices] IHostApplicationLifetime hostLifetime,
         [FromRoute] string name,

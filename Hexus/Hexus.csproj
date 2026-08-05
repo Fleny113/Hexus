@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -19,10 +19,12 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="System.CommandLine" Version="2.0.10" />
+        <PackageReference Include="YamlDotNet" Version="18.1.0" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Hexus.Daemon\Hexus.Daemon.csproj" />
+        <ProjectReference Include="..\Hexus.Configuration\Hexus.Configuration.csproj" />
     </ItemGroup>
 
 </Project>

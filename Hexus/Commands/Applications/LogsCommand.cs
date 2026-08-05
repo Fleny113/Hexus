@@ -1,6 +1,5 @@
-using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
 using Hexus.Daemon.Contracts;
-using Hexus.Daemon.Services;
 using Spectre.Console;
 using System.Buffers;
 using System.CommandLine;
@@ -121,7 +120,7 @@ internal static class LogsCommand
 
         var lines = linesOption == -1 ? int.MaxValue : linesOption;
 
-        var logFileName = $"{EnvironmentHelper.ApplicationLogsDirectory}/{name}.log";
+        var logFileName = $"{HexusPaths.ApplicationLogsDirectory}/{name}.log";
 
         if (!File.Exists(logFileName))
         {
@@ -296,7 +295,7 @@ internal static class LogsCommand
             lineOffset = -1;
 
             // We only wanted the current execution, and we found an application started notice. We should now stop.
-            if (currentExecution && appLog is { LogType: LogType.SYSTEM, Text: ProcessLogsService.ApplicationStartedLog })
+            if (currentExecution && appLog is { LogType: LogType.SYSTEM, Text: ApplicationLog.ApplicationStartedLog })
             {
                 break;
             }

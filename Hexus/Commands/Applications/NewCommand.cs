@@ -1,8 +1,9 @@
-using Hexus.Daemon.Contracts.Requests;
+using Hexus.Configuration;
 using Hexus.Extensions;
 using Spectre.Console;
-using System.Collections;
 using System.CommandLine;
+using System.Net.Http.Json;
+using Tomlyn;
 
 namespace Hexus.Commands.Applications;
 
@@ -26,32 +27,25 @@ internal static class NewCommand
         DefaultValueFactory = _ => [],
     };
 
-    private static readonly Option<string> WorkingDirectoryOption = new("--working-directory", "-w")
+    private static readonly Option<string> WorkingDirOption = new("--working-dir", "-w")
     {
         Description = "Set the current working directory for the application, defaults to the current folder",
+        DefaultValueFactory = _ => Environment.CurrentDirectory,
     };
 
-    private static readonly Option<string?> NoteOption = new("--note", "-n")
+    private static readonly Option<bool> NotEnabledOption = new("--no-enable")
     {
-        Description = "Set an optional note for this application",
+        Description = "Default the application to not be enabled.",
+        DefaultValueFactory = _ => false,
     };
 
-    private static readonly Option<bool> DoNotUseShellEnvironment = new("--do-not-use-shell-env")
+    private static readonly Option<Dictionary<string, string>> EnvironmentVariables = new("-e", "--env")
     {
-        Description = "Don't use the current shell environment for the application",
-    };
-
-    private static readonly Option<Dictionary<string, string>> EnvironmentVariables = new("-e", "--environment")
-    {
-        Description = "Add an environment variable for the application, format: 'key:value' or 'key=value'",
+        Description = "Add a environment variables for the application, can be used multiple times. Format: 'key:value' or 'key=value'",
         Arity = ArgumentArity.OneOrMore,
         AllowMultipleArgumentsPerToken = true,
         CustomParser = DictionaryParser.Parse,
-    };
-
-    private static readonly Option<long?> MemoryLimit = new("-m", "--memory-limit")
-    {
-        Description = "Set a memory limit for the application in bytes. If the application exceeds this limit, it will be restarted",
+        DefaultValueFactory = _ => [],
     };
 
     public static readonly Command Command = new("new", "Create a new application")
@@ -59,11 +53,9 @@ internal static class NewCommand
         NameArgument,
         ExecutableArgument,
         ArgumentsArgument,
-        NoteOption,
-        WorkingDirectoryOption,
-        DoNotUseShellEnvironment,
+        WorkingDirOption,
+        NotEnabledOption,
         EnvironmentVariables,
-        MemoryLimit,
     };
 
     static NewCommand()
@@ -76,44 +68,96 @@ internal static class NewCommand
         var name = parseResult.GetRequiredValue(NameArgument);
         var executable = parseResult.GetRequiredValue(ExecutableArgument);
         var arguments = string.Join(' ', parseResult.GetRequiredValue(ArgumentsArgument));
-        var note = parseResult.GetValue(NoteOption);
-        var workingDirectory = parseResult.GetValue(WorkingDirectoryOption);
-        var useShellEnv = !parseResult.GetValue(DoNotUseShellEnvironment);
-        var environmentVariables = parseResult.GetValue(EnvironmentVariables) ?? [];
-        var memoryLimit = parseResult.GetValue(MemoryLimit);
+        var workingDirectory = Path.GetFullPath(parseResult.GetRequiredValue(WorkingDirOption));
+        var enabled = !parseResult.GetRequiredValue(NotEnabledOption);
+        var environmentVariables = parseResult.GetRequiredValue(EnvironmentVariables);
 
-        if (!await HttpInvocation.CheckForRunningDaemon(ct))
+        HexusPaths.EnsureDirectoriesExistence();
+        var configFile = Path.Combine(HexusPaths.ApplicationsConfigDirectory, $"{name}.toml");
+
+        if (File.Exists(configFile))
         {
-            PrettyConsole.Error.MarkupLine(PrettyConsole.DaemonNotRunningError);
+            PrettyConsole.Error.MarkupLineInterpolated($"Application \"{name}\" already exists. Please delete it first if you want to create a new one.");
             return 1;
-        }
-
-        workingDirectory ??= Environment.CurrentDirectory;
-        workingDirectory = Path.GetFullPath(workingDirectory);
-
-        if (useShellEnv)
-        {
-            foreach (var env in Environment.GetEnvironmentVariables())
-            {
-                if (env is not DictionaryEntry dictEntry)
-                    continue;
-
-                var key = (string)dictEntry.Key;
-                var value = (string?)dictEntry.Value;
-
-                if (value is null)
-                    continue;
-
-                environmentVariables.TryAdd(key, value);
-            }
         }
 
         executable = Path.IsPathFullyQualified(executable)
             ? Path.GetFullPath(executable)
             : PathHelper.ResolveExecutable(executable);
 
-        // Python will not send the logs due to buffering the stdout/stderr, since this can look like a bug in Hexus we warn the user
+        LogPythonWarnIfNecessary(executable, environmentVariables);
 
+        var config = new ApplicationConfiguration.ApplicationConfigurationRaw
+        {
+            Exe = executable,
+            Args = string.IsNullOrWhiteSpace(arguments) ? null : arguments,
+            WorkingDir = workingDirectory,
+            Enabled = enabled,
+            Env = environmentVariables,
+        };
+
+        {
+            await using var fileStream = File.OpenWrite(configFile);
+
+            {
+                using var writer = new StreamWriter(fileStream, leaveOpen: true);
+
+                writer.WriteLine("""
+                    # This is a Hexus application configuration file.
+                    # For more information about the configuration options, see: https://github.com/Fleny113/Hexus#applicationsnametoml
+
+                    """);
+            }
+
+            TomlSerializer.Serialize(fileStream, config, ConfigurationSerializerContext.Default.ApplicationConfigurationRaw);
+        }
+
+        PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [palegreen3]created[/]!");
+
+        var confirm = await PrettyConsole.Out.ConfirmAsync("Do you want to edit the application configuration now?", false, ct);
+
+        if (confirm)
+        {
+            await EditCommand.EditConfiguration(name, ct);
+        }
+
+        var actOnDaemon = await HttpInvocation.CheckForRunningDaemon(ct) &&
+                          await PrettyConsole.Out.ConfirmAsync("The daemon is running. Do you want to reload the application now?", true, ct);
+
+        if (!actOnDaemon)
+        {
+            return 0;
+        }
+
+        PrettyConsole.Out.WriteLine();
+        PrettyConsole.Out.WriteLine("Reloading the daemon configuration to apply the changes...");
+
+        var restartRequest = await HttpInvocation.PostAsJsonAsync<string[]>(
+            "Reloading config for the created app", "/daemon/reload", [name],
+            HttpInvocation.JsonSerializerContext, ct);
+
+        if (!restartRequest.IsSuccessStatusCode)
+        {
+            await HttpInvocation.HandleFailedHttpRequestLogging(restartRequest, ct);
+            return 1;
+        }
+
+        var reloadResult = await restartRequest.Content.ReadFromJsonAsync(HttpInvocation.JsonSerializerContext.ReloadResult, ct);
+
+        if (reloadResult is null)
+        {
+            PrettyConsole.Error.MarkupLine("Failed to parse the reload result.");
+            return 1;
+        }
+
+        return HttpInvocation.LogReloadResult(reloadResult) ? 1 : 0;
+    }
+
+    private static void LogPythonWarnIfNecessary(string executable, Dictionary<string, string> environmentVariables)
+    {
+        // TODO: Check if implementing PTYs removes the need for stuff like this
+
+        // Python will not send the logs due to buffering the stdout/stderr, since this can look like a bug in Hexus we warn the user
         var fileName = Path.GetFileName(executable);
 
         // This check can cause false positivies it the exe is not python but starts with "py"
@@ -123,46 +167,22 @@ internal static class NewCommand
         var isPython = fileName.StartsWith("py");
 
         // This only checks for PYTHONUNBUFFERED, checking for -u would be problematic and would require parsing the arguments, something we do not want to do
-        var isPyStdoutUnbuffered = environmentVariables.TryGetValue("PYTHONUNBUFFERED", out var pyUnbuffered) && pyUnbuffered.Length > 0;
+        var isPyStdoutUnbuffered = environmentVariables.GetValueOrDefault("PYTHONUNBUFFERED") is { Length: > 0 };
 
-        if (isPython && !isPyStdoutUnbuffered)
+        if (!isPython || isPyStdoutUnbuffered)
         {
-            PrettyConsole.Error.MarkupLine("""
-                [yellow1]Warning[/]: A python executable was detected. Hexus will not be able to get the output of the program without the '-u' flag or 'PTYHONUNBUFFERED' environment variable. If you are actually running Python, consider using either solution.
-
-                Python documentation for those options: [link]https://docs.python.org/3/using/cmdline.html#cmdoption-u[/]
-
-                [italic]Due to limitations, if you are using the '-u' flag, Hexus will still show this warning. You can ignore it if you are using the '-u' flag.[/]
-
-                If you are not using Python, you can ignore this warning.
-
-                """);
+            return;
         }
 
-        var newRequest = await HttpInvocation.PostAsJsonAsync(
-            "Creating new application",
-            "/new",
-            new NewApplicationRequest(
-                name,
-                executable,
-                arguments,
-                workingDirectory,
-                note ?? "",
-                environmentVariables,
-                memoryLimit
-            ),
-            HttpInvocation.JsonSerializerContext,
-            ct
-        );
+        PrettyConsole.Error.MarkupLine("""
+            [yellow1]Warning[/]: A python executable was detected. Hexus will not be able to get the output of the program without the '-u' flag or 'PTYHONUNBUFFERED' environment variable. If you are actually running Python, consider using either solution.
 
-        if (!newRequest.IsSuccessStatusCode)
-        {
-            await HttpInvocation.HandleFailedHttpRequestLogging(newRequest, ct);
-            return 1;
-        }
+            Python documentation for those options: [link]https://docs.python.org/3/using/cmdline.html#cmdoption-u[/]
 
-        PrettyConsole.Out.MarkupLineInterpolated($"Application \"{name}\" [palegreen3]created[/]!");
+            [italic]Due to limitations, if you are using the '-u' flag, Hexus will still show this warning. You can ignore it if you are using the '-u' flag.[/]
 
-        return 0;
+            If you are not using Python, you can ignore this warning.
+
+            """);
     }
 }

@@ -1,54 +1,47 @@
-﻿using Hexus.Daemon.Configuration;
+using Hexus.Configuration;
+using Hexus.Daemon.Contracts;
 
 namespace Hexus.Daemon.Services;
 
 internal sealed class HexusLifecycle(
     HexusConfigurationManager configManager,
     ProcessManagerService processManager,
-    ProcessLogsService processLogsService,
-    ProcessStatisticsService processStatisticsService) : IHostedLifecycleService
+    StateManagerService stateManagerService) : IHostedService, IConfigRelodable
 {
-    public Task StartedAsync(CancellationToken cancellationToken)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
-        foreach (var application in configManager.Configuration.Applications.Values)
+        foreach (var application in configManager.Applications.Values)
         {
-            processLogsService.RegisterApplication(application);
+            var persistantState = stateManagerService.LoadApplicationState(application);
 
-            // If the application was Running or Restarting we want to start it
-            if (application.Status is not (HexusApplicationStatus.Running or HexusApplicationStatus.Restarting)) continue;
+            if (!application.Enabled || persistantState?.Crashed is true) continue;
 
-            processStatisticsService.TrackApplicationUsages(application);
             processManager.StartApplication(application);
         }
 
         return Task.CompletedTask;
     }
 
-    public Task StoppedAsync(CancellationToken cancellationToken)
-    {
-        StopApplications(processManager);
-        foreach (var application in configManager.Configuration.Applications.Values)
-        {
-            processStatisticsService.StopTrackingApplicationUsage(application);
-        }
-
-        return Task.CompletedTask;
-    }
-
-    public Task StartingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task StoppingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    internal static void StopApplications(ProcessManagerService processManagerService)
+    public ReloadResult ReloadConfiguration(ConfigurationDiff diff)
     {
-        // We need to make sure where are only 1 call to this in parallel
-        // Else we might try to stop applications that are exiting
-        lock (processManagerService)
+        List<ConfigurationNotice> warnings = [];
+
+        if (diff.OldConfiguration.HttpPort != diff.NewConfiguration.HttpPort)
         {
-            processManagerService.StopApplications();
+            warnings.Add(new ConfigurationNotice(
+                $"The HTTP port has changed from {diff.OldConfiguration.HttpPort} to {diff.NewConfiguration.HttpPort}. The change will not take effect until the daemon is restarted.",
+                "Hexus Daemon"));
         }
+
+        if (diff.OldConfiguration.UnixSocket != diff.NewConfiguration.UnixSocket)
+        {
+            warnings.Add(new ConfigurationNotice(
+                $"The Unix socket path has changed from {diff.OldConfiguration.UnixSocket} to {diff.NewConfiguration.UnixSocket}. The change will not take effect until the daemon is restarted.",
+                "Hexus Daemon"));
+        }
+
+        return new ReloadResult([], warnings, []);
     }
 }
