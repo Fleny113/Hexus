@@ -5,6 +5,7 @@ using Hexus.Daemon.Interop;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using Windows.Win32.System.Console;
 
 namespace Hexus.Daemon.Services;
@@ -33,6 +34,7 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true,
+            StartDetached = true,
             // We need to disable the UTF8 BOM or else applications will have a `EF BB BF` byte sequence at the start of the input and output
             StandardOutputEncoding = ProcessLogsService.Utf8EncodingWithoutBom,
             StandardErrorEncoding = ProcessLogsService.Utf8EncodingWithoutBom,
@@ -328,13 +330,10 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
             return;
         }
 
-        // SendSignal can send -1 if the UNIX kill call returns an error or if the windows interop errors out at any point
-        var code = ProcessSignals.SendSignal(process.Id, WindowsCtrlType.CtrlC, UnixSignal.SigInt);
-
         try
         {
             // If in 30 seconds the process doesn't get killed (it has handled the SIGINT signal and not exited) then force stop it
-            if (code is 0 && process.WaitForExit(TimeSpan.FromSeconds(30)))
+            if (process.SendSignal(WindowsCtrlType.CtrlC, PosixSignal.SIGINT) && process.WaitForExit(TimeSpan.FromSeconds(30)))
                 return;
 
             process.Kill(true);
