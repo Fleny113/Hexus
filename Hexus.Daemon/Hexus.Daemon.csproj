@@ -13,7 +13,7 @@
 
         <PackageReference Include="EndpointMapper" Version="3.0.0-prerelease.2" />
         <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.10" />
-        <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.10" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.11" />
         <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.298">
           <!-- Workaround for: https://github.com/dotnet/sdk/issues/29974: we can't use all as it won't publish the hexusd.deps.json. We are still specifying all assets -->
           <PrivateAssets>compile; runtime; contentFiles; build; buildTransitive; analyzers; native</PrivateAssets>
