@@ -161,7 +161,7 @@ internal static class LogsCommand
                 PrettyConsole.OutLimitlessWidth.MarkupLine(GetLogLine(log, timeZoneInfo, !noDates));
             }
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
             // Silently ignore this exception.
         }
