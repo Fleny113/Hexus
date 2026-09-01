@@ -400,6 +400,7 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
             LogCrashedApplication(_logger, state.Configuration.Name, state.RestartCount, ResetTimeWindow);
 
             state.ClearRestartsTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            state.RestartCount = 0;
 
             state.Status = ApplicationStatus.Crashed;
 
