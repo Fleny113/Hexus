@@ -17,7 +17,10 @@ internal sealed class ProcessStatisticsService(ProcessManagerService processMana
 
         if (!ProcessManagerService.IsApplicationProcessRunning(state, out var process))
         {
-            return new ApplicationStatistics();
+            return new ApplicationStatistics()
+            {
+                Status = state.Status,
+            };
         }
 
         // If an application is running, but doesn't have a cpu stats it means we haven't refreshed since it started
