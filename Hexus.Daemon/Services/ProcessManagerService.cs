@@ -118,10 +118,14 @@ internal partial class ProcessManagerService(ILoggerFactory loggerFactory, Proce
 
     internal ApplicationState GetApplicationState(ApplicationConfiguration application)
     {
-        var state = _applicationProcessStates.GetOrCreate(application, app => new ApplicationState { Configuration = app });
+        if (TryGetApplicationStateIfExists(application, out var state))
+            return state;
+
+        state = new ApplicationState { Configuration = application };
         var persistantState = stateManagerService.LoadApplicationState(application);
 
         persistantState?.ApplyTo(state);
+        _applicationProcessStates.Add(application, state);
 
         return state;
     }
