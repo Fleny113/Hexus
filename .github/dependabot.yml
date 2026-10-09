@@ -9,7 +9,13 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      ci:
+        patterns: ['*']
   - package-ecosystem: "nuget"
     directory: "/" # Location of package manifests
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    groups:
+      nuget:
+        patterns: ['*']
